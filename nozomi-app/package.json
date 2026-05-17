@@ -3,10 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --host",
     "dev:host": "vite --host",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc -p tsconfig.build.json --noEmit && vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
     "test:watch": "vitest",

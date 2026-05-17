@@ -6,7 +6,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { devNetworkUrlsPlugin } from './plugins/devNetworkUrls'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -18,7 +18,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    basicSsl(),
+    ...(command === 'serve' ? [basicSsl()] : []),
     devNetworkUrlsPlugin(),
     react(),
     tailwindcss(),
@@ -89,4 +89,4 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
   },
-})
+}))

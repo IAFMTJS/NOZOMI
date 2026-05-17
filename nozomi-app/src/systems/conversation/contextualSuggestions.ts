@@ -208,7 +208,7 @@ async function pickFromDatabase(
 function lexiconAsSuggestions(
   topic: string,
   level: JlptLevel,
-  hintText: string,
+  _hintText: string,
   excludeJp: string,
   count: number,
 ): Suggestion[] {

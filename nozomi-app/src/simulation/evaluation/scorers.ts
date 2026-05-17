@@ -63,7 +63,7 @@ export function scoreContinuation(
 export function scoreTurn(
   response: EngineResponse,
   userInput: string,
-  userLevel: JlptLevel,
+  _userLevel: JlptLevel,
   userEmotion: EmotionalState,
   priorTopic?: string,
   suggestionScore = 0.5,

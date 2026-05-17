@@ -239,7 +239,8 @@ export const useNozomiStore = create<NozomiState>()(
       name: 'nozomi-storage',
       version: 7,
       storage: createJSONStorage(() => createDebouncedPersistStorage()),
-      onRehydrateStorageError: () => {
+      onRehydrateStorage: () => (_state, error) => {
+        if (!error) return
         try {
           localStorage.removeItem('nozomi-storage')
         } catch {

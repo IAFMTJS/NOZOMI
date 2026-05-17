@@ -26,9 +26,11 @@ npm run dev:host      # LAN access for mobile testing
 
 ## Deploy (Vercel)
 
-1. Import repo, set root directory to `nozomi-app`
-2. Build: `npm run build`, output: `dist`
-3. `vercel.json` handles SPA routing
+Import the GitHub repo on [Vercel](https://vercel.com/new). No extra settings are required: the repo-root `vercel.json` installs and builds `nozomi-app/`, serves `nozomi-app/dist`, rewrites all routes to the SPA, and sets COOP/COEP headers for threaded WASM (offline STT).
+
+If you prefer a project rooted in `nozomi-app`, use that folder as the root directory instead; `nozomi-app/vercel.json` has the same routing and headers.
+
+Node **20+** (see `.nvmrc`). Build command: `npm run build`.
 
 ## Project structure
 
