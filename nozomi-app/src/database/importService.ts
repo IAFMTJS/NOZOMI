@@ -17,7 +17,7 @@ import type {
 } from '@/types/domain'
 
 const DATA_VERSION_KEY = 'dataVersion'
-const CURRENT_DATA_VERSION = '6'
+const CURRENT_DATA_VERSION = '8'
 
 let extendedLoaded = false
 let lexiconLoadPromise: Promise<void> | null = null
@@ -289,6 +289,24 @@ export async function getStoryByCategory(
     .toArray()
   if (!stories.length) return undefined
   return stories[Math.floor(Math.random() * stories.length)]
+}
+
+/** Pick any story when topic has no match (voice story mode fallback). */
+export async function getAnyStory(): Promise<Story | undefined> {
+  await ensureExtendedDataLoaded()
+  const count = await db.stories.count()
+  if (!count) return undefined
+  const offset = Math.floor(Math.random() * count)
+  const story = await db.stories.offset(offset).first()
+  return story ?? undefined
+}
+
+export async function getStoryForTopic(topic: string): Promise<Story | undefined> {
+  return (
+    (await getStoryByCategory(topic)) ??
+    (await getStoryByCategory('daily')) ??
+    (await getAnyStory())
+  )
 }
 
 export async function getFirstBeatForStory(

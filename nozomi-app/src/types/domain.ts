@@ -121,8 +121,6 @@ export interface UserProfile {
   jlptLevel: JlptLevel
   immersionLevel: ImmersionLevel
   personalityMode: PersonalityMode
-  xp: number
-  streakDays: number
   onboardingComplete: boolean
 }
 
@@ -172,6 +170,8 @@ export interface AppSettings {
   suggestionCount: number
   staticOrb: boolean
   favoriteVocabIds: number[]
+  /** Voice orb: guided story beats instead of free conversation */
+  voiceStoryMode: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -188,6 +188,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   suggestionCount: 3,
   staticOrb: false,
   favoriteVocabIds: [],
+  voiceStoryMode: false,
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
@@ -196,7 +197,5 @@ export const DEFAULT_PROFILE: UserProfile = {
   jlptLevel: 'N5',
   immersionLevel: 'beginner',
   personalityMode: 'calm',
-  xp: 0,
-  streakDays: 0,
-  onboardingComplete: true,
+  onboardingComplete: false,
 }

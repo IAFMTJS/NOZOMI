@@ -4,11 +4,26 @@ import { AppHeader } from '@/components/ui/AppHeader'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { cancelListening, stopSpeaking } from '@/systems/speech/speechService'
 import { getSttEngine, setSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
 import { SPEECH_LANG_OPTIONS } from '@/data/speech-lang-options'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
-import type { ImmersionLevel, LanguageText as LT } from '@/types/domain'
+import type {
+  ImmersionLevel,
+  JlptLevel,
+  LanguageText as LT,
+  PersonalityMode,
+} from '@/types/domain'
 import { BTN_ROW } from '@/utils/touch'
+
+const JLPT_LEVELS: JlptLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1']
+
+const PERSONALITY_MODES: { key: PersonalityMode; label: LT }[] = [
+  { key: 'calm', label: UI_LABELS.toneCalm },
+  { key: 'supportive', label: UI_LABELS.toneSupportive },
+  { key: 'playful', label: UI_LABELS.tonePlayful },
+  { key: 'teacher', label: UI_LABELS.toneTeacher },
+]
 
 const STT_ENGINES: { key: SttEngine; label: LT }[] = [
   { key: 'local', label: UI_LABELS.sttEngineLocal },
@@ -38,9 +53,62 @@ export function SettingsPage() {
       <AppHeader showBack titleKey="settings" hideSettings />
       <main className="app-page-scroll space-y-4 px-4 py-6">
         <section className="space-y-2">
-          <p className="section-label px-1">
-            {UI_LABELS.chooseLevel.en}
-          </p>
+          <LanguageText text={UI_LABELS.displayName} size="sm" />
+          <input
+            type="text"
+            value={profile.displayName === 'Learner' ? '' : profile.displayName}
+            placeholder={UI_LABELS.displayName.en}
+            onChange={(e) =>
+              setProfile({
+                displayName: e.target.value.trim() || 'Learner',
+              })
+            }
+            className="w-full rounded-xl border border-white/10 bg-nozomi-bg-elevated px-4 py-3 text-base text-nozomi-text outline-none focus:border-nozomi-accent/50"
+          />
+        </section>
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.chooseJlpt} size="sm" />
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {JLPT_LEVELS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setProfile({ jlptLevel: key })}
+                className={`${BTN_ROW} shrink-0 px-4 ${
+                  profile.jlptLevel === key
+                    ? 'border-nozomi-accent ring-1 ring-nozomi-accent/50'
+                    : ''
+                }`}
+              >
+                <span className="font-medium">{key}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.chooseTone} size="sm" />
+          <div className="grid grid-cols-2 gap-2">
+            {PERSONALITY_MODES.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setProfile({ personalityMode: key })}
+                className={`${BTN_ROW} ${
+                  profile.personalityMode === key
+                    ? 'border-nozomi-accent ring-1 ring-nozomi-accent/50'
+                    : ''
+                }`}
+              >
+                <LanguageText text={label} size="sm" align="center" passive />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <p className="section-label px-1">{UI_LABELS.chooseLevel.jp}</p>
           <div className="grid grid-cols-3 gap-2">
             {IMMERSION_LEVELS.map(({ key, label }) => (
               <button
@@ -211,6 +279,8 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => {
+            cancelListening()
+            stopSpeaking()
             clearSession()
             navigate('/chat')
           }}
@@ -232,6 +302,21 @@ export function SettingsPage() {
           className={`${BTN_ROW} glass-panel w-full text-left`}
         >
           <LanguageText text={UI_LABELS.words} size="sm" passive />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/simulation')}
+          className={`${BTN_ROW} glass-panel w-full text-left`}
+        >
+          <LanguageText
+            text={{
+              jp: 'シミュレーション',
+              romaji: 'Shimyureeshon',
+              en: 'Simulation Lab',
+            }}
+            size="sm"
+            passive
+          />
         </button>
       </main>
     </div>

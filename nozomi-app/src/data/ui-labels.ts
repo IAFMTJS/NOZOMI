@@ -26,13 +26,21 @@ export type UiLabelKey =
   | 'onboardingWelcome'
   | 'onboardingDesc'
   | 'chooseLevel'
+  | 'chooseJlpt'
   | 'chooseTone'
+  | 'displayName'
+  | 'statusPreparing'
+  | 'statusSpeaking'
   | 'beginner'
   | 'intermediate'
   | 'advanced'
   | 'startChat'
   | 'micDenied'
   | 'micDeniedEn'
+  | 'micBusy'
+  | 'micNoDevice'
+  | 'micModelFailed'
+  | 'micStartFailed'
   | 'micNetwork'
   | 'micNeedsHttps'
   | 'micRetry'
@@ -72,6 +80,7 @@ export type UiLabelKey =
   | 'toneTeacher'
   | 'tapForTranslation'
   | 'storyProgress'
+  | 'storyMode'
   | 'loading'
   | 'chooseInput'
   | 'inputVoice'
@@ -173,6 +182,26 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     romaji: 'Reberu wo erabu',
     en: 'Choose your level',
   },
+  chooseJlpt: {
+    jp: '日本語のレベル',
+    romaji: 'Nihongo no reberu',
+    en: 'Your Japanese level',
+  },
+  displayName: {
+    jp: '名前（任意）',
+    romaji: 'Namae (ninii)',
+    en: 'Name (optional)',
+  },
+  statusPreparing: {
+    jp: '準備中…',
+    romaji: 'Junbi chuu…',
+    en: 'Preparing…',
+  },
+  statusSpeaking: {
+    jp: '話しています…',
+    romaji: 'Hanashite imasu…',
+    en: 'Speaking…',
+  },
   chooseTone: {
     jp: 'トーンを選ぶ',
     romaji: 'Toon wo erabu',
@@ -195,6 +224,26 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     jp: 'マイクの許可を確認するか、文字入力を使ってください。',
     romaji: 'Maiku no kyoka wo kakunin suru ka, moji nyuuryoku wo tsukatte kudasai.',
     en: 'Please allow microphone access or use text input.',
+  },
+  micBusy: {
+    jp: 'マイクが他のアプリで使われているか、直前に解放されました。ほかのアプリを閉じて、もう一度試してください。',
+    romaji: 'Maiku ga hoka no apuri de tsukawarete iru ka, chokkuzen ni kaihou saremashita.',
+    en: 'The mic may be in use by another app, or still releasing. Close other apps using the mic and try again.',
+  },
+  micNoDevice: {
+    jp: '入力デバイスが見つかりません。マイクを接続するか、設定で入力デバイスを選び直してください。',
+    romaji: 'Nyuuryoku debaisu ga mitsukarimasen.',
+    en: 'No input device found. Plug in a microphone or pick an input device in system settings.',
+  },
+  micModelFailed: {
+    jp: '音声モデルの読み込みに失敗しました。インターネット接続を確認するか、設定で「ブラウザ標準」の音声認識に切り替えてください。',
+    romaji: 'Onsei moderu no yomikomi ni shippai shimashita.',
+    en: 'Could not load the speech model. Check your internet connection, or switch to Browser speech in Settings.',
+  },
+  micStartFailed: {
+    jp: '音声認識を開始できませんでした。もう一度試すか、設定で音声認識エンジンを切り替えてください。',
+    romaji: 'Onsei ninshiki wo kaishi dekimasen deshita.',
+    en: 'Could not start speech recognition. Try again or switch the speech engine in Settings.',
   },
   micNetwork: {
     jp: '音声認識にはインターネット接続が必要です（ChromeまたはEdge）。',
@@ -402,6 +451,11 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     en: 'Tap for translation',
   },
   storyProgress: {
+    jp: 'ストーリー',
+    romaji: 'Sutoorii',
+    en: 'Story',
+  },
+  storyMode: {
     jp: 'ストーリー',
     romaji: 'Sutoorii',
     en: 'Story',

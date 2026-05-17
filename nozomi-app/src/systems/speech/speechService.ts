@@ -1,5 +1,6 @@
 import type { SpeechState } from '@/types/domain'
 import {
+  beginMicRecording,
   cancelMicSession,
   startMicSession,
   stopMicSession,
@@ -11,7 +12,13 @@ import {
   transcribeAudioBlob,
   whenOfflineSttReady,
 } from '@/systems/speech/offlineStt'
-import { getSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
+import {
+  browserSttAvailable,
+  clearSessionSttEngine,
+  getSttEngine,
+  setSessionSttEngine,
+  type SttEngine,
+} from '@/systems/speech/sttEngine'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 
@@ -69,6 +76,22 @@ let signalSpeechStart = false
 let activeSttEngine: SttEngine = 'local'
 let activeListenLang = 'en-US'
 let finalizeWatchdogTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Serializes Whisper transcribe jobs so a new listen turn cannot overlap on mobile. */
+let sttWorkTail: Promise<void> = Promise.resolve()
+
+export function whenSttWorkIdle(): Promise<void> {
+  return sttWorkTail
+}
+
+function enqueueSttWork<T>(fn: () => Promise<T>): Promise<T> {
+  const run = sttWorkTail.then(fn, fn)
+  sttWorkTail = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
 
 export function getListenSignals(): {
   audioStart: boolean
@@ -206,6 +229,36 @@ export function speechSupported(): {
     tts: 'speechSynthesis' in window,
     needsHttps: canStt && micNeedsSecureContext(),
   }
+}
+
+export function micErrorFromUnknown(err: unknown): SpeechError {
+  if (err instanceof DOMException) {
+    switch (err.name) {
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+        return {
+          code: 'not-allowed',
+          message: 'Microphone permission denied',
+        }
+      case 'NotFoundError':
+        return {
+          code: 'no-device',
+          message: 'No microphone device found',
+        }
+      case 'NotReadableError':
+      case 'AbortError':
+        return {
+          code: 'busy',
+          message: 'Microphone is in use by another app or could not be opened',
+        }
+      default:
+        break
+    }
+  }
+  if (err instanceof Error && err.message.trim()) {
+    return { code: 'unknown', message: err.message }
+  }
+  return { code: 'unknown', message: 'Microphone could not be opened' }
 }
 
 function mapSpeechError(code: string): SpeechError {
@@ -390,6 +443,7 @@ function scheduleFinalizeCommit(sessionGen: number, attempt = 0): void {
 
   if (attempt >= 15) {
     voiceDebugWarn('stt:finalize-gave-up', { attempt, ...getSttDebugState() })
+    dispatch('onResult', '')
     return
   }
 
@@ -414,7 +468,9 @@ function runRecordedFinalize(generation: number): void {
       dispatch('onResult', '')
       return
     }
-    const text = await transcribeAudioBlob(blob, activeListenLang)
+    const text = await enqueueSttWork(() =>
+      transcribeAudioBlob(blob, activeListenLang),
+    )
     if (listenGeneration !== generation || !listenSession || listenSession.gotResult) {
       return
     }
@@ -427,7 +483,29 @@ function runRecordedFinalize(generation: number): void {
   })
 }
 
+function tryBrowserSttFallback(
+  callbacks: SpeechCallbacks,
+  options: StartListeningOptions,
+  reason: string,
+): boolean {
+  if (!browserSttAvailable()) return false
+  voiceDebugWarn('stt:fallback-browser', { reason: reason.slice(0, 240) })
+  setSessionSttEngine('browser')
+  cancelListening()
+  startBrowserListening(callbacks, options)
+  return true
+}
+
 function startRecordedListening(
+  callbacks: SpeechCallbacks,
+  options: StartListeningOptions = {},
+): void {
+  void whenSttWorkIdle().then(() => {
+    startRecordedListeningNow(callbacks, options)
+  })
+}
+
+function startRecordedListeningNow(
   callbacks: SpeechCallbacks,
   options: StartListeningOptions = {},
 ): void {
@@ -463,6 +541,16 @@ function startRecordedListening(
       return
     }
     if (micRecorderReady && sttModelReady) {
+      if (!beginMicRecording(generation)) {
+        voiceDebugWarn('rec:begin-failed', { generation })
+        if (listenSession) listenSession.stopped = true
+        dispatch('onError', {
+          code: 'start-failed',
+          message: 'Recording could not start',
+        })
+        dispatch('onStateChange', 'error')
+        return
+      }
       signalAudioStart = true
       voiceDebug('rec:ready', { generation, sttModelReady: true })
       dispatch('onStateChange', 'listening')
@@ -479,13 +567,20 @@ function startRecordedListening(
       maybeStartListening()
     })
     .catch((err) => {
-      voiceDebugError('offline-stt:preload-blocked', {
-        error: err instanceof Error ? err.message : String(err),
-      })
+      const reason = err instanceof Error ? err.message : String(err)
+      voiceDebugError('offline-stt:preload-blocked', { error: reason })
+      if (
+        listenGeneration === generation &&
+        listenSession &&
+        tryBrowserSttFallback(callbacks, options, reason)
+      ) {
+        return
+      }
+      if (listenGeneration !== generation || !listenSession) return
+      listenSession.stopped = true
       dispatch('onError', {
         code: 'start-failed',
-        message:
-          err instanceof Error ? err.message : 'Speech model failed to load',
+        message: reason || 'Speech model failed to load',
       })
       dispatch('onStateChange', 'error')
     })
@@ -493,31 +588,47 @@ function startRecordedListening(
   voiceDebug('rec:session-start', { generation, lang: activeListenLang })
   dispatch('onStateChange', 'permission_pending')
 
-  void startMicSession(generation, {
-    onReady: () => {
-      if (listenGeneration !== generation || !listenSession || listenSession.stopped) {
-        return
-      }
-      micRecorderReady = true
-      voiceDebug('rec:mic-ready', { generation, sttModelReady })
-      maybeStartListening()
-    },
-    onLevel: (level) => {
-      if (level > 0.1) signalSoundStart = true
-      dispatch('onLevel', level)
-    },
-    onError: (message) => {
-      if (listenGeneration !== generation) return
-      listenSession!.stopped = true
-      dispatch('onStateChange', 'error')
-      dispatch('onError', { code: 'not-allowed', message })
-    },
-  }).then((ok) => {
+  const micStartDelayMs = isMicRecentlyPrimed() ? 280 : 0
+  const startMic = () =>
+    startMicSession(generation, {
+      onReady: () => {
+        if (listenGeneration !== generation || !listenSession || listenSession.stopped) {
+          return
+        }
+        micRecorderReady = true
+        voiceDebug('rec:mic-ready', { generation, sttModelReady })
+        maybeStartListening()
+      },
+      onLevel: (level) => {
+        if (level > 0.1) signalSoundStart = true
+        dispatch('onLevel', level)
+      },
+      onError: (err) => {
+        if (listenGeneration !== generation) return
+        listenSession!.stopped = true
+        dispatch('onStateChange', 'error')
+        dispatch('onError', micErrorFromUnknown(err))
+      },
+    })
+
+  const afterMicStart = (ok: boolean) => {
     if (!ok && listenGeneration === generation && listenSession) {
       listenSession.stopped = true
       dispatch('onStateChange', 'error')
+      dispatch('onError', {
+        code: 'no-device',
+        message: 'Microphone could not be opened for recording',
+      })
     }
-  })
+  }
+
+  if (micStartDelayMs > 0) {
+    window.setTimeout(() => {
+      void startMic().then(afterMicStart)
+    }, micStartDelayMs)
+  } else {
+    void startMic().then(afterMicStart)
+  }
 }
 
 function startBrowserListening(
@@ -619,9 +730,11 @@ function startBrowserListening(
       return
     }
     if (!isActive()) {
-      voiceDebug('stt:onend-idle', { generation })
+      voiceDebug('stt:onend-idle', { generation, gotResult: listenSession?.gotResult })
       stopMicVisualizer()
-      dispatch('onStateChange', 'idle')
+      if (!listenSession?.gotResult && !finishRequested) {
+        dispatch('onStateChange', 'idle')
+      }
       return
     }
     const captured = getCapturedTranscript()
@@ -826,6 +939,7 @@ export function cancelListening(): void {
   listenSession = null
   stopMicVisualizer()
   invalidateHandlers()
+  clearSessionSttEngine()
 }
 
 export function markListenTurnHandled(): void {

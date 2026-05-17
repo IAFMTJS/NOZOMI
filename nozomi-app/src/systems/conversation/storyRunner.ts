@@ -4,13 +4,16 @@ import {
   getStoryById,
 } from '@/database/importService'
 import type {
+  AppSettings,
   EngineResponse,
   LanguageText,
   StoryBeat,
   StorySession,
   UserProfile,
 } from '@/types/domain'
+import { DEFAULT_SETTINGS } from '@/types/domain'
 import { buildContextualSuggestions } from './contextualSuggestions'
+import { resolveSuggestionCount } from './suggestionCount'
 
 export async function initStorySession(
   storyId: number,
@@ -30,6 +33,7 @@ export async function getStoryOpening(
   story: StorySession,
   profile: UserProfile,
   topic: string,
+  settings: AppSettings = DEFAULT_SETTINGS,
 ): Promise<EngineResponse & { story: StorySession }> {
   const beat = await getBeatAtOrder(story.storyId, story.beatOrder)
   const message = beatToText(beat)
@@ -37,7 +41,7 @@ export async function getStoryOpening(
     topic,
     level: profile.jlptLevel,
     nozomiMessage: message,
-    count: profile.immersionLevel === 'beginner' ? 3 : 3,
+    count: resolveSuggestionCount(settings, profile),
   })
   return {
     message,
@@ -54,6 +58,7 @@ export async function advanceStory(
   story: StorySession,
   profile: UserProfile,
   topic: string,
+  settings: AppSettings = DEFAULT_SETTINGS,
 ): Promise<{ response: EngineResponse; story: StorySession } | null> {
   const nextOrder = story.beatOrder + 1
   if (nextOrder > story.totalBeats) {
@@ -82,7 +87,7 @@ export async function advanceStory(
     topic,
     level: profile.jlptLevel,
     nozomiMessage: message,
-    count: 3,
+    count: resolveSuggestionCount(settings, profile),
   })
 
   return {

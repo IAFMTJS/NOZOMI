@@ -9,6 +9,7 @@ import { ChatHistorySheet } from '@/components/presence/ChatHistorySheet'
 import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
 import { PresenceDock } from '@/components/presence/PresenceDock'
 import { PresenceStatusRow } from '@/components/presence/PresenceStatusRow'
+import { StoryModeToggle } from '@/components/presence/StoryModeToggle'
 import { PresenceSuggestions } from '@/components/presence/PresenceSuggestions'
 import { LanguageText } from '@/components/language/LanguageText'
 import { suggestionKey } from '@/components/suggestions/SuggestionPills'
@@ -26,7 +27,9 @@ import {
 } from '@/systems/speech/speechService'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
-type ListenLocationState = { autoStart?: boolean }
+import type { ScenarioCategory } from '@/types/domain'
+
+type ListenLocationState = { autoStart?: boolean; scenarioStart?: ScenarioCategory }
 
 export function ListeningPage() {
   const navigate = useNavigate()
@@ -39,7 +42,11 @@ export function ListeningPage() {
   const voicePinnedSuggestion = useNozomiStore((s) => s.voicePinnedSuggestion)
   const setVoicePinnedSuggestion = useNozomiStore((s) => s.setVoicePinnedSuggestion)
   const settings = useNozomiStore((s) => s.settings)
-  const { startVoiceConversation } = useConversation()
+  const { startVoiceConversation, startScenarioConversation, setVoiceStoryMode } =
+    useConversation()
+  const voiceTurnCount = useNozomiStore((s) => s.voiceSession.turnCount)
+  const voiceStoryMode = useNozomiStore((s) => s.settings.voiceStoryMode)
+  const showStoryToggle = voiceTurnCount >= 5 || voiceStoryMode
   const {
     beginListening,
     finishRecording,
@@ -59,6 +66,8 @@ export function ListeningPage() {
   const isPreparing = speechState === 'permission_pending'
   const isCapturing = isListening || isPreparing
   const isProcessing = speechState === 'processing'
+  const isSpeaking = orbState === 'speaking'
+  const micDisabled = isCapturing || isProcessing || isSpeaking
   const hasTurn = messages.length > 0
   const showReplyUi =
     hasTurn &&
@@ -85,10 +94,27 @@ export function ListeningPage() {
     : null
 
   useEffect(() => {
-    if (!dataReady || voiceOpenedRef.current || messages.length > 0) return
+    if (!dataReady || voiceOpenedRef.current) return
+    const navState = location.state as ListenLocationState | null
+    if (navState?.scenarioStart) {
+      voiceOpenedRef.current = true
+      void startScenarioConversation(navState.scenarioStart, 'voice')
+      window.history.replaceState(
+        navState.autoStart ? { autoStart: true } : {},
+        document.title,
+      )
+      return
+    }
+    if (messages.length > 0) return
     voiceOpenedRef.current = true
     void startVoiceConversation()
-  }, [dataReady, messages.length, startVoiceConversation])
+  }, [
+    dataReady,
+    location.state,
+    messages.length,
+    startScenarioConversation,
+    startVoiceConversation,
+  ])
 
   useEffect(() => {
     clearError()
@@ -125,7 +151,7 @@ export function ListeningPage() {
       finishRecording()
       return
     }
-    if (!isCapturing && !isProcessing) {
+    if (!micDisabled) {
       beginListening()
     }
   }
@@ -174,6 +200,12 @@ export function ListeningPage() {
   return (
     <div className="presence-screen" data-testid="listen-page">
       <AppHeader compact onClose={handleLeave} onSettings={() => navigate('/settings')} />
+      {showStoryToggle && (
+        <StoryModeToggle
+          onToggle={(enabled) => void setVoiceStoryMode(enabled)}
+          disabled={isCapturing || isProcessing}
+        />
+      )}
       <PresenceStatusRow speechState={speechState} orbState={orbState} />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -188,7 +220,7 @@ export function ListeningPage() {
           <button
             type="button"
             onClick={handleOrbPress}
-            disabled={isPreparing || isProcessing}
+            disabled={micDisabled}
             className="presence-orb-anchor touch-target touch-manipulation disabled:cursor-not-allowed"
             aria-label={
               isListening
@@ -230,8 +262,7 @@ export function ListeningPage() {
                   rate: settings.voiceRate,
                   pitch: settings.voicePitch,
                 })
-              }
-              if (!isCapturing && !isProcessing) {
+              } else if (!micDisabled) {
                 beginListening()
               }
             }}
@@ -245,7 +276,7 @@ export function ListeningPage() {
           label: UI_LABELS.continueTalking,
           icon: 'refresh',
           onClick: beginListening,
-          disabled: isCapturing || isProcessing,
+          disabled: micDisabled,
         }}
         center={{
           id: 'mic',
@@ -253,7 +284,7 @@ export function ListeningPage() {
           icon: 'mic',
           onClick: handleOrbPress,
           primary: true,
-          disabled: isPreparing || isProcessing,
+          disabled: micDisabled,
         }}
         right={{
           id: 'chat',

@@ -24,4 +24,10 @@ describe('detectIntent', () => {
     expect(detectIntent('thanks!')).toBe('feedback')
     expect(detectIntent('ありがとう')).toBe('feedback')
   })
+
+  it('detects help before question patterns', () => {
+    expect(detectIntent('what does that mean')).toBe('help')
+    expect(detectIntent('wakaranai')).toBe('help')
+    expect(detectIntent('どういう意味？')).toBe('help')
+  })
 })

@@ -4,9 +4,9 @@ import type {
   Suggestion,
   VocabEntry,
 } from '@/types/domain'
+import { withGrammarTags } from '@/utils/grammarTagInference'
 
-/** Built-in seed when JSON export is unavailable */
-export const SEED_SENTENCES: Sentence[] = [
+const RAW_SEED_SENTENCES: Sentence[] = [
   {
     id: 1,
     jp: '今日はどうだった？',
@@ -85,6 +85,62 @@ export const SEED_SENTENCES: Sentence[] = [
     romaji: 'Mata hanasou ne.',
     en: "Let's talk again.",
     category: 'daily',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 11,
+    jp: 'それは大変だったね。もっと聞かせて。',
+    romaji: 'Sore wa taihen datta ne. Motto kikasete.',
+    en: 'That sounds tough. Tell me more.',
+    category: 'daily',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 12,
+    jp: 'いいね！他には？',
+    romaji: 'Ii ne! Hoka ni wa?',
+    en: 'Nice! What else?',
+    category: 'daily',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 13,
+    jp: 'なるほど。それから？',
+    romaji: 'Naruhodo. Sore kara?',
+    en: 'I see. And then?',
+    category: 'daily',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 14,
+    jp: '週末は何をする予定？',
+    romaji: 'Shuumatsu wa nani wo suru yotei?',
+    en: 'Any plans for the weekend?',
+    category: 'daily',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 15,
+    jp: '最近ハマってることある？',
+    romaji: 'Saikin hamatteru koto aru?',
+    en: 'Anything you are into lately?',
+    category: 'hobby',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 16,
+    jp: '日本語、よく頑張ってるね。',
+    romaji: 'Nihongo, yoku ganbatteru ne.',
+    en: 'You are working hard at Japanese.',
+    category: 'study',
+    jlptLevel: 'N5',
+  },
+  {
+    id: 17,
+    jp: 'ゆっくり説明するね。',
+    romaji: 'Yukkuri setsumei suru ne.',
+    en: 'Let me explain slowly.',
+    category: 'study',
     jlptLevel: 'N5',
   },
   // ─── Scenario intents (train_station, hotel, dating, classroom) ───
@@ -265,6 +321,11 @@ export const SEED_SENTENCES: Sentence[] = [
     jlptLevel: 'N5',
   },
 ]
+
+/** Built-in seed when JSON export is unavailable (grammarTags inferred). */
+export const SEED_SENTENCES: Sentence[] = RAW_SEED_SENTENCES.map((s) =>
+  withGrammarTags(s),
+)
 
 export const SEED_VOCAB: VocabEntry[] = [
   {

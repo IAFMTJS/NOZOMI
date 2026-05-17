@@ -3,6 +3,7 @@ import { useNozomiStore } from '@/store/useNozomiStore'
 import {
   createOpeningTurn,
   createScenarioOpening,
+  createStoryOpening,
   processUserMessage,
 } from '@/systems/conversation/engine'
 import { advanceStory } from '@/systems/conversation/storyRunner'
@@ -19,6 +20,8 @@ type ConversationSurface = 'chat' | 'voice'
 type SendUserMessageOptions = {
   /** Hint from a pinned voice suggestion (not shown as a user message) */
   suggestionHint?: string
+  /** When true, skip applying Nozomi's reply (e.g. voice turn timed out). */
+  shouldAbort?: () => boolean
 }
 
 function msgId() {
@@ -54,6 +57,7 @@ export function useConversation() {
   const setOrbState = useNozomiStore((s) => s.setOrbState)
   const setSessionTopic = useNozomiStore((s) => s.setSessionTopic)
   const setStorySession = useNozomiStore((s) => s.setStorySession)
+  const setSettings = useNozomiStore((s) => s.setSettings)
 
   const deliverNozomi = useCallback(
     (
@@ -108,12 +112,15 @@ export function useConversation() {
       if (response.story) {
         setStorySession(surface, response.story)
       }
-      setSuggestions(
-        surface,
-        settings.focusMode
-          ? response.suggestions.slice(0, 2)
-          : response.suggestions.slice(0, settings.suggestionCount),
-      )
+      const suggestions = settings.focusMode
+        ? []
+        : response.suggestions.slice(0, settings.suggestionCount)
+      const showSuggestions = () => setSuggestions(surface, suggestions)
+      if (settings.focusMode || suggestions.length === 0) {
+        showSuggestions()
+      } else {
+        window.setTimeout(showSuggestions, 280)
+      }
       deliverNozomi(response.message, response.topic, {
         grammarTags: response.grammarTags,
         sentenceId: response.sentenceId,
@@ -179,9 +186,14 @@ export function useConversation() {
 
       try {
         if (activeStory) {
-          const advanced = await advanceStory(activeStory, profile, forcedTopic)
+          const advanced = await advanceStory(
+            activeStory,
+            profile,
+            forcedTopic,
+            settings,
+          )
           if (advanced) {
-            applyResponse(advanced.response, surface)
+            if (!opts?.shouldAbort?.()) applyResponse(advanced.response, surface)
             return
           }
         }
@@ -194,10 +206,12 @@ export function useConversation() {
           {
             ...(suggestionHint ? { suggestionHint } : {}),
             voice: surface === 'voice',
+            settings,
           },
         )
-        applyResponse(response, surface)
+        if (!opts?.shouldAbort?.()) applyResponse(response, surface)
       } catch {
+        if (opts?.shouldAbort?.()) return
         applyResponse(
           {
             message: {
@@ -225,26 +239,53 @@ export function useConversation() {
 
   const startConversation = useCallback(async () => {
     const topic = chatSession.topicStack[0] ?? 'daily'
-    const opening = await createOpeningTurn(profile, topic)
+    const opening = await createOpeningTurn(profile, topic, settings)
     applyResponse(opening, 'chat')
-  }, [applyResponse, profile, chatSession.topicStack])
+  }, [applyResponse, profile, chatSession.topicStack, settings])
 
   const startVoiceConversation = useCallback(async () => {
     const state = useNozomiStore.getState()
     if (state.voiceMessages.length > 0) return
     const topic = state.voiceSession.topicStack[0] ?? 'daily'
     setOrbState('thinking')
-    const opening = await createOpeningTurn(profile, topic)
+    const opening = state.settings.voiceStoryMode
+      ? await createStoryOpening(profile, topic, state.settings)
+      : await createOpeningTurn(profile, topic, state.settings)
     applyResponse(opening, 'voice')
   }, [applyResponse, profile, setOrbState])
 
-  const startScenarioConversation = useCallback(
-    async (category: ScenarioCategory) => {
+  const setVoiceStoryMode = useCallback(
+    async (enabled: boolean) => {
+      setSettings({ voiceStoryMode: enabled })
+      if (!enabled) {
+        setStorySession('voice', null)
+        return
+      }
+
+      const state = useNozomiStore.getState()
+      if (state.voiceSession.activeStoryId != null) return
+
+      const topic = state.voiceSession.topicStack[0] ?? 'daily'
       setOrbState('thinking')
-      const opening = await createScenarioOpening(profile, category)
-      applyResponse(opening, 'chat')
+      stopSpeaking()
+      const opening = await createStoryOpening(profile, topic, state.settings)
+      if (opening.story) {
+        applyResponse(opening, 'voice')
+      } else {
+        setSettings({ voiceStoryMode: false })
+        setOrbState('idle')
+      }
     },
-    [applyResponse, profile, setOrbState],
+    [applyResponse, profile, setOrbState, setSettings, setStorySession],
+  )
+
+  const startScenarioConversation = useCallback(
+    async (category: ScenarioCategory, surface: ConversationSurface = 'voice') => {
+      setOrbState('thinking')
+      const opening = await createScenarioOpening(profile, category, settings)
+      applyResponse(opening, surface)
+    },
+    [applyResponse, profile, setOrbState, settings],
   )
 
   return {
@@ -252,6 +293,7 @@ export function useConversation() {
     startConversation,
     startVoiceConversation,
     startScenarioConversation,
+    setVoiceStoryMode,
     deliverNozomi,
   }
 }

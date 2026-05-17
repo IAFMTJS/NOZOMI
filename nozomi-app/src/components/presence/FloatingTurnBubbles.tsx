@@ -54,15 +54,18 @@ export function FloatingTurnBubbles({
 }: Props) {
   const handleWordTap = useWordTap()
   const orbState = useNozomiStore((s) => s.orbState)
-  const recent = messages.slice(-2)
-
-  if (recent.length === 0) return null
-
+  const reducedMotion = useNozomiStore((s) => s.settings.reducedMotion)
+  const gentleLayout =
+    reducedMotion ||
+    (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
   const motionProps = useMotionProps({
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     transition: { duration: 0.5 },
   })
+  const recent = messages.slice(-2)
+
+  if (recent.length === 0) return null
 
   return (
     <motion.div
@@ -72,7 +75,7 @@ export function FloatingTurnBubbles({
       }`}
       data-testid="voice-turn-panel"
     >
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode={gentleLayout ? 'sync' : 'popLayout'}>
         {recent.map((m) => (
           <FloatBubble
             key={m.id}

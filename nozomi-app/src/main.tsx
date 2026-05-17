@@ -4,13 +4,12 @@ import App from './App'
 import './styles/index.css'
 
 if (import.meta.env.DEV) {
+  // Drop stale production SWs in dev; keep Cache API entries (Whisper/onnx) so reloads
+  // do not re-download ~40MB and thrash memory on mobile.
   if ('serviceWorker' in navigator) {
     void navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const reg of regs) void reg.unregister()
     })
-  }
-  if ('caches' in window) {
-    void caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   }
 }
 

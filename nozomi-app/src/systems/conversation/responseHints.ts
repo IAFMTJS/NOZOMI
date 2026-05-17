@@ -130,4 +130,9 @@ export const RESPONSE_HINTS: ResponseHint[] = [
     jpHints: ['好き', 'いい', '楽', 'そう'],
     enHints: ['like', 'love', 'favorite'],
   },
+  {
+    re: /(ですね。|meaning|意味|って何|what does)/i,
+    jpHints: ['例', '練習', '一緒', 'ゆっくり', '使'],
+    enHints: ['example', 'practice', 'together', 'slow', 'use'],
+  },
 ]

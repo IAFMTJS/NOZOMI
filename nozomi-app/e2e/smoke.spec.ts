@@ -2,9 +2,7 @@ import { test, expect } from '@playwright/test'
 import { seedOnboarded } from './helpers'
 
 test.describe('Nozomi smoke', () => {
-  test('shows home directly when onboarding not complete in storage', async ({
-    page,
-  }) => {
+  test('shows onboarding when not complete in storage', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem(
         'nozomi-storage',
@@ -16,8 +14,6 @@ test.describe('Nozomi smoke', () => {
               jlptLevel: 'N5',
               immersionLevel: 'beginner',
               personalityMode: 'calm',
-              xp: 0,
-              streakDays: 0,
               onboardingComplete: false,
             },
             settings: {
@@ -39,8 +35,10 @@ test.describe('Nozomi smoke', () => {
       )
     })
     await page.goto('/')
-    await expect(page).toHaveURL('/', { timeout: 15_000 })
-    await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 15_000 })
+    await expect(page).toHaveURL('/onboarding', { timeout: 15_000 })
+    await expect(page.getByTestId('onboarding-page')).toBeVisible({
+      timeout: 15_000,
+    })
   })
 
   test('settings page loads after skipping onboarding via storage', async ({

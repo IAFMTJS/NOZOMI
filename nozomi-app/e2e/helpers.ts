@@ -8,8 +8,6 @@ export const ONBOARDED_STORAGE = {
       jlptLevel: 'N5',
       immersionLevel: 'beginner',
       personalityMode: 'calm',
-      xp: 0,
-      streakDays: 0,
       onboardingComplete: true,
     },
     settings: {

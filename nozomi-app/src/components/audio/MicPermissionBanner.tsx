@@ -15,12 +15,49 @@ interface Props {
 }
 
 function detailForError(code?: SpeechErrorCode): LT {
-  if (code === 'network') return UI_LABELS.micNetwork
-  return UI_LABELS.micDeniedEn
+  switch (code) {
+    case 'network':
+      return UI_LABELS.micNetwork
+    case 'start-failed':
+      return UI_LABELS.micModelFailed
+    case 'busy':
+      return UI_LABELS.micBusy
+    case 'no-device':
+      return UI_LABELS.micNoDevice
+    case 'not-supported':
+    case 'unknown':
+      return UI_LABELS.micStartFailed
+    default:
+      return UI_LABELS.micDeniedEn
+  }
+}
+
+function titleForError(code?: SpeechErrorCode): LT | undefined {
+  switch (code) {
+    case 'start-failed':
+      return {
+        jp: '音声モデルを読み込めません',
+        romaji: 'Onsei moderu wo yomikomi masen',
+        en: 'Speech model could not load',
+      }
+    case 'busy':
+      return {
+        jp: 'マイクが使用中です',
+        romaji: 'Maiku ga shiyouchuu desu',
+        en: 'Microphone is busy',
+      }
+    case 'no-device':
+      return {
+        jp: 'マイクが見つかりません',
+        romaji: 'Maiku ga mitsukarimasen',
+        en: 'No microphone found',
+      }
+  }
+  return undefined
 }
 
 export function MicPermissionBanner({
-  title = UI_LABELS.micDenied,
+  title,
   detail,
   showSecondary = true,
   onUseText,
@@ -28,6 +65,7 @@ export function MicPermissionBanner({
   errorCode,
   className = '',
 }: Props) {
+  const resolvedTitle = title ?? titleForError(errorCode) ?? UI_LABELS.micDenied
   const secondary = detail ?? detailForError(errorCode)
 
   return (
@@ -35,7 +73,7 @@ export function MicPermissionBanner({
       className={`glass-panel max-w-sm space-y-3 p-6 text-center ${className}`}
       role="alert"
     >
-      <LanguageText text={title} size="md" align="center" />
+      <LanguageText text={resolvedTitle} size="md" align="center" />
       {showSecondary && (
         <LanguageText text={secondary} size="sm" align="center" />
       )}

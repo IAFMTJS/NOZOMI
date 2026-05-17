@@ -14,6 +14,10 @@ const MODEL_MULTI = 'Xenova/whisper-tiny'
 
 const LOAD_TIMEOUT_MS = 180_000
 
+/** q8 breaks on onnxruntime-web 1.26-dev (Missing required scale); try q4 then fp32. */
+const WASM_DTYPES = ['q4', 'fp32'] as const
+type WasmDtype = (typeof WASM_DTYPES)[number]
+
 type Transcriber = (
   audio: Float32Array,
   options?: { language?: WhisperLang; task?: string },
@@ -21,10 +25,12 @@ type Transcriber = (
 
 let pipelinePromise: Promise<Transcriber> | null = null
 let pipelineModelId: string | null = null
+let pipelineActiveDtype: WasmDtype | null = null
 let pipelineLoadGeneration = 0
 let pipelineReadyForLang: string | null = null
 let lastOfflineSttError: string | null = null
 let transformersEnvReady = false
+const downloadLogPct = new Map<string, number>()
 
 function whisperLang(bcp47: string): WhisperLang {
   return LANG_MAP[bcp47] ?? 'english'
@@ -39,6 +45,15 @@ function formatError(err: unknown): string {
     return err.stack ? `${err.name}: ${err.message}\n${err.stack}` : `${err.name}: ${err.message}`
   }
   return String(err)
+}
+
+export function isOrtSessionLoadError(err: unknown): boolean {
+  const msg = formatError(err)
+  return (
+    msg.includes("Can't create a session") ||
+    msg.includes('Missing required scale') ||
+    msg.includes('TransposeDQWeightsForMatMulNBits')
+  )
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -82,6 +97,41 @@ async function configureTransformersEnv(): Promise<void> {
   })
 }
 
+async function loadPipelineWithDtype(
+  model: string,
+  dtype: WasmDtype,
+): Promise<Transcriber> {
+  voiceDebug('offline-stt:load-model', { model, device: 'wasm', dtype })
+  await configureTransformersEnv()
+  const { pipeline } = await import('@huggingface/transformers')
+  return withTimeout(
+    pipeline('automatic-speech-recognition', model, {
+      device: 'wasm',
+      dtype,
+      progress_callback: (info) => {
+        const meta = info as { file?: string; name?: string }
+        const file = String(meta.file ?? meta.name ?? 'file')
+        if (info.status === 'progress' && typeof info.progress === 'number') {
+          const pct = Math.round(info.progress)
+          const bucket =
+            pct >= 100 ? 100 : pct >= 95 ? 95 : Math.floor(pct / 10) * 10
+          const key = `${dtype}:${file}`
+          const prev = downloadLogPct.get(key) ?? -1
+          if (bucket > prev) {
+            downloadLogPct.set(key, bucket)
+            voiceDebug('offline-stt:download', { file, progress: pct, dtype })
+          }
+        } else if (info.status === 'done') {
+          downloadLogPct.delete(`${dtype}:${file}`)
+          voiceDebug('offline-stt:download-done', { file, dtype })
+        }
+      },
+    }) as Promise<Transcriber>,
+    LOAD_TIMEOUT_MS,
+    `offline-stt:load-model:${dtype}`,
+  )
+}
+
 async function loadPipeline(bcp47: string): Promise<Transcriber> {
   const model = modelForLang(bcp47)
   if (pipelinePromise && pipelineModelId === model) {
@@ -91,45 +141,46 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
   const generation = ++pipelineLoadGeneration
   pipelineModelId = model
   pipelineReadyForLang = null
-  pipelinePromise = withTimeout(
-    (async () => {
-      voiceDebug('offline-stt:load-model', { model, device: 'wasm' })
-      await configureTransformersEnv()
-      const { pipeline } = await import('@huggingface/transformers')
-      return pipeline('automatic-speech-recognition', model, {
-        device: 'wasm',
-        dtype: 'q8',
-        progress_callback: (info) => {
-          if (info.status === 'progress' && typeof info.progress === 'number') {
-            const pct = Math.round(info.progress)
-            if (pct % 10 === 0 || pct >= 95) {
-              voiceDebug('offline-stt:download', {
-                file: info.file ?? info.name,
-                progress: pct,
-              })
-            }
-          } else if (info.status === 'done') {
-            voiceDebug('offline-stt:download-done', { file: info.file ?? info.name })
-          }
-        },
-      }) as Promise<Transcriber>
-    })(),
-    LOAD_TIMEOUT_MS,
-    'offline-stt:load-model',
-  )
+  pipelineActiveDtype = null
+  lastOfflineSttError = null
+
+  pipelinePromise = (async () => {
+    let lastErr: unknown
+    for (const dtype of WASM_DTYPES) {
+      if (generation !== pipelineLoadGeneration) {
+        throw new Error('offline-stt:load-superseded')
+      }
+      try {
+        const transcriber = await loadPipelineWithDtype(model, dtype)
+        if (generation === pipelineLoadGeneration) {
+          pipelineActiveDtype = dtype
+          pipelineReadyForLang = bcp47
+          voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
+        }
+        return transcriber
+      } catch (err) {
+        lastErr = err
+        voiceDebugWarn('offline-stt:dtype-failed', {
+          dtype,
+          error: formatError(err).slice(0, 400),
+        })
+        if (generation !== pipelineLoadGeneration) throw err
+        if (isOrtSessionLoadError(err)) {
+          await clearOfflineSttCache()
+        }
+      }
+    }
+    throw lastErr ?? new Error('offline-stt:all-dtypes-failed')
+  })()
 
   try {
-    const transcriber = await pipelinePromise
-    if (generation === pipelineLoadGeneration) {
-      pipelineReadyForLang = bcp47
-      voiceDebug('offline-stt:ready', { model, lang: bcp47 })
-    }
-    return transcriber
+    return await pipelinePromise
   } catch (err) {
     if (generation === pipelineLoadGeneration) {
       pipelinePromise = null
       pipelineModelId = null
       pipelineReadyForLang = null
+      pipelineActiveDtype = null
     }
     throw err
   }
@@ -142,6 +193,7 @@ function noteLoadFailure(err: unknown, generation: number): void {
   pipelinePromise = null
   pipelineModelId = null
   pipelineReadyForLang = null
+  pipelineActiveDtype = null
 }
 
 export function isOfflineSttReady(lang = 'en-US'): boolean {
@@ -158,11 +210,18 @@ export function getLastOfflineSttError(): string | null {
 }
 
 export async function clearOfflineSttCache(): Promise<void> {
-  if (typeof caches === 'undefined') return
-  await caches.delete('transformers-cache')
+  if (typeof caches !== 'undefined') {
+    const keys = await caches.keys()
+    await Promise.all(
+      keys
+        .filter((k) => /transformers|onnx|whisper/i.test(k))
+        .map((k) => caches.delete(k)),
+    )
+  }
   pipelinePromise = null
   pipelineModelId = null
   pipelineReadyForLang = null
+  pipelineActiveDtype = null
   voiceDebug('offline-stt:cache-cleared')
 }
 
@@ -191,7 +250,10 @@ export async function transcribeAudioBlob(
     }
 
     const transcriber = await loadPipeline(bcp47)
-    voiceDebug('offline-stt:infer', { samples: audio.length })
+    voiceDebug('offline-stt:infer', {
+      samples: audio.length,
+      dtype: pipelineActiveDtype,
+    })
     const out = await withTimeout(
       transcriber(audio, {
         language: whisperLang(bcp47),
@@ -209,12 +271,13 @@ export async function transcribeAudioBlob(
   } catch (err) {
     lastOfflineSttError = formatError(err)
     voiceDebugError('offline-stt:failed', { error: lastOfflineSttError })
-    if (lastOfflineSttError.includes("Can't create a session")) {
+    if (isOrtSessionLoadError(err)) {
       void clearOfflineSttCache()
     }
     pipelinePromise = null
     pipelineModelId = null
     pipelineReadyForLang = null
+    pipelineActiveDtype = null
     return ''
   }
 }

@@ -4,6 +4,7 @@ const PREFIX = '[Nozomi:Voice]'
 
 let forced = false
 let interimLogCount = 0
+let consoleInstalled = false
 
 function enabled(): boolean {
   if (forced) return true
@@ -121,7 +122,8 @@ export function installVoiceDebugConsole(
       console.log(`${PREFIX} dump (no state provider registered)`)
     }
   }
-  if (enabled()) {
+  if (enabled() && !consoleInstalled) {
+    consoleInstalled = true
     console.info(
       `${PREFIX} dev logging ON. Commands: nozomiVoiceDebug(), nozomiVoiceDump()`,
     )

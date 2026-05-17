@@ -130,6 +130,33 @@ export function IconPractice({ size = 20, className = '' }: IconProps) {
   )
 }
 
+export function IconHome({ size = 20, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+export function IconBook({ size = 20, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M5 4h9a3 3 0 013 3v14H8a3 3 0 01-3-3V4zM14 7h4a2 2 0 012 2v11h-6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function IconCheckRead({ className = '' }: { className?: string }) {
   return (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>

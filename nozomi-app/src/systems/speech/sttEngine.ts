@@ -3,11 +3,14 @@ export type SttEngine = 'local' | 'browser'
 
 const STORAGE_KEY = 'nozomi.sttEngine'
 
+/** In-memory override for this tab only (e.g. one-shot browser fallback). */
+let sessionEngineOverride: SttEngine | null = null
+
 function isMobileDevice(): boolean {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 }
 
-function browserSttAvailable(): boolean {
+export function browserSttAvailable(): boolean {
   const w = window as Window & {
     SpeechRecognition?: typeof SpeechRecognition
     webkitSpeechRecognition?: typeof SpeechRecognition
@@ -24,6 +27,7 @@ export function getDefaultSttEngine(): SttEngine {
 }
 
 export function getSttEngine(): SttEngine {
+  if (sessionEngineOverride) return sessionEngineOverride
   try {
     const v = localStorage.getItem(STORAGE_KEY)
     if (v === 'browser' || v === 'local') return v
@@ -39,4 +43,12 @@ export function setSttEngine(engine: SttEngine): void {
   } catch {
     /* ignore */
   }
+}
+
+export function setSessionSttEngine(engine: SttEngine | null): void {
+  sessionEngineOverride = engine
+}
+
+export function clearSessionSttEngine(): void {
+  sessionEngineOverride = null
 }

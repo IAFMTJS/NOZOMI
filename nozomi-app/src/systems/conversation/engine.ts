@@ -5,8 +5,14 @@ import {
   pickContextualSentence,
   type MatchContext,
 } from './replyMatcher'
-import { prioritizeConversationalPool } from './engineHelpers'
+import {
+  filterQualityPool,
+  isGenericGreetingLine,
+  prioritizeConversationalPool,
+  prioritizeGrammarTagged,
+} from './engineHelpers'
 import { buildContextualSuggestions } from './contextualSuggestions'
+import { resolveSuggestionCount } from './suggestionCount'
 import {
   lexiconSentencesForConversation,
   mergeSentencePools,
@@ -18,18 +24,26 @@ import {
   getRandomSentences,
   getSentencesByFilter,
   getStoryByCategory,
+  getStoryForTopic,
 } from '@/database/importService'
 import { SEED_SENTENCES } from '@/database/seedData'
 import {
   isScenarioIntent,
   SCENARIO_OPENINGS,
 } from '@/data/scenarioIntents'
-import { blendWithPersonality } from '@/systems/personality/personalityAdapter'
+import {
+  blendWithPersonality,
+  pickPersonalityLine,
+} from '@/systems/personality/personalityAdapter'
+import { pickRecoveryLine } from './recoveryLines'
+import { ensureConversationTuningLoaded } from './conversationTuning'
+import { inferGrammarTagsForJp } from '@/utils/grammarTagInference'
 import {
   filterUnseenSentences,
   markSentenceExposure,
 } from '@/systems/learning/exposureTracker'
 import type {
+  AppSettings,
   ConversationTurn,
   EngineResponse,
   JlptLevel,
@@ -40,6 +54,7 @@ import type {
   StorySession,
   UserProfile,
 } from '@/types/domain'
+import { DEFAULT_SETTINGS } from '@/types/domain'
 
 const JLPT_ORDER: JlptLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1']
 
@@ -50,14 +65,24 @@ function levelIndex(level: JlptLevel): number {
 function pickSentence(
   pool: Sentence[],
   excludeJp: string[],
+  rotateIndex?: number,
 ): Sentence | null {
   const fresh = filterUnseenSentences(pool)
   const candidates = fresh.filter((s) => !excludeJp.includes(s.jp))
   const list = candidates.length ? candidates : fresh
   if (!list.length) return null
-  const chosen = list[Math.floor(Math.random() * list.length)]
+  const chosen =
+    rotateIndex !== undefined
+      ? list[rotateIndex % list.length]!
+      : list[Math.floor(Math.random() * list.length)]!
   markSentenceExposure(chosen)
   return chosen
+}
+
+function enrichGrammarTags(result: ResolveResult): ResolveResult {
+  if (result.grammarTags?.trim()) return result
+  const inferred = inferGrammarTagsForJp(result.message.jp)
+  return inferred ? { ...result, grammarTags: inferred } : result
 }
 
 function toLanguageText(s: Sentence): LanguageText {
@@ -118,7 +143,16 @@ function boostPoolWithSeeds(
   }
   const seen = new Set(pool.map((s) => s.id))
   const extra = seeds.filter((s) => !seen.has(s.id))
+  if (pool.length >= 24) return pool
   return extra.length ? [...extra, ...pool] : pool
+}
+
+function recentIdsFromPool(pool: Sentence[], recentJp: string[]): Set<number> {
+  const ids = new Set<number>()
+  for (const s of pool) {
+    if (recentJp.includes(s.jp)) ids.add(s.id)
+  }
+  return ids
 }
 
 function contextualPick(
@@ -135,12 +169,14 @@ function contextualPick(
     intent,
     topic,
     recentJp,
-    new Set(),
+    recentIdsFromPool(pool, recentJp),
     matchContext,
   )
   if (picked) markSentenceExposure(picked)
   return picked
 }
+
+const SHORT_USER_ACK = /^(うん|そう|へー|ふーん|まあ|ok|yeah|yep|mhm|…|\.{2,})$/i
 
 async function resolveMessage(
   intent: Intent,
@@ -152,12 +188,24 @@ async function resolveMessage(
   matchContext: MatchContext,
 ): Promise<ResolveResult> {
   if (intent === 'greeting') {
-    const greetingPool =
+    const inConversation = recentJp.length > 0
+    let greetingPool =
       pool.filter((s) => s.category === 'greeting').length > 0
         ? pool.filter((s) => s.category === 'greeting')
         : pool
+    greetingPool = filterQualityPool(greetingPool)
+    const echo = new Set([input.trim(), ...recentJp])
+    greetingPool = greetingPool.filter((s) => !echo.has(s.jp))
+    if (inConversation) {
+      greetingPool = greetingPool.filter((s) => !isGenericGreetingLine(s.jp))
+    }
+    if (greetingPool.length < 3) {
+      greetingPool = filterQualityPool(
+        pool.filter((s) => !echo.has(s.jp) && !isGenericGreetingLine(s.jp)),
+      )
+    }
     const picked = contextualPick(
-      greetingPool,
+      greetingPool.length ? greetingPool : pool,
       input,
       intent,
       topic,
@@ -166,8 +214,9 @@ async function resolveMessage(
     )
     const message = await blendWithPersonality(
       mode,
-      'greeting',
+      inConversation ? 'general' : 'greeting',
       picked ? toLanguageText(picked) : null,
+      inConversation ? 0.08 : 0.12,
     )
     return {
       message,
@@ -187,6 +236,23 @@ async function resolveMessage(
   }
 
   if (intent === 'help') {
+    const helpPool = prioritizeGrammarTagged(pool)
+    const picked = contextualPick(helpPool, input, intent, topic, recentJp, matchContext)
+    if (picked) {
+      return {
+        message: await blendWithPersonality(mode, 'help', toLanguageText(picked)),
+        grammarTags: picked.grammarTags,
+        sentenceId: picked.id,
+      }
+    }
+    if (mode === 'teacher' || mode === 'strict_tutor') {
+      const hint = await pickPersonalityLine(mode, 'grammar_hint')
+      if (hint) {
+        return {
+          message: await blendWithPersonality(mode, 'help', hint, 0.12),
+        }
+      }
+    }
     return {
       message: await blendWithPersonality(mode, 'help', {
         jp: 'ゆっくり話してみて。一緒に練習しよう。',
@@ -251,12 +317,26 @@ async function resolveMessage(
     }
   }
 
+  if (SHORT_USER_ACK.test(input.trim())) {
+    const questions = pool.filter(
+      (s) =>
+        /[?？]$/.test(s.jp) &&
+        !recentJp.includes(s.jp) &&
+        s.jp.length <= 40,
+    )
+    const engaged = pickSentence(questions, recentJp)
+    if (engaged) {
+      return {
+        message: await blendWithPersonality(mode, 'general', toLanguageText(engaged)),
+        grammarTags: engaged.grammarTags,
+        sentenceId: engaged.id,
+      }
+    }
+  }
+
+  const recovery = pickRecoveryLine(recentJp, input)
   return {
-    message: await blendWithPersonality(mode, 'general', {
-      jp: 'そうですね。もう少し教えてください。',
-      romaji: 'Sou desu ne. Mou sukoshi oshiete kudasai.',
-      en: 'I see. Tell me a bit more.',
-    }),
+    message: await blendWithPersonality(mode, 'general', recovery),
   }
 }
 
@@ -265,8 +345,9 @@ export async function processUserMessage(
   profile: UserProfile,
   context: ConversationTurn[],
   forcedTopic?: string,
-  options?: { suggestionHint?: string; voice?: boolean },
+  options?: { suggestionHint?: string; voice?: boolean; settings?: AppSettings },
 ): Promise<EngineResponse> {
+  await ensureConversationTuningLoaded()
   const input = rawInput.trim()
   const voiceMode = options?.voice === true
   const intent = detectIntent(input)
@@ -299,7 +380,8 @@ export async function processUserMessage(
     )
   }
 
-  pool = prioritizeConversationalPool(pool)
+  const quality = filterQualityPool(pool)
+  pool = prioritizeConversationalPool(quality.length >= 8 ? quality : pool)
   if (voiceMode) {
     pool = boostPoolWithSeeds(pool, level, topic)
   }
@@ -307,7 +389,7 @@ export async function processUserMessage(
   const recentJp = context
     .filter((c) => c.role === 'nozomi')
     .map((c) => c.content)
-    .slice(-4)
+    .slice(-6)
 
   const recentUserText = context
     .filter((c) => c.role === 'user')
@@ -339,30 +421,38 @@ export async function processUserMessage(
       voiceMode,
     },
   )
-  const suggestionCount = profile.immersionLevel === 'beginner' ? 3 : 3
+  const settings = options?.settings ?? DEFAULT_SETTINGS
   const suggestions = await buildContextualSuggestions({
     topic,
     level,
     nozomiMessage: resolved.message,
     recentUserText: contextualUserText,
-    count: suggestionCount,
+    count: resolveSuggestionCount(settings, profile),
   })
+  const enriched = enrichGrammarTags(resolved)
   return {
-    message: resolved.message,
+    message: enriched.message,
     suggestions,
     topic,
     intent,
-    grammarTags: resolved.grammarTags,
-    sentenceId: resolved.sentenceId,
+    grammarTags: enriched.grammarTags,
+    sentenceId: enriched.sentenceId,
   }
 }
 
 export async function createOpeningTurn(
   profile: UserProfile,
   topic = 'daily',
+  settings: AppSettings = DEFAULT_SETTINGS,
+  rotateIndex = 0,
 ): Promise<EngineResponse> {
   const pool = await poolFor(topic, profile.jlptLevel, 'greeting')
-  const picked = pickSentence(pool, [])
+  const greetingPool = pool.filter((s) => s.category === 'greeting' || s.category === topic)
+  const picked = pickSentence(
+    greetingPool.length >= 3 ? greetingPool : pool,
+    [],
+    rotateIndex,
+  )
   const message = await blendWithPersonality(
     profile.personalityMode,
     'greeting',
@@ -373,20 +463,66 @@ export async function createOpeningTurn(
           romaji: 'Kyou wa dou datta?',
           en: 'How was your day?',
         },
+    0.12,
   )
   const suggestions = await buildContextualSuggestions({
     topic,
     level: profile.jlptLevel,
     nozomiMessage: message,
-    count: 3,
+    count: resolveSuggestionCount(settings, profile),
+  })
+  const openingResult = enrichGrammarTags({
+    message,
+    grammarTags: picked?.grammarTags,
+    sentenceId: picked?.id,
+  })
+  return {
+    message: openingResult.message,
+    suggestions,
+    topic,
+    intent: 'greeting',
+    grammarTags: openingResult.grammarTags,
+    sentenceId: openingResult.sentenceId,
+  }
+}
+
+/** Start a guided story for voice or chat (topic-matched from stories DB). */
+export async function createStoryOpening(
+  profile: UserProfile,
+  topic = 'daily',
+  settings: AppSettings = DEFAULT_SETTINGS,
+): Promise<EngineResponse> {
+  const story = await getStoryForTopic(topic)
+  if (!story) return createOpeningTurn(profile, topic, settings)
+
+  const beat = await getFirstBeatForStory(story.id)
+  if (!beat) return createOpeningTurn(profile, topic, settings)
+
+  const beats = await getBeatsForStory(story.id)
+  const storySession: StorySession = {
+    storyId: story.id,
+    slug: story.slug,
+    beatOrder: 1,
+    totalBeats: beats.length,
+  }
+  const message = await blendWithPersonality(
+    profile.personalityMode,
+    'greeting',
+    { jp: beat.jp, romaji: beat.romaji, en: beat.en },
+    0.2,
+  )
+  const suggestions = await buildContextualSuggestions({
+    topic: story.category || topic,
+    level: profile.jlptLevel,
+    nozomiMessage: message,
+    count: resolveSuggestionCount(settings, profile),
   })
   return {
     message,
     suggestions,
-    topic,
+    topic: story.category || topic,
     intent: 'greeting',
-    grammarTags: picked?.grammarTags,
-    sentenceId: picked?.id,
+    story: storySession,
   }
 }
 
@@ -394,6 +530,7 @@ export async function createOpeningTurn(
 export async function createScenarioOpening(
   profile: UserProfile,
   category: ScenarioCategory,
+  settings: AppSettings = DEFAULT_SETTINGS,
 ): Promise<EngineResponse> {
   const story = await getStoryByCategory(category)
   if (story) {
@@ -416,7 +553,7 @@ export async function createScenarioOpening(
         topic: category,
         level: profile.jlptLevel,
         nozomiMessage: message,
-        count: 3,
+        count: resolveSuggestionCount(settings, profile),
       })
       return {
         message,
@@ -453,7 +590,7 @@ export async function createScenarioOpening(
       topic: category,
       level: profile.jlptLevel,
       nozomiMessage: message,
-      count: 3,
+      count: resolveSuggestionCount(settings, profile),
     })
     return {
       message,
@@ -465,5 +602,5 @@ export async function createScenarioOpening(
     }
   }
 
-  return createOpeningTurn(profile, category)
+  return createOpeningTurn(profile, category, settings)
 }

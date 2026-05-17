@@ -11,7 +11,7 @@ const GREETING =
   /^(hi|hello|hey|hola|hallo|yo|sup|こんにちは|おはよう|こんばんは|やあ|やっほ|おっす|konn?ichiwa|konbanwa|ohayou|moshi moshi|はじめまして)/i
 const FAREWELL = /(bye|goodbye|see you|later|さようなら|またね|じゃあね|バイバイ)/i
 const HELP =
-  /(help|how do|what is|what's|meaning|translate|教えて|どうやって|わからない|意味)/i
+  /(help|how do|what is|what's|what does|meaning|translate|教えて|どうやって|どういう|わからない|わかんない|意味|wakaranai|oshiete|idk)/i
 const QUESTION =
   /(\?|？|ですか|ますか|でしょうか|かな|かい|what|why|how|when|where|who|which|どう|なに|なぜ|どこ|いつ|誰|何|どっち|どれ|いくら|どの)/i
 

@@ -156,6 +156,9 @@ export const useNozomiStore = create<NozomiState>()(
           chatSession: defaultSession(),
           voiceSession: defaultSession(),
           orbState: 'idle',
+          speechState: 'idle',
+          liveTranscript: '',
+          audioLevel: 0,
         }),
       setActiveVocab: (activeVocab) => set({ activeVocab }),
       clearActiveVocab: () => set({ activeVocab: null }),
@@ -183,10 +186,11 @@ export const useNozomiStore = create<NozomiState>()(
         })),
       startScenario: (category) =>
         set({
-          chatMessages: [],
-          chatContextBuffer: [],
-          chatSuggestions: [],
-          chatSession: {
+          voiceMessages: [],
+          voiceContextBuffer: [],
+          voiceSuggestions: [],
+          voicePinnedSuggestion: null,
+          voiceSession: {
             activeIntent: 'scenario',
             activeScenario: category,
             activeStorySlug: undefined,
@@ -249,14 +253,23 @@ export const useNozomiStore = create<NozomiState>()(
     }),
     {
       name: 'nozomi-storage',
-      version: 3,
+      version: 5,
       migrate: (persisted, fromVersion) => {
-        const state = persisted as Partial<NozomiState>
+        const state = persisted as Partial<NozomiState> & {
+          profile?: Partial<UserProfile> & { xp?: number; streakDays?: number }
+        }
         if (fromVersion < 2 && state.settings?.speechInputLang === 'en-US') {
           state.settings = { ...state.settings, speechInputLang: 'auto' }
         }
         if (fromVersion < 3 && state.profile) {
           state.profile = { ...state.profile, onboardingComplete: true }
+        }
+        if (fromVersion < 4 && state.settings) {
+          state.settings = { ...state.settings, voiceStoryMode: false }
+        }
+        if (fromVersion < 5 && state.profile) {
+          const { xp: _xp, streakDays: _streak, ...profileRest } = state.profile
+          state.profile = profileRest as UserProfile
         }
         return state as NozomiState
       },

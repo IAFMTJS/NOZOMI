@@ -29,6 +29,7 @@ import {
   speechSupported,
   startListening,
   stopSpeaking,
+  whenSttWorkIdle,
   type SpeechError,
   type SpeechErrorCode,
 } from '@/systems/speech/speechService'
@@ -80,8 +81,17 @@ function useSpeechListenController(): SpeechListenApi {
   const pendingInterimRef = useRef('')
   const interimRafRef = useRef<number | null>(null)
   const finishFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const voiceTurnGenRef = useRef(0)
+  const noSpeechFallbackDeliveredRef = useRef(false)
 
   const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
+
+  const clearFinishWaitTimer = useCallback(() => {
+    if (finishFallbackTimer.current) {
+      clearTimeout(finishFallbackTimer.current)
+      finishFallbackTimer.current = null
+    }
+  }, [])
 
   const resolveHeardText = useCallback(() => {
     return (
@@ -109,7 +119,11 @@ function useSpeechListenController(): SpeechListenApi {
     setOfflineSttReady(false)
     preloadOfflineStt(recognitionLang)
     void whenOfflineSttReady(recognitionLang).then(() => {
-      if (mountedRef.current) setOfflineSttReady(true)
+      if (!mountedRef.current) return
+      if (resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang) !== recognitionLang) {
+        return
+      }
+      setOfflineSttReady(true)
     })
     if ('speechSynthesis' in window) {
       const warmVoices = () => {
@@ -153,6 +167,8 @@ function useSpeechListenController(): SpeechListenApi {
   }, [dataReady])
 
   const deliverNoSpeechFallback = useCallback(() => {
+    if (noSpeechFallbackDeliveredRef.current) return
+    noSpeechFallbackDeliveredRef.current = true
     voiceDebugWarn('ui:no-speech-fallback', captureSnapshot())
     const { audioStart, soundStart } = getListenSignals()
     const noVoiceHeard = audioStart && !soundStart
@@ -215,17 +231,23 @@ function useSpeechListenController(): SpeechListenApi {
       setSpeechState('processing')
       setOrbState('thinking')
 
+      const turnId = ++voiceTurnGenRef.current
+      const shouldAbort = () => voiceTurnGenRef.current !== turnId
+
       try {
         await waitForData()
         await Promise.race([
-          sendUserMessage(trimmed, 'voice'),
+          sendUserMessage(trimmed, 'voice', { shouldAbort }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('voice-turn-timeout')), 12000),
           ),
         ])
+        if (shouldAbort()) return
         setSpeechState('idle')
         voiceDebug('ui:final-ok', { length: trimmed.length })
       } catch (err) {
+        voiceTurnGenRef.current++
+        if (shouldAbort()) return
         voiceDebugError('ui:final-failed', {
           error: err instanceof Error ? err.message : String(err),
           text: trimmed.slice(0, 160),
@@ -264,17 +286,25 @@ function useSpeechListenController(): SpeechListenApi {
     (err: SpeechError) => {
       if (!mountedRef.current) return
       voiceDebugError('ui:stt-error', { code: err.code, message: err.message })
+      clearFinishWaitTimer()
+      processingRef.current = false
+      cancelListening()
+      releaseSharedMicrophone()
       setOrbState('idle')
       setSpeechState('error')
       setErrorCode(err.code)
       setAudioLevel(0)
     },
-    [setAudioLevel, setOrbState, setSpeechState],
+    [clearFinishWaitTimer, setAudioLevel, setOrbState, setSpeechState],
   )
 
   const handleStateChange = useCallback(
     (state: SpeechState) => {
       if (!mountedRef.current) return
+      if (state === 'idle' && processingRef.current) {
+        voiceDebug('ui:speech-state-ignored', { state, reason: 'turn-processing' })
+        return
+      }
       voiceDebug('ui:speech-state', { state })
       setSpeechState(state)
       if (state === 'listening') {
@@ -334,21 +364,37 @@ function useSpeechListenController(): SpeechListenApi {
       return false
     }
 
+    if (processingRef.current) {
+      voiceDebugWarn('ui:begin-blocked', { reason: 'turn-processing' })
+      return false
+    }
+
+    clearFinishWaitTimer()
+    noSpeechFallbackDeliveredRef.current = false
+
     setErrorCode(undefined)
     setLiveTranscript('')
     everHeardRef.current = false
     lastTranscriptRef.current = ''
+    pendingInterimRef.current = ''
     stopSpeaking()
     setSpeechState('permission_pending')
     setOrbState('idle')
     markListenArmedFromGesture()
     voiceDebug('ui:beginListening', { lang: recognitionLang })
-    startListening(buildCallbacks(), listenOptions)
+
+    void whenSttWorkIdle().then(() => {
+      if (!mountedRef.current) return
+      const state = useNozomiStore.getState().speechState
+      if (state !== 'permission_pending' && state !== 'listening') return
+      startListening(buildCallbacks(), listenOptions)
+    })
     return true
   }, [
     recognitionLang,
     buildCallbacks,
     listenOptions,
+    clearFinishWaitTimer,
     setLiveTranscript,
     setOrbState,
     setSpeechState,
@@ -376,18 +422,20 @@ function useSpeechListenController(): SpeechListenApi {
     markListenArmedFromGesture()
     voiceDebug('ui:armAndGoToListen', { lang: recognitionLang })
 
-    const granted = await primeMicrophonePermission()
-    if (!granted) {
-      setErrorCode('not-allowed')
-      setSpeechState('error')
-      navigate('/listen')
-      return
+    // Priming opens then closes the mic; on Windows that races with local STT capture.
+    if (getSttEngine() === 'browser') {
+      const granted = await primeMicrophonePermission()
+      if (!granted) {
+        setErrorCode('not-allowed')
+        setSpeechState('error')
+        navigate('/listen')
+        return
+      }
     }
 
     beginListening()
-    navigate('/listen')
+    navigate('/listen', { state: { autoStart: true } })
   }, [
-    beginListening,
     navigate,
     recognitionLang,
     setLiveTranscript,
@@ -413,10 +461,9 @@ function useSpeechListenController(): SpeechListenApi {
 
   const cancelSession = useCallback(() => {
     voiceDebug('ui:cancel', captureSnapshot())
-    if (finishFallbackTimer.current) {
-      clearTimeout(finishFallbackTimer.current)
-      finishFallbackTimer.current = null
-    }
+    clearFinishWaitTimer()
+    voiceTurnGenRef.current++
+    noSpeechFallbackDeliveredRef.current = false
     processingRef.current = false
     everHeardRef.current = false
     cancelListening()
@@ -426,7 +473,7 @@ function useSpeechListenController(): SpeechListenApi {
     setOrbState('idle')
     setSpeechState('idle')
     setErrorCode(undefined)
-  }, [captureSnapshot, setAudioLevel, setLiveTranscript, setOrbState, setSpeechState])
+  }, [captureSnapshot, clearFinishWaitTimer, setAudioLevel, setLiveTranscript, setOrbState, setSpeechState])
 
   const finishRecording = useCallback(() => {
     if (processingRef.current) {
@@ -435,10 +482,7 @@ function useSpeechListenController(): SpeechListenApi {
     }
     voiceDebugCapture('ui:finish', captureSnapshot())
 
-    if (finishFallbackTimer.current) {
-      clearTimeout(finishFallbackTimer.current)
-      finishFallbackTimer.current = null
-    }
+    clearFinishWaitTimer()
 
     if (interimRafRef.current) {
       cancelAnimationFrame(interimRafRef.current)
@@ -475,6 +519,7 @@ function useSpeechListenController(): SpeechListenApi {
     voiceDebug('ui:finish-wait', { maxWaitMs: maxWait, everHeard: everHeardRef.current })
     const waitForTranscript = () => {
       if (processingRef.current) return
+      if (useNozomiStore.getState().speechState === 'error') return
       const heard = resolveHeardText()
       if (heard) {
         voiceDebug('ui:finish-wait-hit', {
@@ -501,6 +546,7 @@ function useSpeechListenController(): SpeechListenApi {
     finishFallbackTimer.current = setTimeout(waitForTranscript, 200)
   }, [
     captureSnapshot,
+    clearFinishWaitTimer,
     deliverNoSpeechFallback,
     handleFinalTranscript,
     resolveHeardText,

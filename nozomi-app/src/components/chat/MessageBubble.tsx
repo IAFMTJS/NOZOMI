@@ -14,11 +14,6 @@ interface Props {
   variant?: 'default' | 'float' | 'history'
 }
 
-function formatTime(ts: number): string {
-  const d = new Date(ts)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
 export function MessageBubble({
   message,
   onWordTap,
@@ -52,23 +47,17 @@ export function MessageBubble({
                 : 'bubble-ai'
         }`}
       >
-        {!compact &&
-          !isUser &&
-          (canShowGrammar ? (
-            <button
-              type="button"
-              onClick={() => setGrammarOpen((o) => !o)}
-              className={`${BTN_ICON} mb-2 text-nozomi-purple`}
-              aria-expanded={grammarOpen}
-              aria-label="Grammar hint"
-            >
-              <IconStar size={14} />
-            </button>
-          ) : (
-            <span className="mb-2 inline-flex text-nozomi-purple" aria-hidden>
-              <IconStar size={14} />
-            </span>
-          ))}
+        {!compact && !isUser && canShowGrammar && (
+          <button
+            type="button"
+            onClick={() => setGrammarOpen((o) => !o)}
+            className={`${BTN_ICON} mb-2 text-nozomi-purple`}
+            aria-expanded={grammarOpen}
+            aria-label="Grammar hint"
+          >
+            <IconStar size={14} />
+          </button>
+        )}
         <LanguageText
           text={message.text}
           size={compact ? 'sm' : 'md'}
@@ -84,14 +73,6 @@ export function MessageBubble({
           />
         )}
       </div>
-      {isUser && !compact && (
-        <div className="flex items-center gap-1.5 pr-1 text-[10px] text-nozomi-muted">
-          <span>{formatTime(message.timestamp)}</span>
-          <span className="text-nozomi-purple/80" aria-label="Read">
-            ✓✓
-          </span>
-        </div>
-      )}
     </motion.div>
   )
 }

@@ -12,5 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Large simulation batches override via CLI --test-timeout=0
+    testTimeout: 120_000,
   },
 })

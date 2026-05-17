@@ -1,0 +1,48 @@
+/**
+ * Tuning derived from simulation exports (high/low scoring runs).
+ * Regenerate: npm run apply-simulation-insights -- --run=<runId>
+ */
+export interface TuningHintRule {
+  /** Match user or recent context */
+  pattern: string
+  jpBoost: string[]
+}
+
+export interface ConversationTuningData {
+  version: number
+  /** Penalize replies containing these (overused / low-quality from sims) */
+  avoidJpContains: string[]
+  /** Extra hint rules merged into reply matching */
+  hintRules: TuningHintRule[]
+  /** Prefer questions when user sends a short ack */
+  questionOnShortAck: boolean
+}
+
+/** Defaults from 1k-run learnings — updated by apply-simulation-insights script */
+export const SIMULATION_TUNING: ConversationTuningData = {
+  version: 1,
+  avoidJpContains: [
+    'こんにちは！',
+    '「沿う」ですね',
+    '」ですね。',
+  ],
+  hintRules: [
+    {
+      pattern: '(わからない|教えて|help|meaning|how do)',
+      jpBoost: ['ゆっくり', '練習', '一緒', '意味', '例'],
+    },
+    {
+      pattern: '(bored|つまらない|別の|ところで)',
+      jpBoost: ['面白い', '他に', '好き', '趣味', '今日'],
+    },
+    {
+      pattern: '(うん|そう|ok|yeah|mhm)$',
+      jpBoost: ['？', 'どう', '何', '続け', '他に'],
+    },
+    {
+      pattern: '(疲|忙|大変|tired|busy)',
+      jpBoost: ['お疲れ', '休', '頑張', '大変', 'ゆっくり'],
+    },
+  ],
+  questionOnShortAck: true,
+}

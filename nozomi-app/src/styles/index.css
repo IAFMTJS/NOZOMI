@@ -1,22 +1,29 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-nozomi-bg: #020106;
-  --color-nozomi-bg-elevated: #08051a;
-  --color-nozomi-surface: rgba(8, 10, 24, 0.78);
+  --color-nozomi-bg: #050508;
+  --color-nozomi-bg-elevated: #0c0c12;
+  --color-nozomi-surface: rgba(14, 14, 22, 0.72);
   --color-nozomi-surface-soft: rgba(12, 14, 32, 0.55);
-  --color-nozomi-border: rgba(168, 85, 247, 0.22);
-  --color-nozomi-border-strong: rgba(34, 211, 238, 0.45);
-  --color-nozomi-purple: #c084fc;
+  --color-nozomi-border: rgba(167, 139, 250, 0.2);
+  --color-nozomi-border-strong: rgba(94, 234, 212, 0.35);
+  --color-nozomi-accent: #a78bfa;
+  --color-nozomi-accent-soft: #c4b5fd;
+  --color-nozomi-accent-glow: rgba(167, 139, 250, 0.35);
+  --color-nozomi-live: #5eead4;
+  --color-nozomi-warm: #fbbf24;
+  --color-nozomi-purple: #a78bfa;
   --color-nozomi-purple-deep: #7c3aed;
   --color-nozomi-blue: #60a5fa;
-  --color-nozomi-cyan: #22d3ee;
+  --color-nozomi-cyan: #5eead4;
   --color-nozomi-indigo: #818cf8;
-  --color-nozomi-text: #f0f4ff;
-  --color-nozomi-muted: rgba(199, 210, 254, 0.48);
-  --color-nozomi-user-bubble: rgba(88, 28, 135, 0.55);
-  --font-sans: 'Exo 2', 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Orbitron', 'Exo 2', sans-serif;
+  --color-nozomi-text: #f4f4f5;
+  --color-nozomi-text-secondary: rgba(244, 244, 245, 0.62);
+  --color-nozomi-muted: rgba(244, 244, 245, 0.38);
+  --color-nozomi-user-bubble: rgba(255, 255, 255, 0.06);
+  --font-sans: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  --font-display: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  --font-jp: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
 }
 
 * {
@@ -141,7 +148,7 @@ input[type='range'] {
 .futuristic-scanlines {
   position: absolute;
   inset: 0;
-  opacity: 0.04;
+  opacity: 0.015;
   background: repeating-linear-gradient(
     0deg,
     transparent,
@@ -526,20 +533,25 @@ input[type='range'] {
 
 .bubble-user {
   border-radius: 1.25rem 1.25rem 0.35rem 1.25rem;
-  background: linear-gradient(145deg, rgba(107, 33, 168, 0.55), rgba(67, 20, 120, 0.65));
-  border: 1px solid rgba(192, 132, 252, 0.4);
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 /* ─── Section labels ─── */
 .section-label {
-  font-family: var(--font-display);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-nozomi-cyan);
-  text-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+  color: var(--color-nozomi-text-secondary);
+}
+
+.font-jp,
+.msg-jp,
+.tappable-jp {
+  font-family: var(--font-jp);
 }
 
 /* ─── Hero text shimmer ─── */
@@ -588,6 +600,63 @@ input[type='range'] {
   z-index: 30;
   flex-shrink: 0;
   padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.presence-story-mode {
+  position: relative;
+  z-index: 28;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0 1rem 0.375rem;
+}
+
+.presence-story-mode-track {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  background: rgba(15, 10, 35, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.presence-story-mode-option {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(199, 210, 254, 0.55);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.presence-story-mode-option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.presence-story-mode-option-active {
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.45),
+    rgba(192, 132, 252, 0.35)
+  );
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+}
+
+.presence-story-mode-progress {
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: rgba(196, 181, 253, 0.75);
+  font-variant-numeric: tabular-nums;
 }
 
 .presence-status {

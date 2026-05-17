@@ -1,4 +1,6 @@
 const TARGET_RATE = 16_000
+/** Cap inference length on mobile/low-memory devices (Whisper is ~linear in duration). */
+const MAX_SAMPLES = 30 * TARGET_RATE
 
 /** Decode a recorded blob (webm/opus) to mono 16 kHz PCM for Whisper. */
 export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array> {
@@ -7,8 +9,12 @@ export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array
   try {
     const decoded = await ctx.decodeAudioData(buffer.slice(0))
     const mono = downmixToMono(decoded)
-    if (decoded.sampleRate === TARGET_RATE) return mono
-    return resampleToRate(mono, decoded.sampleRate, TARGET_RATE)
+    const atTarget =
+      decoded.sampleRate === TARGET_RATE
+        ? mono
+        : await resampleToRate(mono, decoded.sampleRate, TARGET_RATE)
+    if (atTarget.length <= MAX_SAMPLES) return atTarget
+    return atTarget.slice(-MAX_SAMPLES)
   } finally {
     await ctx.close()
   }

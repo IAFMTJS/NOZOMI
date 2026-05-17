@@ -1,7 +1,12 @@
 import { preferTrilingual } from '@/utils/languageCompleteness'
 import { tokenizeJapanese, isJapaneseToken } from '@/utils/japaneseTokens'
 import { isScenarioIntent } from '@/data/scenarioIntents'
-import { isConversationalReply } from './engineHelpers'
+import {
+  shouldPreferQuestionOnShortAck,
+  tuningBoostForSentence,
+  tuningPenaltyForSentence,
+} from './conversationTuning'
+import { isConversationalReply, isGenericGreetingLine } from './engineHelpers'
 import { RESPONSE_HINTS } from './responseHints'
 import type { Intent } from './intent'
 import type { Sentence } from '@/types/domain'
@@ -35,6 +40,31 @@ function userSpeaksFirstPerson(input: string): boolean {
   return /(私|僕|ぼく|わたし|\bi\b|\bi'm|\bmy\b)/i.test(input)
 }
 
+function ngramOverlapRatio(a: string, b: string, n = 3): number {
+  if (a === b) return 1
+  if (a.length < n || b.length < n) return 0
+  const gramsA = new Set<string>()
+  for (let i = 0; i <= a.length - n; i++) gramsA.add(a.slice(i, i + n))
+  let hits = 0
+  let total = 0
+  for (let i = 0; i <= b.length - n; i++) {
+    total += 1
+    if (gramsA.has(b.slice(i, i + n))) hits += 1
+  }
+  return total ? hits / total : 0
+}
+
+function repetitionPenalty(sentence: Sentence, excludeJp: string[]): number {
+  let penalty = 0
+  for (const prev of excludeJp) {
+    if (sentence.jp === prev) return -80
+    const overlap = ngramOverlapRatio(prev, sentence.jp)
+    if (overlap > 0.5) penalty -= 25
+    else if (overlap > 0.35) penalty -= 12
+  }
+  return penalty
+}
+
 function conversationalFit(sentence: Sentence, input: string): number {
   let bonus = 0
   const len = sentence.jp.length
@@ -65,14 +95,30 @@ function scoreSentence(
   intent: Intent,
   topic: string,
   matchContext: MatchContext = {},
+  excludeJp: string[] = [],
 ): { total: number; signal: number } {
   let score = 0
   let signal = 0
   const lowerInput = input.toLowerCase()
   const tokens = collectTokens(input)
+  const scoringText = [matchContext.recentUserText, input].filter(Boolean).join(' ')
 
   score += conversationalFit(sentence, input)
   signal += Math.max(0, conversationalFit(sentence, input))
+  score += repetitionPenalty(sentence, excludeJp)
+  score += tuningPenaltyForSentence(sentence.jp)
+  score += tuningBoostForSentence(sentence.jp, scoringText)
+
+  const recentContext = matchContext.recentUserText ?? input
+  if (recentContext.length > 4 && sentence.category === topic) {
+    score += 4
+    signal += 2
+  }
+
+  if (shouldPreferQuestionOnShortAck(input) && /[?？]/.test(sentence.jp)) {
+    score += 10
+    signal += 6
+  }
 
   if (sentence.category === topic) {
     score += isScenarioIntent(topic) ? 6 : 3
@@ -151,6 +197,18 @@ function scoreSentence(
     signal += 5
   }
 
+  if (
+    (intent === 'help' || intent === 'question') &&
+    sentence.grammarTags?.trim()
+  ) {
+    score += 6
+    signal += 4
+  }
+
+  if (intent === 'greeting' && excludeJp.length > 0 && isGenericGreetingLine(sentence.jp)) {
+    score -= 20
+  }
+
   if (isConversationalReply(sentence)) {
     score += 2
     signal += 2
@@ -203,7 +261,7 @@ export function pickContextualSentence(
 
   const scored = list.map((sentence) => ({
     sentence,
-    ...scoreSentence(sentence, scoringInput, intent, topic, matchContext),
+    ...scoreSentence(sentence, scoringInput, intent, topic, matchContext, excludeJp),
   }))
   const ranked = scored.sort((a, b) => {
     const totalDiff = b.total - a.total

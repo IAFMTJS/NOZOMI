@@ -44,7 +44,7 @@ export function ChatPage() {
     }
 
     if (scenario) {
-      void startScenarioConversation(scenario)
+      void startScenarioConversation(scenario, 'chat')
       navigate(location.pathname, { replace: true, state: {} })
       return
     }

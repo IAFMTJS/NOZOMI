@@ -75,6 +75,9 @@ export default defineConfig({
     },
     hmr: {
       protocol: 'wss',
+      // Match the page port when using @vitejs/plugin-basic-ssl (phone LAN testing).
+      clientPort: 5173,
+      overlay: false,
     },
   },
   preview: {

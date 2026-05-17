@@ -5,11 +5,14 @@ import { ChatPage } from '@/pages/ChatPage'
 import { ListeningPage } from '@/pages/ListeningPage'
 import { WordPage } from '@/pages/WordPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { OnboardingPage } from '@/pages/OnboardingPage'
+import { SimulationDashboardPage } from '@/pages/SimulationDashboardPage'
 import {
   ensureDataLoaded,
   ensureExtendedDataLoaded,
   ensureLexiconLoaded,
 } from '@/database/importService'
+import { ensureConversationTuningLoaded } from '@/systems/conversation/conversationTuning'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
@@ -25,6 +28,7 @@ export default function App() {
     ensureDataLoaded()
       .then(() => ensureExtendedDataLoaded())
       .then(() => ensureLexiconLoaded())
+      .then(() => ensureConversationTuningLoaded())
       .then(() => setDataReady(true))
       .catch(() => setDataReady(true))
   }, [setDataReady])
@@ -52,8 +56,9 @@ export default function App() {
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/listen" element={<ListeningPage />} />
                   <Route path="/word" element={<WordPage />} />
-                  <Route path="/onboarding" element={<Navigate to="/" replace />} />
+                  <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/simulation" element={<SimulationDashboardPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppShell>

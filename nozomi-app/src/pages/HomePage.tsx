@@ -6,6 +6,8 @@ import { LanguageText } from '@/components/language/LanguageText'
 import { ScenarioPicker } from '@/components/scenarios/ScenarioPicker'
 import { PresenceDock } from '@/components/presence/PresenceDock'
 import { PresenceStatusRow } from '@/components/presence/PresenceStatusRow'
+import { StoryModeToggle } from '@/components/presence/StoryModeToggle'
+import { useConversation } from '@/hooks/useConversation'
 import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
@@ -24,6 +26,9 @@ export function HomePage() {
   const voiceMessages = useNozomiStore((s) => s.voiceMessages)
   const [pickerOpen, setPickerOpen] = useState(false)
   const { armAndGoToListen } = useSpeechListen()
+  const { setVoiceStoryMode } = useConversation()
+  const voiceTurnCount = useNozomiStore((s) => s.voiceSession.turnCount)
+  const showStoryToggle = voiceTurnCount >= 5
   const orbSize = useOrbSize(380, 240)
 
   if (!hydrated) {
@@ -41,12 +46,15 @@ export function HomePage() {
   const handleScenario = (category: ScenarioCategory) => {
     startScenario(category)
     setPickerOpen(false)
-    navigate('/chat', { state: { scenarioStart: category } })
+    navigate('/listen', { state: { scenarioStart: category } })
   }
 
   return (
     <div className="presence-screen" data-testid="home-page">
       <AppHeader compact onSettings={() => navigate('/settings')} />
+      {showStoryToggle && (
+        <StoryModeToggle onToggle={(enabled) => void setVoiceStoryMode(enabled)} />
+      )}
       <PresenceStatusRow speechState={speechState} orbState={orbState} />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
