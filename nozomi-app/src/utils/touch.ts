@@ -10,3 +10,14 @@ export const BTN_ROW_SM =
 
 export const BTN_ICON =
   `${BTN_TOUCH} touch-target inline-flex items-center justify-center rounded-xl`
+
+/** Futuristic form controls (see features/design/styles/sections/forms.css) */
+export function formChipClass(active: boolean): string {
+  return `form-chip ${BTN_TOUCH} ${active ? 'form-chip-active' : ''}`
+}
+
+export function formOptionClass(active: boolean, left = false): string {
+  return `form-option ${BTN_TOUCH} ${left ? 'form-option-left' : ''} ${
+    active ? 'form-option-active' : ''
+  }`
+}

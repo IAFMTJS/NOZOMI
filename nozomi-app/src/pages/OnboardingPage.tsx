@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { NozomiOrb } from '@/components/orb/NozomiOrb'
+import { NozomiOrb, OrbAmbienceBridge } from '@/features/orb'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { primeMicrophonePermission } from '@/systems/speech/speechService'
+import { primeMicrophonePermission } from '@/features/voice'
 import type {
   ImmersionLevel,
   JlptLevel,
   LanguageText as LT,
   PersonalityMode,
 } from '@/types/domain'
-import { BTN_ROW } from '@/utils/touch'
+import { formChipClass, formOptionClass } from '@/utils/touch'
 
 const STEPS = 4
 
@@ -103,6 +103,7 @@ export function OnboardingPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
+      <OrbAmbienceBridge />
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-20 pt-8">
         <AnimatePresence mode="wait">
           {step === 0 && (
@@ -145,7 +146,7 @@ export function OnboardingPage() {
                 hierarchy="presence"
               />
               <motion.div
-                className="flex gap-2 overflow-x-auto pb-1"
+                className="form-chip-row"
                 role="listbox"
                 aria-label={UI_LABELS.chooseJlpt.en}
               >
@@ -154,11 +155,7 @@ export function OnboardingPage() {
                     key={key}
                     type="button"
                     onClick={() => setJlptLevel(key)}
-                    className={`${BTN_ROW} shrink-0 px-5 transition ${
-                      jlptLevel === key
-                        ? 'border-nozomi-accent bg-nozomi-bg-elevated ring-1 ring-nozomi-accent/40'
-                        : 'border-white/10 bg-nozomi-bg-elevated/80'
-                    }`}
+                    className={formChipClass(jlptLevel === key)}
                     aria-pressed={jlptLevel === key}
                   >
                     <span className="font-medium text-nozomi-text">{key}</span>
@@ -188,11 +185,7 @@ export function OnboardingPage() {
                     key={key}
                     type="button"
                     onClick={() => setPersonalityMode(key)}
-                    className={`${BTN_ROW} w-full border px-4 py-3 text-left transition ${
-                      personalityMode === key
-                        ? 'border-nozomi-accent bg-nozomi-bg-elevated ring-1 ring-nozomi-accent/40'
-                        : 'border-white/10 bg-nozomi-bg-elevated/60'
-                    }`}
+                    className={formOptionClass(personalityMode === key, true)}
                     aria-pressed={personalityMode === key}
                   >
                     <LanguageText text={label} size="sm" passive />
@@ -225,11 +218,7 @@ export function OnboardingPage() {
                     key={key}
                     type="button"
                     onClick={() => setImmersionLevel(key)}
-                    className={`${BTN_ROW} transition ${
-                      immersionLevel === key
-                        ? 'border-nozomi-accent ring-1 ring-nozomi-accent/40'
-                        : 'border-white/10'
-                    }`}
+                    className={formOptionClass(immersionLevel === key)}
                     aria-pressed={immersionLevel === key}
                   >
                     <LanguageText text={label} size="sm" align="center" passive />
@@ -249,15 +238,11 @@ export function OnboardingPage() {
       </div>
 
       <footer className="flex shrink-0 flex-col items-center gap-6 px-6 pb-8">
-        <div className="flex gap-2" aria-hidden>
+        <div className="onboarding-steps" aria-hidden>
           {Array.from({ length: STEPS }, (_, i) => (
             <span
               key={i}
-              className={`h-[3px] w-6 rounded-full transition ${
-                i === step
-                  ? 'bg-nozomi-live shadow-[0_0_8px_rgba(94,234,212,0.45)]'
-                  : 'bg-nozomi-purple/25'
-              }`}
+              className={`onboarding-step ${i === step ? 'onboarding-step-active' : ''}`}
             />
           ))}
         </div>
@@ -268,7 +253,7 @@ export function OnboardingPage() {
             if (step < STEPS - 1) setStep((s) => s + 1)
             else void finish()
           }}
-          className="touch-target min-h-[48px] w-full max-w-xs rounded-full border border-nozomi-accent/50 bg-nozomi-accent/15 px-6 py-3 text-sm font-medium text-nozomi-text transition active:scale-[0.98] disabled:opacity-50"
+          className="btn-primary"
         >
           {step < STEPS - 1 ? (
             <LanguageText text={UI_LABELS.next} size="sm" align="center" passive />

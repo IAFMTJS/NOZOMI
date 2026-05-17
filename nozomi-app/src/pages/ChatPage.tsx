@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AppHeader } from '@/components/ui/AppHeader'
-import { MessageBubble } from '@/components/chat/MessageBubble'
-import { ChatInput } from '@/components/chat/ChatInput'
-import { SuggestionPills } from '@/components/suggestions/SuggestionPills'
+import { ChatInput, MessageBubble } from '@/features/chat'
+import { useConversation } from '@/features/conversation'
+import { SuggestionPills } from '@/features/presence'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
-import { useConversation } from '@/hooks/useConversation'
 import { useWordTap } from '@/hooks/useWordTap'
 import { UI_LABELS } from '@/data/ui-labels'
 import { LanguageText } from '@/components/language/LanguageText'
@@ -26,9 +25,15 @@ export function ChatPage() {
   const session = useNozomiStore((s) => s.chatSession)
   const { sendUserMessage, startConversation, startScenarioConversation } =
     useConversation()
+  const setOrbState = useUiStore((s) => s.setOrbState)
   const handleWordTap = useWordTap()
   const bottomRef = useRef<HTMLDivElement>(null)
   const bootedRef = useRef(false)
+
+  useEffect(() => {
+    setOrbState('idle')
+    return () => setOrbState('idle')
+  }, [setOrbState])
 
   useEffect(() => {
     if (!dataReady || bootedRef.current) return

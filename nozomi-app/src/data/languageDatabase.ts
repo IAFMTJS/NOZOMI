@@ -9,7 +9,7 @@
  * JMdict bulk import: `npm run import-jmdict` (tap lookup via lexicon.json)
  */
 
-import type { ResponseHint } from '@/systems/conversation/responseHints'
+import type { ResponseHint } from '@/systems/conversation/matching'
 import type { Sentence } from '@/types/domain'
 
 /** One conversational reply line (companion-style, not textbook narration). */

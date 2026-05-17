@@ -1,0 +1,28 @@
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .futuristic-grid {
+    animation: none;
+  }
+
+  .text-holo {
+    animation: none;
+    background-position: center;
+  }
+
+  .nav-mic-btn::before {
+    animation: none;
+  }
+
+  .voice-live-transcript[data-listen-phase='finalizing'],
+  .voice-live-transcript[data-listen-phase='processing'] {
+    animation: none;
+  }
+}
+

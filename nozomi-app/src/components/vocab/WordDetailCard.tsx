@@ -4,7 +4,7 @@ import { IconPractice, IconSpeaker, IconStar } from '@/components/ui/Icons'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import type { VocabEntry } from '@/types/domain'
-import { speakJapanese } from '@/systems/speech/speechService'
+import { speakJapanese } from '@/features/voice'
 import { BTN_ICON, BTN_ROW } from '@/utils/touch'
 
 interface Props {

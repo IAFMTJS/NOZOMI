@@ -1,5 +1,5 @@
 import type { LanguageText } from '@/types/domain'
-import { hasJapanese, lookupRomajiForJapanese } from '@/utils/romajiLookup'
+import { hasJapanese, lookupLanguageForJapanese } from '@/utils/romajiLookup'
 
 /** Format user-typed content for display in chat bubbles */
 export function formatUserMessageText(raw: string): LanguageText {
@@ -29,6 +29,7 @@ export async function formatUserMessageTextAsync(
 ): Promise<LanguageText> {
   const base = formatUserMessageText(raw)
   if (!base.jp || base.en) return base
-  const romaji = await lookupRomajiForJapanese(base.jp)
-  return romaji ? { ...base, romaji } : base
+  const { romaji, en } = await lookupLanguageForJapanese(base.jp)
+  if (!romaji && !en) return base
+  return { ...base, romaji: romaji || base.romaji, en: en || base.en }
 }

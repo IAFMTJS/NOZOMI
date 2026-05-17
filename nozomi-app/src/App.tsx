@@ -12,28 +12,33 @@ import {
   ensureExtendedDataLoaded,
   ensureLexiconLoaded,
 } from '@/database/importService'
-import { ensureConversationTuningLoaded } from '@/systems/conversation/conversationTuning'
+import { ensureConversationTuningLoaded } from '@/systems/conversation/matching'
 import { useUiStore } from '@/store/useUiStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { OnboardingGuard } from '@/components/layout/OnboardingGuard'
 import { FavoritesPage } from '@/pages/FavoritesPage'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
-import { SpeechListenProvider } from '@/contexts/SpeechListenContext'
+import { SpeechListenProvider } from '@/features/voice'
 import { DevConnectBanner } from '@/components/dev/DevConnectBanner'
 import { useInstallVisualViewportCss } from '@/hooks/useInstallVisualViewportCss'
 
 export default function App() {
   const setDataReady = useUiStore((s) => s.setDataReady)
+  const setDataLoadFailed = useUiStore((s) => s.setDataLoadFailed)
   useInstallVisualViewportCss()
 
   useEffect(() => {
+    setDataLoadFailed(false)
     ensureDataLoaded()
       .then(() => ensureExtendedDataLoaded())
       .then(() => ensureLexiconLoaded())
       .then(() => ensureConversationTuningLoaded())
       .then(() => setDataReady(true))
-      .catch(() => setDataReady(true))
-  }, [setDataReady])
+      .catch(() => {
+        setDataLoadFailed(true)
+        setDataReady(true)
+      })
+  }, [setDataReady, setDataLoadFailed])
 
   return (
     <ErrorBoundary>

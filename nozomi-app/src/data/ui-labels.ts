@@ -30,6 +30,8 @@ export type UiLabelKey =
   | 'chooseTone'
   | 'displayName'
   | 'statusPreparing'
+  | 'statusRecordingLocal'
+  | 'statusFinalizing'
   | 'statusSpeaking'
   | 'beginner'
   | 'intermediate'
@@ -50,6 +52,27 @@ export type UiLabelKey =
   | 'saySomething'
   | 'tapOrbToSpeak'
   | 'tapOrbToStop'
+  | 'speakToInterrupt'
+  | 'voiceListenMode'
+  | 'voiceListenPush'
+  | 'voiceListenAutoStop'
+  | 'voiceListenContinuous'
+  | 'listenEndMode'
+  | 'listenEndTap'
+  | 'listenEndAuto'
+  | 'listenEndAutoWithTap'
+  | 'ttsProvider'
+  | 'ttsBrowser'
+  | 'ttsCloud'
+  | 'whisperModel'
+  | 'whisperTiny'
+  | 'whisperSmall'
+  | 'labsSection'
+  | 'labsWakeWord'
+  | 'labsCloudLlm'
+  | 'labsRealtimeS2s'
+  | 'labsTelephony'
+  | 'cloudApiKey'
   | 'motionReduce'
   | 'focusMode'
   | 'showRomaji'
@@ -213,6 +236,16 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     romaji: 'Junbi chuu…',
     en: 'Preparing…',
   },
+  statusRecordingLocal: {
+    jp: '録音中…（話し終わったら文字起こし）',
+    romaji: 'Rokuon chuu… (hanashi owattara mojiokoshi)',
+    en: 'Recording… transcript when you stop',
+  },
+  statusFinalizing: {
+    jp: '文字起こし中…',
+    romaji: 'Mojiokoshi chuu…',
+    en: 'Transcribing…',
+  },
   statusSpeaking: {
     jp: '話しています…',
     romaji: 'Hanashite imasu…',
@@ -305,6 +338,111 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     jp: 'オーブをタップして終了',
     romaji: 'Oobu wo tappu shite shuuryou',
     en: 'Tap the orb when done',
+  },
+  speakToInterrupt: {
+    jp: '話しかけると中断できます',
+    romaji: 'Hanashikakeru to chuudan dekimasu',
+    en: 'Speak to interrupt',
+  },
+  voiceListenMode: {
+    jp: '聞き取りモード',
+    romaji: 'Kikitori moodo',
+    en: 'Listen mode',
+  },
+  voiceListenPush: {
+    jp: 'プッシュトーク',
+    romaji: 'Pusshu tooku',
+    en: 'Push to talk',
+  },
+  voiceListenAutoStop: {
+    jp: '自動停止',
+    romaji: 'Jidou teishi',
+    en: 'Auto stop',
+  },
+  voiceListenContinuous: {
+    jp: '連続会話',
+    romaji: 'Renzoku kaiwa',
+    en: 'Continuous',
+  },
+  listenEndMode: {
+    jp: '発話の終わり',
+    romaji: 'Hatsuwa no owari',
+    en: 'End of speech',
+  },
+  listenEndTap: {
+    jp: 'タップのみ',
+    romaji: 'Tappu nomi',
+    en: 'Tap only',
+  },
+  listenEndAuto: {
+    jp: '無音で自動',
+    romaji: 'Seion de jidou',
+    en: 'Auto on silence',
+  },
+  listenEndAutoWithTap: {
+    jp: '自動＋タップ',
+    romaji: 'Jidou + tappu',
+    en: 'Auto + tap',
+  },
+  ttsProvider: {
+    jp: '音声合成',
+    romaji: 'Onsei gousei',
+    en: 'Speech output',
+  },
+  ttsBrowser: {
+    jp: 'ブラウザ',
+    romaji: 'Burauza',
+    en: 'Browser',
+  },
+  ttsCloud: {
+    jp: 'クラウド（要キー）',
+    romaji: 'Kuraudo',
+    en: 'Cloud (API key)',
+  },
+  whisperModel: {
+    jp: 'Whisperモデル',
+    romaji: 'Whisper moderu',
+    en: 'Whisper model',
+  },
+  whisperTiny: {
+    jp: 'Tiny（速い）',
+    romaji: 'Tiny',
+    en: 'Tiny (fast)',
+  },
+  whisperSmall: {
+    jp: 'Small（精度）',
+    romaji: 'Small',
+    en: 'Small (accurate)',
+  },
+  labsSection: {
+    jp: '実験機能',
+    romaji: 'Jikken kinou',
+    en: 'Labs',
+  },
+  labsWakeWord: {
+    jp: 'ウェイクワード',
+    romaji: 'Weiku waado',
+    en: 'Wake word',
+  },
+  labsCloudLlm: {
+    jp: 'クラウド会話',
+    romaji: 'Kuraudo kaiwa',
+    en: 'Cloud chat',
+  },
+  labsRealtimeS2s: {
+    jp: 'リアルタイム音声',
+    romaji: 'Riarutaimu onsei',
+    en: 'Realtime speech',
+  },
+  labsTelephony: {
+    jp: '電話ブリッジ',
+    romaji: 'Denwa burijji',
+    en: 'Phone bridge',
+  },
+  cloudApiKey: {
+    jp: 'APIキー',
+    romaji: 'API kii',
+    en: 'API key',
   },
   motionReduce: {
     jp: '動きを減らす',

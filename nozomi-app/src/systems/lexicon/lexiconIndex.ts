@@ -3,7 +3,7 @@ import {
   SCENARIO_TOPIC_KEYWORDS,
   type ScenarioIntent,
 } from '@/data/scenarioIntents'
-import { TOPIC_KEYWORDS } from '@/systems/conversation/topic'
+import { TOPIC_KEYWORDS } from '@/systems/conversation/nlu'
 import { tokenizeJapanese, isJapaneseToken } from '@/utils/japaneseTokens'
 import type { JlptLevel, LexiconEntryType, VocabEntry } from '@/types/domain'
 

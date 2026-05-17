@@ -5,24 +5,28 @@ import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
-import { cancelListening, stopSpeaking } from '@/systems/speech/speechService'
+import { cancelListening, stopSpeaking } from '@/features/voice'
 import {
   getSttEngine,
   isBrowserSttSelectable,
   setSttEngine,
   type SttEngine,
-} from '@/systems/speech/sttEngine'
+} from '@/features/voice/logic/sttEngine'
 import { SPEECH_LANG_OPTIONS } from '@/data/speech-lang-options'
-import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import type {
   ImmersionLevel,
   JlptLevel,
   LanguageText as LT,
+  ListenEndMode,
   PersonalityMode,
+  TtsProvider,
+  VoiceListenMode,
+  WhisperModelTier,
 } from '@/types/domain'
-import { NozomiVoicePicker } from '@/components/settings/NozomiVoicePicker'
+import { NozomiVoicePicker } from '@/features/voice'
 import { isIos } from '@/utils/device'
-import { BTN_ROW } from '@/utils/touch'
+import { formChipClass, formOptionClass } from '@/utils/touch'
 
 const JLPT_LEVELS: JlptLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1']
 
@@ -38,6 +42,28 @@ const PERSONALITY_MODES: { key: PersonalityMode; label: LT }[] = [
 const STT_ENGINES: { key: SttEngine; label: LT }[] = [
   { key: 'local', label: UI_LABELS.sttEngineLocal },
   { key: 'browser', label: UI_LABELS.sttEngineBrowser },
+]
+
+const VOICE_LISTEN_MODES: { key: VoiceListenMode; label: LT }[] = [
+  { key: 'push_to_talk', label: UI_LABELS.voiceListenPush },
+  { key: 'auto_stop', label: UI_LABELS.voiceListenAutoStop },
+  { key: 'continuous', label: UI_LABELS.voiceListenContinuous },
+]
+
+const LISTEN_END_MODES: { key: ListenEndMode; label: LT }[] = [
+  { key: 'tap', label: UI_LABELS.listenEndTap },
+  { key: 'auto', label: UI_LABELS.listenEndAuto },
+  { key: 'auto_with_tap', label: UI_LABELS.listenEndAutoWithTap },
+]
+
+const TTS_PROVIDERS: { key: TtsProvider; label: LT }[] = [
+  { key: 'browser', label: UI_LABELS.ttsBrowser },
+  { key: 'cloud', label: UI_LABELS.ttsCloud },
+]
+
+const WHISPER_TIERS: { key: WhisperModelTier; label: LT }[] = [
+  { key: 'tiny', label: UI_LABELS.whisperTiny },
+  { key: 'small', label: UI_LABELS.whisperSmall },
 ]
 
 const IMMERSION_LEVELS: { key: ImmersionLevel; label: LT }[] = [
@@ -66,7 +92,7 @@ export function SettingsPage() {
   return (
     <div className="app-page">
       <AppHeader showBack titleKey="settings" hideSettings />
-      <main className="app-page-scroll space-y-4 px-4 py-6">
+      <main className="app-page-scroll settings-stack py-6">
         <section className="space-y-2">
           <LanguageText text={UI_LABELS.displayName} size="sm" />
           <input
@@ -78,23 +104,19 @@ export function SettingsPage() {
                 displayName: e.target.value.trim() || 'Learner',
               })
             }
-            className="w-full rounded-xl border border-white/10 bg-nozomi-bg-elevated px-4 py-3 text-base text-nozomi-text outline-none focus:border-nozomi-accent/50"
+            className="form-input"
           />
         </section>
 
         <section className="space-y-2">
           <LanguageText text={UI_LABELS.chooseJlpt} size="sm" />
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="form-chip-row">
             {JLPT_LEVELS.map((key) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setProfile({ jlptLevel: key })}
-                className={`${BTN_ROW} shrink-0 px-4 ${
-                  profile.jlptLevel === key
-                    ? 'border-nozomi-accent ring-1 ring-nozomi-accent/50'
-                    : ''
-                }`}
+                className={formChipClass(profile.jlptLevel === key)}
               >
                 <span className="font-medium">{key}</span>
               </button>
@@ -110,11 +132,7 @@ export function SettingsPage() {
                 key={key}
                 type="button"
                 onClick={() => setProfile({ personalityMode: key })}
-                className={`${BTN_ROW} ${
-                  profile.personalityMode === key
-                    ? 'border-nozomi-accent ring-1 ring-nozomi-accent/50'
-                    : ''
-                }`}
+                className={formOptionClass(profile.personalityMode === key)}
               >
                 <LanguageText text={label} size="sm" align="center" passive />
               </button>
@@ -130,11 +148,7 @@ export function SettingsPage() {
                 key={key}
                 type="button"
                 onClick={() => setProfile({ immersionLevel: key })}
-                className={`${BTN_ROW} glass-panel transition ${
-                  profile.immersionLevel === key
-                    ? 'border-nozomi-purple ring-1 ring-nozomi-purple/50'
-                    : ''
-                }`}
+                className={formOptionClass(profile.immersionLevel === key)}
               >
                 <LanguageText text={label} size="sm" align="center" passive />
               </button>
@@ -180,11 +194,7 @@ export function SettingsPage() {
                   setSttEngine(key)
                   setSttEngineState(key)
                 }}
-                className={`${BTN_ROW} glass-panel transition ${
-                  sttEngine === key
-                    ? 'border-nozomi-purple ring-1 ring-nozomi-purple/50'
-                    : ''
-                }`}
+                className={formOptionClass(sttEngine === key)}
               >
                 <LanguageText text={label} size="sm" align="center" passive />
               </button>
@@ -213,11 +223,7 @@ export function SettingsPage() {
                 type="button"
                 aria-pressed={settings.speechInputLang === key}
                 onClick={() => setSettings({ speechInputLang: key })}
-                className={`${BTN_ROW} glass-panel transition ${
-                  settings.speechInputLang === key
-                    ? 'border-nozomi-purple bg-purple-950/40 ring-1 ring-nozomi-purple/50'
-                    : ''
-                }`}
+                className={formOptionClass(settings.speechInputLang === key)}
               >
                 <span className="pointer-events-none block w-full">
                   <LanguageText text={label} size="sm" align="center" passive />
@@ -229,6 +235,121 @@ export function SettingsPage() {
             STT: {resolveSpeechRecognitionLang(settings.speechInputLang)}
           </p>
         </section>
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.voiceListenMode} size="sm" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {VOICE_LISTEN_MODES.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={settings.voiceListenMode === key}
+                onClick={() => setSettings({ voiceListenMode: key })}
+                className={formOptionClass(settings.voiceListenMode === key)}
+              >
+                <LanguageText text={label} size="sm" align="center" passive />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.listenEndMode} size="sm" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {LISTEN_END_MODES.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={settings.listenEndMode === key}
+                onClick={() => setSettings({ listenEndMode: key })}
+                className={formOptionClass(settings.listenEndMode === key)}
+              >
+                <LanguageText text={label} size="sm" align="center" passive />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.ttsProvider} size="sm" />
+          <div className="grid grid-cols-2 gap-2">
+            {TTS_PROVIDERS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={settings.ttsProvider === key}
+                onClick={() => setSettings({ ttsProvider: key })}
+                className={formOptionClass(settings.ttsProvider === key)}
+              >
+                <LanguageText text={label} size="sm" align="center" passive />
+              </button>
+            ))}
+          </div>
+          {settings.ttsProvider === 'cloud' && (
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder={UI_LABELS.cloudApiKey.en}
+              value={settings.cloudTtsApiKey}
+              onChange={(e) => setSettings({ cloudTtsApiKey: e.target.value })}
+              className="form-input text-sm"
+            />
+          )}
+        </section>
+
+        {sttEngine === 'local' && (
+          <section className="space-y-2">
+            <LanguageText text={UI_LABELS.whisperModel} size="sm" />
+            <div className="grid grid-cols-2 gap-2">
+              {WHISPER_TIERS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={settings.whisperModel === key}
+                  onClick={() => setSettings({ whisperModel: key })}
+                  className={formOptionClass(settings.whisperModel === key)}
+                >
+                  <LanguageText text={label} size="sm" align="center" passive />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-2">
+          <LanguageText text={UI_LABELS.labsSection} size="sm" />
+          <SettingToggle
+            label={UI_LABELS.labsWakeWord}
+            checked={settings.labsWakeWord}
+            onChange={(v) => setSettings({ labsWakeWord: v })}
+          />
+          <SettingToggle
+            label={UI_LABELS.labsCloudLlm}
+            checked={settings.labsCloudLlm}
+            onChange={(v) => setSettings({ labsCloudLlm: v })}
+          />
+          {settings.labsCloudLlm && (
+            <input
+              type="password"
+              autoComplete="off"
+              placeholder={UI_LABELS.cloudApiKey.en}
+              value={settings.cloudLlmApiKey}
+              onChange={(e) => setSettings({ cloudLlmApiKey: e.target.value })}
+              className="form-input text-sm"
+            />
+          )}
+          <SettingToggle
+            label={UI_LABELS.labsRealtimeS2s}
+            checked={settings.labsRealtimeS2s}
+            onChange={(v) => setSettings({ labsRealtimeS2s: v })}
+          />
+          <SettingToggle
+            label={UI_LABELS.labsTelephony}
+            checked={settings.labsTelephony}
+            onChange={(v) => setSettings({ labsTelephony: v })}
+          />
+        </section>
+
         <SettingToggle
           label={UI_LABELS.motionReduce}
           checked={settings.reducedMotion}
@@ -316,7 +437,7 @@ export function SettingsPage() {
             clearSession()
             navigate('/chat')
           }}
-          className={`${BTN_ROW} glass-panel w-full text-left`}
+          className={`${formOptionClass(false, true)} w-full`}
         >
           <LanguageText
             text={{
@@ -331,14 +452,14 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => navigate('/word')}
-          className={`${BTN_ROW} glass-panel w-full text-left`}
+          className={`${formOptionClass(false, true)} w-full`}
         >
           <LanguageText text={UI_LABELS.words} size="sm" passive />
         </button>
         <button
           type="button"
           onClick={() => navigate('/favorites')}
-          className={`${BTN_ROW} glass-panel w-full text-left`}
+          className={`${formOptionClass(false, true)} w-full`}
         >
           <LanguageText text={UI_LABELS.favorites} size="sm" passive />
         </button>
@@ -350,14 +471,14 @@ export function SettingsPage() {
             setProfile({ onboardingComplete: false })
             navigate('/onboarding')
           }}
-          className={`${BTN_ROW} glass-panel w-full text-left`}
+          className={`${formOptionClass(false, true)} w-full`}
         >
           <LanguageText text={UI_LABELS.restartOnboarding} size="sm" passive />
         </button>
         <button
           type="button"
           onClick={() => navigate('/simulation')}
-          className={`${BTN_ROW} glass-panel w-full text-left`}
+          className={`${formOptionClass(false, true)} w-full`}
         >
           <LanguageText
             text={{
@@ -384,13 +505,13 @@ function SettingToggle({
   onChange: (v: boolean) => void
 }) {
   return (
-    <label className="glass-panel flex min-h-[48px] cursor-pointer touch-manipulation items-center justify-between gap-4 p-4">
-          <LanguageText text={label} size="sm" passive />
+    <label className="form-toggle glass-panel">
+      <LanguageText text={label} size="sm" passive />
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-5 w-5 accent-purple-500"
+        className="form-toggle-input"
       />
     </label>
   )

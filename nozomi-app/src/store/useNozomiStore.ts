@@ -11,6 +11,7 @@ import type {
 } from '@/types/domain'
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '@/types/domain'
 import { createDebouncedPersistStorage } from '@/store/debouncedPersistStorage'
+import { resetExposure } from '@/systems/learning/exposureTracker'
 import { useUiStore } from '@/store/useUiStore'
 
 /** In-memory cap — prevents unbounded growth during long voice sessions on mobile. */
@@ -69,7 +70,8 @@ function mergeProfile(
   return {
     ...current,
     ...persisted,
-    onboardingComplete: persisted.onboardingComplete ?? current.onboardingComplete,
+    onboardingComplete:
+      current.onboardingComplete || persisted.onboardingComplete === true,
   }
 }
 
@@ -133,6 +135,7 @@ export const useNozomiStore = create<NozomiState>()(
         })),
       clearSession: () => {
         useUiStore.getState().resetVoiceUi()
+        resetExposure()
         set({
           chatMessages: [],
           voiceMessages: [],
@@ -237,7 +240,7 @@ export const useNozomiStore = create<NozomiState>()(
     }),
     {
       name: 'nozomi-storage',
-      version: 7,
+      version: 9,
       storage: createJSONStorage(() => createDebouncedPersistStorage()),
       onRehydrateStorage: () => (_state, error) => {
         if (!error) return
@@ -269,13 +272,17 @@ export const useNozomiStore = create<NozomiState>()(
           }
           state.profile = profileRest
         }
+        if (fromVersion < 9 && state.settings && typeof state.settings === 'object') {
+          state.settings = {
+            ...DEFAULT_SETTINGS,
+            ...(state.settings as AppSettings),
+          }
+        }
         return state
       },
       partialize: (s) => ({
         profile: s.profile,
         settings: s.settings,
-        chatSession: s.chatSession,
-        voiceSession: s.voiceSession,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<NozomiState> & {

@@ -9,7 +9,7 @@ import {
 } from '@/systems/conversation/suggestionBanks'
 
 export type { SuggestionInvite }
-import { filterByMaxLevel } from './engineHelpers'
+import { filterByMaxLevel } from './matching'
 import { filterUnseenSentences } from '@/systems/learning/exposureTracker'
 import type { JlptLevel, LanguageText, Sentence, Suggestion } from '@/types/domain'
 
@@ -273,7 +273,7 @@ export async function buildContextualSuggestions(opts: {
     if (merged.length >= count) break
   }
 
-  if (merged.length >= 2) return merged.slice(0, count)
+  if (merged.length >= 1) return merged.slice(0, count)
   return STARTER_SUGGESTIONS.slice(0, count)
 }
 

@@ -1,8 +1,4 @@
-import {
-  getBeatAtOrder,
-  getBeatsForStory,
-  getStoryById,
-} from '@/database/importService'
+import { getBeatAtOrder, getBeatsForStory } from '@/database/importService'
 import type {
   AppSettings,
   EngineResponse,
@@ -59,10 +55,13 @@ export async function advanceStory(
   profile: UserProfile,
   topic: string,
   settings: AppSettings = DEFAULT_SETTINGS,
-): Promise<{ response: EngineResponse; story: StorySession } | null> {
+): Promise<{ response: EngineResponse; story: StorySession | null } | null> {
+  if (story.beatOrder >= story.totalBeats) {
+    return null
+  }
+
   const nextOrder = story.beatOrder + 1
   if (nextOrder > story.totalBeats) {
-    await getStoryById(story.storyId)
     return {
       response: {
         message: {
@@ -74,7 +73,7 @@ export async function advanceStory(
         topic,
         intent: 'farewell',
       },
-      story: { ...story, beatOrder: story.totalBeats },
+      story: null,
     }
   }
 

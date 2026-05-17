@@ -34,9 +34,13 @@ Node **20+** (see `.nvmrc`). Build command: `npm run build`.
 
 ## Project structure
 
-- `src/components/` — UI (orb, chat, language, suggestions)
-- `src/systems/` — conversation engine, speech
+See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for module boundaries.
+
+- `src/features/` — voice, orb, chat, presence, conversation (preferred imports: `@/features/voice`, etc.)
+- `src/systems/conversation/` — engine; `nlu/`, `matching/`
+- `src/components/` — shared UI (layout, language, vocab, settings)
 - `src/database/` — Dexie + import from JSON/SQLite export
+- `src/data/` — static content; `public/data/` — exported JSON blobs
 - `src/pages/` — Home, Chat, Listen, Word, Onboarding, Settings
 
 ## Data

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ALL_PERSONALITY_IDS,
@@ -62,6 +62,13 @@ export function SimulationDashboardPage() {
   const [count, setCount] = useState(20)
   const [replayTurn, setReplayTurn] = useState(0)
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null)
+  const replayIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (replayIntervalRef.current) clearInterval(replayIntervalRef.current)
+    }
+  }, [])
 
   const refreshRuns = useCallback(async () => {
     const list = await listRuns(30)
@@ -117,14 +124,16 @@ export function SimulationDashboardPage() {
   }
 
   const startReplay = async (convId: string) => {
+    if (replayIntervalRef.current) clearInterval(replayIntervalRef.current)
     setSelectedConvId(convId)
     setReplayTurn(0)
     const replay = await createReplay(convId)
     replay.seek(0)
-    const interval = setInterval(() => {
+    replayIntervalRef.current = setInterval(() => {
       const t = replay.step()
       if (!t) {
-        clearInterval(interval)
+        if (replayIntervalRef.current) clearInterval(replayIntervalRef.current)
+        replayIntervalRef.current = null
         return
       }
       setReplayTurn(replay.state.currentTurn)

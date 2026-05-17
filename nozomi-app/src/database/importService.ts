@@ -21,6 +21,7 @@ const CURRENT_DATA_VERSION = '8'
 
 let extendedLoaded = false
 let lexiconLoadPromise: Promise<void> | null = null
+let dataLoadPromise: Promise<void> | null = null
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
@@ -40,14 +41,7 @@ async function dbMissingRomaji(): Promise<boolean> {
   return missing > 0
 }
 
-export async function ensureDataLoaded(): Promise<void> {
-  const existing = await db.meta.get(DATA_VERSION_KEY)
-  const versionOk = existing?.value === CURRENT_DATA_VERSION
-  if (versionOk && !(await dbMissingRomaji())) {
-    const count = await db.sentences.count()
-    if (count > 0) return
-  }
-
+async function loadDataIntoDb(): Promise<void> {
   let sentences = SEED_SENTENCES
   let vocabulary = SEED_VOCAB
   let personalityLines = SEED_PERSONALITY
@@ -88,6 +82,27 @@ export async function ensureDataLoaded(): Promise<void> {
   extendedLoaded = false
   resetLexiconIndex()
   lexiconLoadPromise = null
+}
+
+export async function ensureDataLoaded(): Promise<void> {
+  if (dataLoadPromise) return dataLoadPromise
+
+  dataLoadPromise = (async () => {
+    const existing = await db.meta.get(DATA_VERSION_KEY)
+    const versionOk = existing?.value === CURRENT_DATA_VERSION
+    if (versionOk && !(await dbMissingRomaji())) {
+      const count = await db.sentences.count()
+      if (count > 0) return
+    }
+    await loadDataIntoDb()
+  })()
+
+  try {
+    await dataLoadPromise
+  } catch (err) {
+    dataLoadPromise = null
+    throw err
+  }
 }
 
 /** Lazy-load stories, grammar, extra personality from JSON */

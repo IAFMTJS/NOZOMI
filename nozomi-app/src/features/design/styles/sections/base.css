@@ -1,0 +1,86 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  height: var(--app-vh, 100dvh);
+  max-height: var(--app-vh, 100dvh);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--color-nozomi-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* Mobile / iOS touch */
+button,
+a,
+label,
+[role='button'],
+input[type='checkbox'],
+input[type='range'] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(192, 132, 252, 0.2);
+}
+
+.touch-target {
+  min-height: var(--nozomi-touch);
+  min-width: var(--nozomi-touch);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .nav-action:hover,
+  .suggestion-card:hover,
+  .glass-panel-soft:hover {
+    transform: none;
+  }
+
+  .nav-action:active {
+    transform: scale(0.96);
+  }
+
+  .suggestion-card:active {
+    transform: scale(0.98);
+  }
+}
+
+#root {
+  height: 100%;
+  max-height: var(--app-vh, 100dvh);
+}
+
+.app-page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-inline: var(--nozomi-page-x);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+}

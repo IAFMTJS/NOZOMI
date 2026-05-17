@@ -1,20 +1,21 @@
 ﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NozomiOrb } from '@/components/orb/NozomiOrb'
+import { NozomiOrb, OrbAmbienceBridge, PresenceOrbShell } from '@/features/orb'
+import { useConversation } from '@/features/conversation'
+import {
+  FloatingTurnBubbles,
+  PresenceDock,
+  PresenceStatusRow,
+  StoryModeToggle,
+} from '@/features/presence'
+import { startMicCaptureFromGesture, useSpeechListen } from '@/features/voice'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { LanguageText } from '@/components/language/LanguageText'
 import { ScenarioPicker } from '@/components/scenarios/ScenarioPicker'
-import { PresenceDock } from '@/components/presence/PresenceDock'
-import { PresenceStatusRow } from '@/components/presence/PresenceStatusRow'
-import { StoryModeToggle } from '@/components/presence/StoryModeToggle'
-import { useConversation } from '@/hooks/useConversation'
-import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
-import { useSpeechListen } from '@/contexts/SpeechListenContext'
-import { startMicCaptureFromGesture } from '@/systems/speech/speechService'
 import type { ScenarioCategory } from '@/types/domain'
 
 export function HomePage() {
@@ -48,6 +49,7 @@ export function HomePage() {
 
   return (
     <div className="presence-screen" data-testid="home-page">
+      <OrbAmbienceBridge />
       <AppHeader compact onSettings={() => navigate('/settings')} />
       {showStoryToggle && (
         <StoryModeToggle onToggle={(enabled) => void setVoiceStoryMode(enabled)} />
@@ -58,16 +60,14 @@ export function HomePage() {
         <FloatingTurnBubbles messages={voiceMessages} />
 
         <section className="presence-stage">
-          <button
-            type="button"
+          <PresenceOrbShell
+            speechState={speechState}
+            orbState={orbState}
             onClick={handleSpeak}
-            className="presence-orb-anchor touch-target touch-manipulation"
             aria-label={UI_LABELS.speak.en}
           >
-            <span className="presence-orb-glow" aria-hidden />
-            <span className="presence-orb-ring" aria-hidden />
             <NozomiOrb size={orbSize} className="relative z-10 pointer-events-none" showPlatform />
-          </button>
+          </PresenceOrbShell>
           {voiceMessages.length === 0 && (
             <div className="presence-hint mt-4 max-w-xs space-y-1">
               <LanguageText

@@ -11,9 +11,6 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const onboardingComplete = useNozomiStore((s) => s.profile.onboardingComplete)
 
   if (!hydrated) {
-    if (pathname === '/onboarding') {
-      return <>{children}</>
-    }
     return <BootScreen />
   }
 

@@ -1,0 +1,61 @@
+/* Ambient backdrop — depth grid + vignette */
+.futuristic-backdrop {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.futuristic-grid {
+  position: absolute;
+  inset: -55%;
+  background-image:
+    linear-gradient(rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(167, 139, 250, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 80px 80px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 38%, black 15%, transparent 78%);
+  animation: grid-drift 72s linear infinite;
+  opacity: 0.95;
+}
+
+@keyframes grid-drift {
+  from {
+    transform: translate(0, 0) perspective(520px) rotateX(62deg) scale(1.25);
+  }
+  to {
+    transform: translate(40px, 40px) perspective(520px) rotateX(62deg) scale(1.25);
+  }
+}
+
+.futuristic-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 42%,
+    transparent 22%,
+    rgba(2, 1, 8, 0.75) 72%,
+    rgba(1, 1, 4, 0.95) 100%
+  );
+}
+
+.futuristic-scanlines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.028;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.04) 2px,
+    rgba(255, 255, 255, 0.04) 4px
+  );
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}

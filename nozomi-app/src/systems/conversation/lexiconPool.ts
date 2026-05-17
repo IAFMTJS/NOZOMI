@@ -1,4 +1,4 @@
-import type { Intent } from './intent'
+import type { Intent } from './nlu'
 import { ensureLexiconLoaded } from '@/database/importService'
 import {
   lexiconHintsForInput,

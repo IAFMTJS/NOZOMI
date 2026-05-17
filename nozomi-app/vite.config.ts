@@ -1,21 +1,14 @@
-import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { devNetworkUrlsPlugin } from './plugins/devNetworkUrls'
+import { createResolveAliases } from './alias.config'
 
 export default defineConfig(({ command }) => ({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-      // transformers.js imports /webgpu; route to WASM bundle (WebGPU load hangs on some Windows GPUs).
-      'onnxruntime-web/webgpu': path.resolve(
-        __dirname,
-        'node_modules/onnxruntime-web/dist/ort.wasm.bundle.min.mjs',
-      ),
-    },
+    alias: createResolveAliases(),
   },
   plugins: [
     ...(command === 'serve' ? [basicSsl()] : []),

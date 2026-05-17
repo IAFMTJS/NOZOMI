@@ -1,34 +1,49 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AppHeader } from '@/components/ui/AppHeader'
-import { ListeningMicHint } from '@/components/audio/ListeningMicHint'
-import { LiveTranscript } from '@/components/audio/LiveTranscript'
-import { MicPermissionBanner } from '@/components/audio/MicPermissionBanner'
-import { NozomiOrb } from '@/components/orb/NozomiOrb'
-import { ChatHistorySheet } from '@/components/presence/ChatHistorySheet'
-import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
-import { PresenceDock } from '@/components/presence/PresenceDock'
-import { PresenceStatusRow } from '@/components/presence/PresenceStatusRow'
-import { StoryModeToggle } from '@/components/presence/StoryModeToggle'
-import { PresenceSuggestions } from '@/components/presence/PresenceSuggestions'
+import { useConversation } from '@/features/conversation'
+import {
+  NozomiOrb,
+  OrbAmbienceBridge,
+  PresenceOrbShell,
+  WaveformStrip,
+} from '@/features/orb'
+import {
+  ChatHistorySheet,
+  FloatingTurnBubbles,
+  PresenceDock,
+  PresenceStatusRow,
+  PresenceSuggestions,
+  StoryModeToggle,
+  suggestionKey,
+} from '@/features/presence'
+import {
+  ListeningMicHint,
+  LiveTranscript,
+  MicPermissionBanner,
+  isListenSessionActive,
+  isMicRecorderActive,
+  micNeedsSecureContext,
+  speakJapanese,
+  speechSupported,
+  startMicCaptureFromGesture,
+  stopSpeaking,
+  useListenPhase,
+  useSpeechListen,
+  useSpeechOutputActive,
+} from '@/features/voice'
+import { VoiceDebugOverlay } from '@/features/voice/ui/VoiceDebugOverlay'
+import {
+  cancelScheduledReleaseOfflineStt,
+  scheduleReleaseOfflineSttPipeline,
+} from '@/features/voice/logic/offlineSttLifecycle'
+import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { LanguageText } from '@/components/language/LanguageText'
-import { suggestionKey } from '@/components/suggestions/SuggestionPills'
-import { useConversation } from '@/hooks/useConversation'
-import { speakJapanese, stopSpeaking } from '@/systems/speech/speechService'
-import { WaveformStrip } from '@/components/audio/WaveformStrip'
 import { UI_LABELS } from '@/data/ui-labels'
-import { useSpeechListen } from '@/contexts/SpeechListenContext'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
-import { useSpeechOutputActive } from '@/hooks/useSpeechOutputActive'
-import {
-  isListenSessionActive,
-  micNeedsSecureContext,
-  releaseOfflineSttPipeline,
-  speechSupported,
-  startMicCaptureFromGesture,
-} from '@/systems/speech/speechService'
 import { isMobileDevice } from '@/utils/device'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
@@ -74,27 +89,34 @@ export function ListeningPage() {
     offlineSttReady,
   } = useSpeechListen()
   const [historyOpen, setHistoryOpen] = useState(false)
+  const recognitionLang = resolveSpeechRecognitionLang(settings.speechInputLang)
+  const usesLocalStt = useMemo(
+    () => resolveSttEngineForLang(getSttEngine(), recognitionLang) === 'local',
+    [recognitionLang],
+  )
 
   const needsHttps = micNeedsSecureContext()
   const micBlocked =
     needsHttps || !speechSupported().stt || speechState === 'error'
-  const isListening = speechState === 'listening'
-  const isPreparing = speechState === 'permission_pending'
+  const listenPhase = useListenPhase()
+  const isListening = listenPhase === 'capturing'
+  const isPreparing = listenPhase === 'preparing'
+  const isFinalizing = listenPhase === 'finalizing'
+  const isProcessing = listenPhase === 'processing'
   const isCapturing = isListening || isPreparing
-  const isProcessing = speechState === 'processing'
-  const isSpeaking = orbState === 'speaking'
   const speechOutputActive = useSpeechOutputActive()
-  const orbBusy = isProcessing || isPreparing
+  const showInterruptHint =
+    speechOutputActive || orbState === 'speaking'
+  const orbBusy = isPreparing || isFinalizing || isProcessing
   const canBeginOrb =
-    !isListening && !orbBusy && !isSpeaking && !speechOutputActive
+    listenPhase === 'idle' && !speechOutputActive
   const dockBeginDisabled =
-    isProcessing || isSpeaking || speechOutputActive || isListening || isPreparing
+    listenPhase !== 'idle' && listenPhase !== 'speaking'
   const hasTurn = messages.length > 0
   const showReplyUi =
     hasTurn &&
-    !isProcessing &&
-    voiceSuggestions.length > 0 &&
-    (!isCapturing || voicePinnedSuggestion != null)
+    listenPhase === 'idle' &&
+    voiceSuggestions.length > 0
 
   const orbPreferred = isMobileDevice() ? 300 : 340
   const orbReserved = isMobileDevice() ? 300 : 260
@@ -149,8 +171,12 @@ export function ListeningPage() {
     startVoiceConversation,
   ])
 
+  const usesLocalSttRef = useRef(usesLocalStt)
+  usesLocalSttRef.current = usesLocalStt
+
   useEffect(() => {
     listenMountedRef.current = true
+    if (usesLocalSttRef.current) cancelScheduledReleaseOfflineStt()
     if (leaveCancelTimerRef.current) {
       clearTimeout(leaveCancelTimerRef.current)
       leaveCancelTimerRef.current = null
@@ -185,7 +211,7 @@ export function ListeningPage() {
     return () => {
       listenMountedRef.current = false
       detachUi()
-      if (isMobileDevice()) releaseOfflineSttPipeline()
+      if (usesLocalSttRef.current) scheduleReleaseOfflineSttPipeline()
       leaveCancelTimerRef.current = setTimeout(() => {
         leaveCancelTimerRef.current = null
         if (
@@ -206,15 +232,26 @@ export function ListeningPage() {
   }
 
   const handleOrbPress = () => {
-    startMicCaptureFromGesture()
-    if (isListening) {
+    const recording =
+      speechState === 'listening' ||
+      (speechState === 'permission_pending' && isMicRecorderActive())
+
+    if (recording) {
       finishRecording()
       return
     }
-    if (orbBusy) {
+
+    if (speechState === 'permission_pending') {
       cancelSession()
       return
     }
+
+    if (isFinalizing || isProcessing) {
+      cancelSession()
+      return
+    }
+
+    startMicCaptureFromGesture()
     if (canBeginOrb) {
       beginListening()
     }
@@ -226,19 +263,27 @@ export function ListeningPage() {
   }
 
   const statusHint =
-    isListening
+    showInterruptHint
+      ? UI_LABELS.speakToInterrupt
+      : isListening
       ? UI_LABELS.tapOrbToStop
-      : isProcessing
+      : isFinalizing
         ? {
-            jp: '文字起こし中…タップでキャンセル',
+            jp: `${UI_LABELS.statusFinalizing.jp} タップでキャンセル`,
             romaji: 'Mojiokoshi chuu… tap de kyanseru',
             en: 'Transcribing… tap orb to cancel',
           }
-        : isPreparing && !offlineSttReady
+        : isProcessing
           ? {
-              jp: '音声モデルを読み込み中…（初回は1分ほど）',
+              jp: `${UI_LABELS.processingSpeech.jp} タップでキャンセル`,
+              romaji: 'Tap de kyanseru',
+              en: 'Thinking… tap orb to cancel',
+            }
+          : isPreparing && usesLocalStt && !offlineSttReady
+          ? {
+              jp: '音声モデルを読み込み中…',
               romaji: 'Onsei moderu wo yomikomi chuu…',
-              en: 'Loading speech model… (first time may take ~1 min)',
+              en: 'Loading speech model…',
             }
           : isPreparing
             ? {
@@ -267,6 +312,8 @@ export function ListeningPage() {
 
   return (
     <div className="presence-screen" data-testid="listen-page">
+      <VoiceDebugOverlay />
+      <OrbAmbienceBridge />
       <AppHeader compact onClose={handleLeave} onSettings={() => navigate('/settings')} />
       {showStoryToggle && (
         <StoryModeToggle
@@ -283,42 +330,42 @@ export function ListeningPage() {
         />
 
         <section
-          className={`presence-stage ${orbState === 'thinking' ? 'presence-dimmed' : ''}`}
+          className={`presence-stage${
+            isFinalizing || isProcessing ? ' presence-dimmed' : ''
+          }`}
         >
-          <button
-            type="button"
+          <PresenceOrbShell
+            speechState={speechState}
+            orbState={orbState}
+            busy={orbBusy}
             onClick={handleOrbPress}
-            className={`presence-orb-anchor touch-target touch-manipulation${
-              orbBusy ? ' opacity-90' : ''
-            }`}
-            aria-busy={orbBusy}
             aria-label={
               isListening
                 ? UI_LABELS.tapOrbToStop.en
-                : isProcessing
-                  ? 'Cancel speech processing'
-                  : isPreparing
-                    ? 'Cancel microphone setup'
-                    : UI_LABELS.tapOrbToSpeak.en
+                : isFinalizing
+                  ? 'Cancel transcription'
+                  : isProcessing
+                    ? 'Cancel response processing'
+                    : isPreparing
+                      ? 'Cancel microphone setup'
+                      : UI_LABELS.tapOrbToSpeak.en
             }
           >
-            <span className="presence-orb-glow" aria-hidden />
-            <span className="presence-orb-ring" aria-hidden />
             <NozomiOrb size={orbSize} showPlatform className="relative z-10 pointer-events-none" />
-          </button>
+          </PresenceOrbShell>
 
           {isListening && (
             <WaveformStrip tall className="absolute bottom-0 mx-auto w-full max-w-xs px-4 opacity-80" />
           )}
 
-          {!isProcessing && (
+          {listenPhase !== 'capturing' && (
             <div className="presence-hint mt-3 max-w-xs">
               <LanguageText text={statusHint} size="sm" align="center" passive />
             </div>
           )}
 
           <ListeningMicHint />
-          <LiveTranscript speechState={speechState} />
+          <LiveTranscript />
         </section>
 
         {showReplyUi && (

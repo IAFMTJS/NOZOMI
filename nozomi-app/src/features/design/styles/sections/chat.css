@@ -1,0 +1,138 @@
+/* Chat — mobile-first compose + bubbles */
+.chat-compose {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 var(--nozomi-page-x) max(0.75rem, env(safe-area-inset-bottom));
+  padding: 0.4rem 0.5rem 0.4rem 0.4rem;
+  border-radius: var(--nozomi-radius-xl);
+  background: linear-gradient(
+    155deg,
+    rgba(14, 12, 36, 0.92) 0%,
+    rgba(6, 8, 22, 0.96) 100%
+  );
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow:
+    var(--nozomi-glow-ring),
+    0 8px 36px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.chat-compose input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--nozomi-touch);
+  border: none;
+  background: transparent;
+  color: var(--color-nozomi-text);
+  font-size: 16px;
+  outline: none;
+}
+
+.chat-compose input::placeholder {
+  color: var(--color-nozomi-muted);
+}
+
+.suggestion-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding-inline: var(--nozomi-page-x);
+  scrollbar-width: none;
+}
+
+.suggestion-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.suggestion-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-width: min(88vw, 300px);
+  max-width: 320px;
+  padding: 1rem 1.125rem;
+  border-radius: var(--nozomi-radius-lg);
+  text-align: left;
+  touch-action: manipulation;
+  scroll-snap-align: center;
+  background: var(--nozomi-gradient-panel);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  backdrop-filter: blur(16px);
+  transition:
+    border-color 0.25s var(--nozomi-ease-out),
+    box-shadow 0.25s var(--nozomi-ease-out),
+    transform 0.2s var(--nozomi-ease-out);
+}
+
+.suggestion-card:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: var(--nozomi-glow-purple);
+  transform: translateY(-2px);
+}
+
+.suggestion-card-compact {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  min-width: min(78vw, 220px);
+  max-width: 260px;
+  min-height: var(--nozomi-touch);
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--nozomi-radius-md);
+  text-align: left;
+  touch-action: manipulation;
+  scroll-snap-align: center;
+  background: rgba(12, 14, 32, 0.75);
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  backdrop-filter: blur(12px);
+  transition:
+    border-color 0.25s var(--nozomi-ease-out),
+    box-shadow 0.25s var(--nozomi-ease-out),
+    transform 0.2s var(--nozomi-ease-out);
+}
+
+.suggestion-card-compact:hover {
+  border-color: rgba(34, 211, 238, 0.38);
+  box-shadow: 0 0 24px rgba(168, 85, 247, 0.22);
+}
+
+.suggestion-card-selected,
+.suggestion-card-compact.suggestion-card-selected {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(49, 46, 129, 0.55),
+    rgba(88, 28, 135, 0.4)
+  );
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.28),
+    0 0 32px rgba(167, 139, 250, 0.32);
+}
+
+.bubble-ai {
+  border-radius: 1.35rem 1.35rem 1.35rem 0.4rem;
+  background: linear-gradient(
+    165deg,
+    rgba(16, 18, 40, 0.96) 0%,
+    rgba(8, 10, 26, 0.92) 100%
+  );
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.bubble-user {
+  border-radius: 1.35rem 1.35rem 0.4rem 1.35rem;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}

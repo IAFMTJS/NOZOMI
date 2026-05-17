@@ -1,5 +1,5 @@
 import { getPersonalityLines } from '@/database/importService'
-import { isGenericGreetingLine } from '@/systems/conversation/engineHelpers'
+import { isGenericGreetingLine } from '@/systems/conversation/matching'
 import { hasTrilingualFields } from '@/utils/languageCompleteness'
 import type { LanguageText, PersonalityMode } from '@/types/domain'
 

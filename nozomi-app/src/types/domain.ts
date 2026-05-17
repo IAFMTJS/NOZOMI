@@ -154,6 +154,18 @@ export interface EngineResponse {
 
 export type SpeechInputLang = 'auto' | 'ja-JP' | 'en-US' | 'nl-NL'
 
+/** When to end a listen turn without tapping the orb. */
+export type ListenEndMode = 'tap' | 'auto' | 'auto_with_tap'
+
+/** How the listen page starts the next user turn. */
+export type VoiceListenMode = 'push_to_talk' | 'auto_stop' | 'continuous'
+
+export type TtsProvider = 'browser' | 'cloud'
+
+export type SttCloudProvider = 'builtin' | 'cloud'
+
+export type WhisperModelTier = 'tiny' | 'small'
+
 export interface AppSettings {
   showRomaji: boolean
   showEnglish: boolean
@@ -174,6 +186,27 @@ export interface AppSettings {
   favoriteVocabIds: number[]
   /** Voice orb: guided story beats instead of free conversation */
   voiceStoryMode: boolean
+  /** Silence auto-stop vs tap-only (see also voiceListenMode). */
+  listenEndMode: ListenEndMode
+  voiceListenMode: VoiceListenMode
+  ttsProvider: TtsProvider
+  sttCloudProvider: SttCloudProvider
+  whisperModel: WhisperModelTier
+  /** Optional — only used when ttsProvider === 'cloud' */
+  cloudTtsApiKey: string
+  /** Optional — only used when sttCloudProvider === 'cloud' */
+  cloudSttApiKey: string
+  /** Optional — only used when labsCloudLlm is true */
+  cloudLlmApiKey: string
+  /** Labs: wake word "Nozomi" (stub monitor until Porcupine integrated) */
+  labsWakeWord: boolean
+  /** Labs: extended online chat via cloud LLM */
+  labsCloudLlm: boolean
+  /** Labs: native speech-to-speech session */
+  labsRealtimeS2s: boolean
+  /** Labs: telephony webhook (server-side bridge) */
+  labsTelephony: boolean
+  telephonyWebhookUrl: string
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -192,6 +225,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
   staticOrb: false,
   favoriteVocabIds: [],
   voiceStoryMode: false,
+  listenEndMode: 'tap',
+  voiceListenMode: 'push_to_talk',
+  ttsProvider: 'browser',
+  sttCloudProvider: 'builtin',
+  whisperModel: 'tiny',
+  cloudTtsApiKey: '',
+  cloudSttApiKey: '',
+  cloudLlmApiKey: '',
+  labsWakeWord: false,
+  labsCloudLlm: false,
+  labsRealtimeS2s: false,
+  labsTelephony: false,
+  telephonyWebhookUrl: '',
 }
 
 export const DEFAULT_PROFILE: UserProfile = {

@@ -12,9 +12,11 @@ export function useStoreHydrated(): boolean {
     }
 
     const unsub = useNozomiStore.persist.onFinishHydration(() => setHydrated(true))
-    void useNozomiStore.persist.rehydrate()
-
-    return unsub
+    const fallback = window.setTimeout(() => setHydrated(true), 6_000)
+    return () => {
+      unsub()
+      window.clearTimeout(fallback)
+    }
   }, [])
 
   return hydrated

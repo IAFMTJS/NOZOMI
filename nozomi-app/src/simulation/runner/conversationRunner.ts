@@ -3,9 +3,9 @@ import {
   createScenarioOpening,
   processUserMessage,
 } from '@/systems/conversation/engine'
-import { detectIntent } from '@/systems/conversation/intent'
+import { detectIntent } from '@/systems/conversation/nlu'
 import type { ConversationTurn, EngineResponse } from '@/types/domain'
-import { resetExposure } from '@/systems/learning/exposureTracker'
+import { setExposureMode } from '@/systems/learning/exposureTracker'
 import {
   evaluateConversation,
   evaluateTurn,
@@ -22,7 +22,10 @@ import type {
 import type { SimulatedUser } from '../types'
 import { UserSimulationEngine } from '../user/userSimulationEngine'
 import { mulberry32, uid } from '../utils/random'
-import { ensureSimulationReady, resetSimulationHarness } from '../setup/simulationHarness'
+import {
+  ensureSimulationReady,
+  resetSimulationHarnessForBatch,
+} from '../setup/simulationHarness'
 
 export interface RunConversationOptions {
   runId: string
@@ -35,9 +38,9 @@ export async function runSingleConversation(
   options: RunConversationOptions,
 ): Promise<SimulatedConversation> {
   await ensureSimulationReady()
-  resetSimulationHarness()
-  resetExposure()
+  resetSimulationHarnessForBatch()
 
+  try {
   const { runId, config, user } = options
   const rng = mulberry32(user.seed)
   const sim = new UserSimulationEngine(user)
@@ -100,6 +103,10 @@ export async function runSingleConversation(
     }
 
     const responseMs = performance.now() - t0
+    if (config.voiceMode && responseMs > 8000) {
+      endedReason = 'error'
+      break
+    }
     const recentNozomi = context
       .filter((c) => c.role === 'nozomi')
       .map((c) => c.content)
@@ -201,6 +208,9 @@ export async function runSingleConversation(
     failures,
     metadata,
     createdAt: Date.now(),
+  }
+  } finally {
+    setExposureMode('app')
   }
 }
 

@@ -1,0 +1,48 @@
+.history-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(2, 1, 8, 0.72);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+
+.history-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  max-height: min(82vh, 34rem);
+  flex-direction: column;
+  border-radius: var(--nozomi-radius-xl) var(--nozomi-radius-xl) 0 0;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 14, 38, 0.94) 0%,
+    rgba(4, 6, 18, 0.98) 100%
+  );
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-bottom: none;
+  box-shadow:
+    0 -20px 60px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(109, 40, 217, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.history-sheet-handle {
+  margin: 0.625rem auto 0;
+  width: 2.75rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.35), rgba(34, 211, 238, 0.45));
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.35);
+}
+
+.history-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem var(--nozomi-page-x) max(1.5rem, env(safe-area-inset-bottom));
+}

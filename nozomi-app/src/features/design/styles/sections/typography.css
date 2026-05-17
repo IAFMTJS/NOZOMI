@@ -1,0 +1,49 @@
+.section-label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-nozomi-text-secondary);
+}
+
+.font-jp,
+.msg-jp,
+.tappable-jp {
+  font-family: var(--font-jp);
+}
+
+.text-holo {
+  background: linear-gradient(
+    90deg,
+    #f5e6ff 0%,
+    #e9d5ff 18%,
+    #c084fc 35%,
+    #22d3ee 50%,
+    #c084fc 65%,
+    #e9d5ff 82%,
+    #f5e6ff 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: holo-shimmer 5s linear infinite;
+  text-shadow: 0 0 40px rgba(167, 139, 250, 0.25);
+}
+
+@keyframes holo-shimmer {
+  to {
+    background-position: 220% center;
+  }
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #7c3aed, #22d3ee);
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.35);
+}

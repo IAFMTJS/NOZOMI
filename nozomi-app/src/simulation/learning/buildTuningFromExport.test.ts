@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { SIMULATION_TUNING } from '@/data/simulation-tuning'
-import { setConversationTuning, tuningPenaltyForSentence } from '@/systems/conversation/conversationTuning'
+import {
+  setConversationTuning,
+  tuningPenaltyForSentence,
+} from '@/systems/conversation/matching'
 import { buildTuningFromConversations } from './buildTuningFromExport'
 import type { SimulatedConversation } from '../types'
 

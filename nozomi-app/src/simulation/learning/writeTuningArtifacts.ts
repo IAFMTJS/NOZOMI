@@ -1,5 +1,5 @@
 import { SIMULATION_TUNING, type ConversationTuningData } from '@/data/simulation-tuning'
-import { setConversationTuning } from '@/systems/conversation/conversationTuning'
+import { setConversationTuning } from '@/systems/conversation/matching'
 import { buildTuningFromConversations, tuningToJson } from './buildTuningFromExport'
 import type { SimulatedConversation } from '../types'
 

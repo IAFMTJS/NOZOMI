@@ -1,0 +1,121 @@
+/* Shared futuristic utilities — mobile-first */
+
+body {
+  background-color: var(--color-nozomi-bg);
+  background-image:
+    radial-gradient(ellipse 130% 90% at 50% -25%, rgba(109, 40, 217, 0.22), transparent 52%),
+    radial-gradient(ellipse 70% 55% at 100% 30%, rgba(34, 211, 238, 0.1), transparent 50%),
+    radial-gradient(ellipse 60% 50% at 0% 70%, rgba(99, 102, 241, 0.08), transparent 48%),
+    linear-gradient(180deg, #030308 0%, #050510 40%, #030308 100%);
+  text-rendering: optimizeLegibility;
+}
+
+.presence-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 90% 55% at 50% 38%,
+    rgba(124, 58, 237, 0.09) 0%,
+    transparent 62%
+  );
+}
+
+.presence-screen > *:not(.futuristic-backdrop) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Holo scan shimmer on glass panels */
+.glass-panel::after,
+.holo-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 42%,
+    transparent 58%
+  );
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.holo-edge {
+  box-shadow: var(--nozomi-glow-ring), var(--nozomi-glow-purple);
+}
+
+/* Mobile-first: larger tap feedback */
+@media (hover: none) and (pointer: coarse) {
+  .presence-suggestion-pill:active,
+  .presence-dock-action:active,
+  .glass-panel-soft:active {
+    transform: scale(0.98);
+  }
+
+  .presence-orb-anchor:active {
+    transform: scale(0.96);
+  }
+}
+
+.app-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--nozomi-touch);
+  min-width: var(--nozomi-touch);
+  border-radius: var(--nozomi-radius-sm);
+  color: var(--color-nozomi-muted);
+  transition:
+    color 0.2s var(--nozomi-ease-out),
+    background 0.2s var(--nozomi-ease-out),
+    box-shadow 0.2s var(--nozomi-ease-out);
+}
+
+.app-header-btn:hover {
+  color: var(--color-nozomi-text);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.app-header-btn-accent:hover {
+  color: var(--color-nozomi-purple);
+}
+
+.presence-header .app-header-btn {
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+}
+
+.app-header-btn:active {
+  background: rgba(167, 139, 250, 0.14);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.15);
+}
+
+/* Tablet+ — constrain presence content width */
+@media (min-width: 640px) {
+  .presence-stage {
+    max-width: 26rem;
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .presence-suggestions {
+    max-width: 28rem;
+  }
+
+  .presence-dock-wrap {
+    max-width: 28rem;
+    margin-inline: auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-page-scroll {
+    padding-inline: 1rem;
+  }
+}

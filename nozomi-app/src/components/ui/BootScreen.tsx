@@ -1,4 +1,4 @@
-import { NozomiOrb } from '@/components/orb/NozomiOrb'
+import { NozomiOrb, OrbAmbienceBridge } from '@/features/orb'
 import { LanguageText } from '@/components/language/LanguageText'
 
 /** Visible splash while persisted profile/settings load (avoids blank black screen). */
@@ -9,6 +9,7 @@ export function BootScreen() {
       aria-busy="true"
       aria-label="Loading"
     >
+      <OrbAmbienceBridge />
       <NozomiOrb size={160} showPlatform />
       <LanguageText
         text={{

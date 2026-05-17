@@ -1,0 +1,81 @@
+/* Navigation chrome — dock + mic FAB */
+.nav-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-height: var(--nozomi-touch);
+  min-width: var(--nozomi-touch);
+  padding: 0.25rem;
+  color: var(--color-nozomi-muted);
+  transition:
+    color 0.25s var(--nozomi-ease-out),
+    transform 0.25s var(--nozomi-ease-spring);
+}
+
+.nav-action:hover {
+  color: var(--color-nozomi-text);
+  transform: translateY(-2px);
+}
+
+.nav-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--nozomi-radius-md);
+  background: rgba(10, 12, 30, 0.85);
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  color: var(--color-nozomi-cyan);
+  box-shadow:
+    0 0 20px rgba(167, 139, 250, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.nav-mic-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  background: var(--nozomi-gradient-mic);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    0 0 48px rgba(167, 139, 250, 0.45),
+    0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.nav-mic-btn::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    #22d3ee,
+    #e879f9,
+    #818cf8,
+    #22d3ee
+  );
+  animation: spin-border 3.5s linear infinite;
+  z-index: -1;
+  opacity: 0.9;
+}
+
+.nav-mic-btn svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes spin-border {
+  to {
+    transform: rotate(360deg);
+  }
+}

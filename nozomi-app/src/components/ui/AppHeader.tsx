@@ -30,65 +30,55 @@ export function AppHeader({
   const displayTitle = title ?? TITLE_MAP[titleKey] ?? 'NOZOMI'
 
   return (
-    <header
-      className={`flex items-center justify-between ${
-        compact ? 'presence-header px-4 py-2' : 'px-4 py-3 safe-top'
-      }`}
-    >
-      <div className={`flex items-center justify-start ${compact ? 'w-9' : 'w-10'}`}>
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className={`touch-target flex items-center justify-center rounded-xl text-nozomi-muted/80 transition hover:text-nozomi-text ${
-              compact ? 'h-9 w-9' : 'h-10 w-10 hover:bg-white/5'
-            }`}
-            aria-label="Close"
-          >
-            <IconClose size={22} />
-          </button>
-        ) : showBack ? (
-          <Link
-            to="/"
-            className="touch-target flex h-10 w-10 items-center justify-center rounded-xl text-nozomi-muted transition hover:bg-white/5 hover:text-nozomi-text"
-            aria-label="Back"
-          >
-            <IconBack />
-          </Link>
+    <header className={compact ? 'presence-header' : 'safe-top px-4 py-3'}>
+      <div className="flex items-center justify-between">
+        <div className={`flex items-center justify-start ${compact ? 'w-9' : 'w-10'}`}>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="app-header-btn"
+              aria-label="Close"
+            >
+              <IconClose size={22} />
+            </button>
+          ) : showBack ? (
+            <Link to="/" className="app-header-btn" aria-label="Back">
+              <IconBack />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onSettings}
+              className="app-header-btn"
+              aria-label="Settings"
+            >
+              <IconMenu />
+            </button>
+          )}
+        </div>
+
+        <h1
+          className={`font-display font-bold tracking-[0.35em] text-holo ${
+            compact ? 'text-[0.65rem] opacity-90' : 'text-xs sm:text-sm'
+          }`}
+        >
+          {displayTitle}
+        </h1>
+
+        {hideSettings ? (
+          <div className={compact ? 'w-9' : 'w-10'} aria-hidden />
         ) : (
           <button
             type="button"
             onClick={onSettings}
-            className="touch-target flex h-10 w-10 items-center justify-center rounded-xl text-nozomi-muted transition hover:bg-white/5 hover:text-nozomi-text"
+            className="app-header-btn app-header-btn-accent"
             aria-label="Settings"
           >
-            <IconMenu />
+            <IconSliders />
           </button>
         )}
       </div>
-
-      <h1
-        className={`font-display font-bold tracking-[0.35em] text-holo ${
-          compact ? 'text-[0.65rem] opacity-90' : 'text-xs sm:text-sm'
-        }`}
-      >
-        {displayTitle}
-      </h1>
-
-      {hideSettings ? (
-        <div className={compact ? 'w-9' : 'w-10'} aria-hidden />
-      ) : (
-        <button
-          type="button"
-          onClick={onSettings}
-          className={`touch-target flex items-center justify-center rounded-xl text-nozomi-muted/80 transition hover:text-nozomi-purple ${
-            compact ? 'h-9 w-9' : 'h-10 w-10 hover:bg-white/5'
-          }`}
-          aria-label="Settings"
-        >
-          <IconSliders />
-        </button>
-      )}
     </header>
   )
 }

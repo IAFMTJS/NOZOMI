@@ -6,7 +6,7 @@ import {
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { UI_LABELS } from '@/data/ui-labels'
 import type { LanguageText as LanguageTextType } from '@/types/domain'
-import { useRomajiFallback } from '@/hooks/useRomajiFallback'
+import { useLanguageFallback } from '@/hooks/useLanguageFallback'
 import { BTN_TOUCH } from '@/utils/touch'
 import { TappableJapanese } from './TappableJapanese'
 
@@ -36,8 +36,15 @@ export function LanguageText({
   const profile = useNozomiStore((s) => s.profile)
   const settings = useNozomiStore((s) => s.settings)
   const normalized = normalizeLanguageText(text)
-  const resolvedRomaji = useRomajiFallback(normalized.jp, normalized.romaji)
-  const display = { ...normalized, romaji: resolvedRomaji }
+  const resolved = useLanguageFallback(normalized.jp, {
+    romaji: normalized.romaji,
+    en: normalized.en,
+  })
+  const display = {
+    ...normalized,
+    romaji: resolved.romaji,
+    en: resolved.en,
+  }
   const vis = getLanguageVisibility(profile.immersionLevel, settings)
   const [revealed, setRevealed] = useState(false)
 
@@ -82,14 +89,16 @@ export function LanguageText({
   const enBehind =
     vis.revealEnglish || (vis.revealSupport && !!display.en)
 
-  const showRomaji =
-    !!display.romaji &&
-    (!romajiBehind || revealed) &&
-    (vis.showRomaji || (vis.revealSupport && revealed))
-  const showEnglish =
-    !!display.en &&
-    (!enBehind || revealed) &&
-    (vis.showEnglish || vis.revealEnglish || (vis.revealSupport && revealed))
+  const showRomaji = presence
+    ? !!display.romaji
+    : !!display.romaji &&
+      (!romajiBehind || revealed) &&
+      (vis.showRomaji || (vis.revealSupport && revealed))
+  const showEnglish = presence
+    ? !!display.en
+    : !!display.en &&
+      (!enBehind || revealed) &&
+      (vis.showEnglish || vis.revealEnglish || (vis.revealSupport && revealed))
 
   const canReveal =
     !passive &&

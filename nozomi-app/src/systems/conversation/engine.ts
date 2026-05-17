@@ -1,16 +1,16 @@
-import { detectIntent, type Intent } from './intent'
-import { detectTopic } from './topic'
+import { detectIntent, type Intent } from './nlu'
+import { detectTopic } from './nlu'
 import {
   pickByResponseHints,
   pickContextualSentence,
   type MatchContext,
-} from './replyMatcher'
+} from './matching'
 import {
   filterQualityPool,
   isGenericGreetingLine,
   prioritizeConversationalPool,
   prioritizeGrammarTagged,
-} from './engineHelpers'
+} from './matching'
 import { buildContextualSuggestions } from './contextualSuggestions'
 import { resolveSuggestionCount } from './suggestionCount'
 import {
@@ -36,8 +36,7 @@ import {
   blendWithPersonality,
   pickPersonalityLine,
 } from '@/systems/personality/personalityAdapter'
-import { pickRecoveryLine } from './recoveryLines'
-import { ensureConversationTuningLoaded } from './conversationTuning'
+import { pickRecoveryLine, ensureConversationTuningLoaded } from './matching'
 import { inferGrammarTagsForJp } from '@/utils/grammarTagInference'
 import {
   filterUnseenSentences,

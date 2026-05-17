@@ -1,27 +1,18 @@
-import { db } from '@/database/db'
 import {
   ensureDataLoaded,
   ensureExtendedDataLoaded,
   ensureLexiconLoaded,
 } from '@/database/importService'
-import { ensureConversationTuningLoaded } from '@/systems/conversation/conversationTuning'
-import { resetExposure } from '@/systems/learning/exposureTracker'
+import { ensureConversationTuningLoaded } from '@/systems/conversation/matching'
+import {
+  resetSimulationExposure,
+  setExposureMode,
+} from '@/systems/learning/exposureTracker'
 
 let harnessReady = false
 
-async function ensureTaggedSentenceData(): Promise<void> {
-  const count = await db.sentences.count()
-  if (count === 0) return
-  const sample = await db.sentences.orderBy('id').limit(80).toArray()
-  const tagged = sample.filter((s) => s.grammarTags?.trim()).length
-  if (tagged >= 10) return
-  await db.meta.delete('dataVersion')
-  await db.sentences.clear()
-}
-
 export async function ensureSimulationReady(): Promise<void> {
   if (harnessReady) return
-  await ensureTaggedSentenceData()
   await ensureDataLoaded()
   await ensureExtendedDataLoaded()
   await ensureLexiconLoaded()
@@ -35,11 +26,12 @@ export function invalidateSimulationHarness(): void {
 }
 
 export function resetSimulationHarness(): void {
-  resetExposure()
+  resetSimulationExposure()
 }
 
 export function resetSimulationHarnessForBatch(): void {
-  resetExposure()
+  resetSimulationExposure()
+  setExposureMode('simulation')
 }
 
 export function seedRandomForSimulation(seed: number): () => number {
