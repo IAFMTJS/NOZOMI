@@ -29,15 +29,28 @@ export default function App() {
 
   useEffect(() => {
     setDataLoadFailed(false)
+    let lexiconIdle: number | undefined
     ensureDataLoaded()
       .then(() => ensureExtendedDataLoaded())
-      .then(() => ensureLexiconLoaded())
       .then(() => ensureConversationTuningLoaded())
-      .then(() => setDataReady(true))
+      .then(() => {
+        setDataReady(true)
+        const loadLexicon = () => void ensureLexiconLoaded()
+        if (typeof requestIdleCallback === 'function') {
+          lexiconIdle = requestIdleCallback(loadLexicon, { timeout: 12_000 })
+        } else {
+          window.setTimeout(loadLexicon, 1500)
+        }
+      })
       .catch(() => {
         setDataLoadFailed(true)
         setDataReady(true)
       })
+    return () => {
+      if (lexiconIdle !== undefined && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(lexiconIdle)
+      }
+    }
   }, [setDataReady, setDataLoadFailed])
 
   return (

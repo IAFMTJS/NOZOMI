@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   FINISH_WAIT_DEFAULT_MS,
   FINISH_WAIT_HEARD_MS,
@@ -89,6 +89,8 @@ import {
 
 export function useSpeechListenController(): SpeechListenApi {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const onListenPage = pathname === '/listen'
   const { sendUserMessage, deliverNozomi } = useConversation()
   const dataReady = useUiStore((s) => s.dataReady)
   const speechInputLang = useNozomiStore((s) => s.settings.speechInputLang)
@@ -193,8 +195,12 @@ export function useSpeechListenController(): SpeechListenApi {
       setOfflineSttReady(true)
       return
     }
+    if (!onListenPage) {
+      setOfflineSttReady(false)
+      return
+    }
     setOfflineSttReady(isOfflineSttReady(recognitionLang))
-    preloadOfflineStt(recognitionLang)
+    preloadOfflineStt(recognitionLang, { force: true })
     const readyPoll = window.setInterval(() => {
       if (!mountedRef.current) return
       if (isOfflineSttReady(recognitionLang)) setOfflineSttReady(true)
@@ -226,7 +232,7 @@ export function useSpeechListenController(): SpeechListenApi {
       }
     }
     return () => window.clearInterval(readyPoll)
-  }, [recognitionLang, setLiveTranscript, setOrbState, setSpeechState])
+  }, [onListenPage, recognitionLang, setLiveTranscript, setOrbState, setSpeechState])
 
   useEffect(() => {
     installVoiceDebugConsole(() => ({

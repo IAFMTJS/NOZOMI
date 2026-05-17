@@ -133,11 +133,17 @@ async function augmentSegment(segment: string, partial: {
   romaji: string
   en: string
 }): Promise<{ romaji: string; en: string }> {
-  await ensureLexiconLoaded()
-  return {
-    romaji: partial.romaji || romajiFromLexicon(segment),
-    en: partial.en || englishFromLexicon(segment),
+  const romaji = partial.romaji || kanaRomajiFallback(segment)
+  const en = partial.en
+  if (romaji && en) return { romaji, en }
+  if (isLexiconLoaded()) {
+    return {
+      romaji: romaji || romajiFromLexicon(segment),
+      en: en || englishFromLexicon(segment),
+    }
   }
+  void ensureLexiconLoaded().catch(() => {})
+  return { romaji, en }
 }
 
 /** Look up romaji and English from IndexedDB; supports multi-line / multi-sentence text. */

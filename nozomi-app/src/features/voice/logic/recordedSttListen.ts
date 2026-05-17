@@ -151,7 +151,7 @@ function startRecordedListeningNow(
   setActiveListenLang(lang)
   setListenSession({ stopped: false, gotResult: false })
   setRecognition(null)
-  preloadOfflineStt(lang)
+  preloadOfflineStt(lang, { force: true })
 
   let micRecorderReady = false
   let captureStarted = false

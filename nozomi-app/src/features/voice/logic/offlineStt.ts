@@ -15,7 +15,7 @@ import {
   touchOfflineSttPipeline,
 } from '@/features/voice/logic/offlineSttLifecycle'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { isIos } from '@/utils/device'
+import { isIos, isLowMemoryDevice } from '@/utils/device'
 
 const LOAD_TIMEOUT_MS = 180_000
 const READY_WAIT_MS = isIos() ? 90_000 : 120_000
@@ -275,7 +275,11 @@ export function releaseOfflineSttPipeline(): void {
   voiceDebug('offline-stt:pipeline-released')
 }
 
-export function preloadOfflineStt(lang = 'en-US'): void {
+export function preloadOfflineStt(lang = 'en-US', opts?: { force?: boolean }): void {
+  if (!opts?.force && isLowMemoryDevice()) {
+    voiceDebug('offline-stt:preload-skipped', { reason: 'low-memory' })
+    return
+  }
   const model = modelForLang(lang)
   if (isOfflineSttReady(lang)) return
   if (preloadInFlight && preloadInFlightModel === model) return

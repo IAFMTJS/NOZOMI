@@ -26,7 +26,7 @@ npm run dev:host      # LAN access for mobile testing
 
 ## Deploy (Vercel)
 
-Import the GitHub repo on [Vercel](https://vercel.com/new). No extra settings are required: the repo-root `vercel.json` installs and builds `nozomi-app/`, serves `nozomi-app/dist`, rewrites all routes to the SPA, and sets COOP/COEP headers for threaded WASM (offline STT).
+Import the GitHub repo on [Vercel](https://vercel.com/new). No extra settings are required: the repo-root `vercel.json` installs and builds `nozomi-app/`, serves `nozomi-app/dist`, rewrites all routes to the SPA, and sets COOP/COEP headers for threaded WASM (offline STT). The first visit can be slow while language data loads; Whisper STT only preloads on the Listen screen to avoid mobile tab crashes.
 
 If you prefer a project rooted in `nozomi-app`, use that folder as the root directory instead; `nozomi-app/vercel.json` has the same routing and headers.
 
