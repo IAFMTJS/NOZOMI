@@ -31,10 +31,14 @@ import {
 } from '@/systems/speech/speechCapabilities'
 import { levelFromRms, rmsFromTimeDomain } from '@/systems/speech/audioLevel'
 import {
+  browserSttAvailable,
+  browserSttViableForLang,
   clearSessionSttEngine,
   getSttEngine,
+  readStoredSttEngine,
   resolveSttEngineForLang,
 } from '@/systems/speech/sttEngine'
+import { isIos, isLowMemoryDevice } from '@/utils/device'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
 import { voiceDebug, voiceDebugWarn } from '@/systems/speech/voiceDebug'
@@ -70,7 +74,21 @@ export function startListening(
   }
 
   const lang = options.lang ?? resolveSpeechRecognitionLang('auto')
-  const engine = resolveSttEngineForLang(getSttEngine(), lang)
+  const stored = readStoredSttEngine()
+  const preferred = getSttEngine()
+  let engine = resolveSttEngineForLang(preferred, lang)
+  // Whisper is heavy; use browser for live captions unless user explicitly chose on-device.
+  if (
+    engine === 'local' &&
+    stored !== 'local' &&
+    !isIos() &&
+    !isLowMemoryDevice() &&
+    browserSttAvailable() &&
+    browserSttViableForLang(lang)
+  ) {
+    voiceDebug('stt:prefer-browser', { lang, preferred, stored })
+    engine = 'browser'
+  }
   if (engine === 'local') {
     startRecordedListening(callbacks, options)
     return

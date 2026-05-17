@@ -9,8 +9,11 @@ import {
   VOICE_TURN_TIMEOUT_MS,
 } from '@/contexts/speech-listen/constants'
 import type { SpeechListenApi } from '@/contexts/speech-listen/types'
-import { UI_LABELS } from '@/data/ui-labels'
 import { useConversation } from '@/features/conversation'
+import {
+  isUiTranscriptPlaceholder,
+  mergeHeardTranscript,
+} from '@/features/voice/logic/voiceTranscript'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { resetOrbAudioLevel, setOrbAudioLevel } from '@/systems/orb/orbAudioLevel'
@@ -43,7 +46,6 @@ import {
   startListening,
   startMicCaptureFromGesture,
   stopSpeaking,
-  syncCaptureFromDisplay,
   whenSttWorkIdle,
   type SpeechError,
   type SpeechErrorCode,
@@ -122,6 +124,7 @@ export function useSpeechListenController(): SpeechListenApi {
   const voiceTurnGenRef = useRef(0)
   const listenIntentRef = useRef(0)
   const noSpeechFallbackDeliveredRef = useRef(false)
+  const resultDeliveredRef = useRef(false)
   const lastLevelStoreAtRef = useRef(0)
   const prevRecognitionLangRef = useRef<string | null>(null)
 
@@ -129,8 +132,12 @@ export function useSpeechListenController(): SpeechListenApi {
     if (!mountedRef.current) return
     const orb = useUiStore.getState().orbState
     setSpeechState('idle')
-    setLiveTranscript('')
     clearTranscriptFinalizing()
+    window.setTimeout(() => {
+      if (mountedRef.current && useUiStore.getState().speechState === 'idle') {
+        setLiveTranscript('')
+      }
+    }, 400)
     if (!isAnyTtsOutputActive() && orb !== 'speaking') {
       setOrbState('idle')
     }
@@ -158,12 +165,12 @@ export function useSpeechListenController(): SpeechListenApi {
   }, [])
 
   const resolveHeardText = useCallback(() => {
-    return (
-      lastTranscriptRef.current.trim() ||
-      pendingInterimRef.current.trim() ||
-      useUiStore.getState().liveTranscript.trim() ||
-      getCapturedTranscript()
-    ).trim()
+    const merged = mergeHeardTranscript({
+      lastRef: lastTranscriptRef.current,
+      pendingInterim: pendingInterimRef.current,
+      captured: getCapturedTranscript(),
+    })
+    return isUiTranscriptPlaceholder(merged) ? '' : merged
   }, [])
 
   const captureSnapshot = useCallback((): import('@/systems/speech/voiceDebug').VoiceCaptureSnapshot => {
@@ -300,9 +307,13 @@ export function useSpeechListenController(): SpeechListenApi {
 
   const handleFinalTranscript = useCallback(
     async (text: string) => {
-      if (processingRef.current || !mountedRef.current) {
+      if (processingRef.current || resultDeliveredRef.current || !mountedRef.current) {
         voiceDebug('ui:final-skipped', {
-          reason: processingRef.current ? 'already-processing' : 'unmounted',
+          reason: processingRef.current
+            ? 'already-processing'
+            : resultDeliveredRef.current
+              ? 'already-delivered'
+              : 'unmounted',
           incoming: text.slice(0, 80),
         })
         return
@@ -313,6 +324,10 @@ export function useSpeechListenController(): SpeechListenApi {
       }
 
       const trimmed = (text.trim() || resolveHeardText()).trim()
+      if (isUiTranscriptPlaceholder(trimmed)) {
+        voiceDebugWarn('ui:final-placeholder-skipped', { text: trimmed.slice(0, 80) })
+        return
+      }
       markVoiceSpan('stt_done', { length: trimmed.length })
       if (!trimmed) {
         voiceDebugWarn('ui:final-empty', captureSnapshot())
@@ -323,6 +338,7 @@ export function useSpeechListenController(): SpeechListenApi {
         deliverNoSpeechFallback()
         return
       }
+      resultDeliveredRef.current = true
 
       setTranscriptFinalizing(false)
       processingRef.current = true
@@ -463,12 +479,16 @@ export function useSpeechListenController(): SpeechListenApi {
       },
       onResult: (text: string) => {
         const trimmed = text.trim()
-        if (processingRef.current && trimmed) {
-          voiceDebug('ui:onResult-skipped', { reason: 'already-processing' })
+        if (resultDeliveredRef.current) {
+          voiceDebug('ui:onResult-skipped', { reason: 'already-delivered' })
           return
         }
         if (!trimmed && !finishingRef.current) {
           voiceDebug('ui:onResult-skipped', { reason: 'empty-not-finishing' })
+          return
+        }
+        if (isUiTranscriptPlaceholder(trimmed)) {
+          voiceDebugWarn('ui:onResult-placeholder-skipped', { text: trimmed })
           return
         }
         voiceDebug('ui:onResult', { length: text.length, text: text.slice(0, 160) })
@@ -492,6 +512,7 @@ export function useSpeechListenController(): SpeechListenApi {
     processingRef.current = false
     finishingRef.current = false
     noSpeechFallbackDeliveredRef.current = false
+    resultDeliveredRef.current = false
     silenceEndpointRef.current?.stop()
     if (isListenSessionActive()) {
       finalizeListening()
@@ -551,6 +572,7 @@ export function useSpeechListenController(): SpeechListenApi {
 
     clearFinishWaitTimer()
     noSpeechFallbackDeliveredRef.current = false
+    resultDeliveredRef.current = false
     setErrorCode(undefined)
     finishingRef.current = false
     setLiveTranscript('')
@@ -657,6 +679,7 @@ export function useSpeechListenController(): SpeechListenApi {
     voiceTurnGenRef.current++
     listenIntentRef.current++
     noSpeechFallbackDeliveredRef.current = false
+    resultDeliveredRef.current = false
     processingRef.current = false
     finishingRef.current = false
     everHeardRef.current = false
@@ -687,6 +710,7 @@ export function useSpeechListenController(): SpeechListenApi {
       return
     }
     finishingRef.current = true
+    resultDeliveredRef.current = false
     markVoiceSpan('listen_finish')
     setTranscriptFinalizing(true)
     voiceDebugCapture('ui:finish', captureSnapshot())
@@ -702,12 +726,7 @@ export function useSpeechListenController(): SpeechListenApi {
     if (pendingInterimRef.current.trim()) {
       lastTranscriptRef.current = pendingInterimRef.current
       setLiveTranscript(pendingInterimRef.current)
-    } else if (getActiveSttEngine() === 'local') {
-      setLiveTranscript(UI_LABELS.statusFinalizing.jp)
     }
-
-    const heardNow = resolveHeardText()
-    if (heardNow) syncCaptureFromDisplay(heardNow)
 
     const session = getListenSession()
     if (session && !session.gotResult) {
@@ -733,28 +752,26 @@ export function useSpeechListenController(): SpeechListenApi {
     voiceDebug('ui:finish-wait', { maxWaitMs: maxWait, everHeard: everHeardRef.current })
 
     const waitForTranscript = () => {
-      if (processingRef.current) return
+      if (processingRef.current || resultDeliveredRef.current) return
       if (useUiStore.getState().speechState === 'error') {
+        finishingRef.current = false
+        return
+      }
+      if (getListenSession()?.gotResult) {
         finishingRef.current = false
         return
       }
       const heard = resolveHeardText()
       if (heard) {
-        voiceDebug('ui:finish-wait-hit', {
-          waitedMs: Date.now() - started,
-          length: heard.length,
-        })
-        syncCaptureFromDisplay(heard)
-        void handleFinalTranscript(heard)
-        return
+        setLiveTranscript(heard)
       }
       if (engine === 'local' && Date.now() - started < safetyCap) {
         void whenSttWorkIdle().then(() => {
-          if (!mountedRef.current || processingRef.current) return
-          const afterIdle = resolveHeardText()
-          if (afterIdle) {
-            syncCaptureFromDisplay(afterIdle)
-            void handleFinalTranscript(afterIdle)
+          if (!mountedRef.current || processingRef.current || resultDeliveredRef.current) {
+            return
+          }
+          if (getListenSession()?.gotResult) {
+            finishingRef.current = false
             return
           }
           finishFallbackTimer.current = setTimeout(waitForTranscript, 100)
@@ -765,17 +782,22 @@ export function useSpeechListenController(): SpeechListenApi {
         finishFallbackTimer.current = setTimeout(waitForTranscript, 100)
         return
       }
-      if (!processingRef.current) {
+      if (!processingRef.current && !resultDeliveredRef.current) {
         voiceDebugWarn('ui:finish-wait-timeout', {
           waitedMs: Date.now() - started,
           maxWait,
           ...captureSnapshot(),
         })
         void whenSttWorkIdle(engine === 'local' ? FINISH_WAIT_LOCAL_MS : 8_000).then(() => {
-          if (!mountedRef.current || processingRef.current) return
+          if (!mountedRef.current || processingRef.current || resultDeliveredRef.current) {
+            return
+          }
+          if (getListenSession()?.gotResult) {
+            finishingRef.current = false
+            return
+          }
           const late = resolveHeardText()
           if (late) {
-            syncCaptureFromDisplay(late)
             void handleFinalTranscript(late)
             return
           }

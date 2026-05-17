@@ -50,7 +50,7 @@ export function getDefaultSttEngine(): SttEngine {
   return 'local'
 }
 
-function readStoredEngine(): SttEngine | null {
+export function readStoredSttEngine(): SttEngine | null {
   try {
     const v = localStorage.getItem(STORAGE_KEY)
     if (v === 'browser' || v === 'local') return v
@@ -62,7 +62,7 @@ function readStoredEngine(): SttEngine | null {
 
 export function getSttEngine(): SttEngine {
   if (sessionEngineOverride) return normalizeEngine(sessionEngineOverride)
-  const stored = readStoredEngine()
+  const stored = readStoredSttEngine()
   if (stored) return normalizeEngine(stored)
   return normalizeEngine(getDefaultSttEngine())
 }
