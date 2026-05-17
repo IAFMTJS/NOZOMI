@@ -1,0 +1,1067 @@
+NOZOMI 2
+
+Hier is de volledig uitgewerkte, geoptimaliseerde versie. Geen losse snippers meer, maar een echt document waar je mee kunt bouwen zonder dat het geheel uit elkaar dondert zoals zoveel halfbakken app-ideeën.
+ 
+⸻
+ 
+NOZOMI
+Complete Product Concept, UX Vision & Technical Blueprint
+1. PROJECTMISSIE
+Nozomi is een futuristische, minimalistische en lokaal georiënteerde Japanse leercompagnon die voelt als een natuurlijke digitale aanwezigheid, niet als een lesprogramma, chatbotdemo of opgeblazen AI-speeltje.
+De kern van Nozomi is eenvoudig:
+	•	je praat of typt in natuurlijke taal
+	•	Nozomi reageert in Japans
+	•	je ziet meteen Japans, romaji en Engels
+	•	je leert ongemerkt door herhaling, context en gesprek
+	•	de ervaring blijft licht, rustig en premium
+Nozomi moet niet aanvoelen als “ik ben Japans aan het studeren”. Nozomi moet aanvoelen als: “ik ben gewoon met iemand aan het praten, en ik word toevallig beter in Japans.”
+Dat is het verschil tussen een product en een digitale strafprocedure.
+ 
+⸻
+ 
+2. PRODUCTVISIE
+Nozomi is gebouwd rond vijf fundamentele ideeën:
+2.1 Conversatie als hoofdinterface
+De gebruiker leert niet via eindeloze menu’s, flashcards of knoppentherapie, maar via gesprek.
+2.2 Taal is overal aanwezig
+Iedere interface-laag draagt bij aan taalblootstelling. Niet enkel de chatberichten, maar ook knoppen, meldingen, hints, onboarding, instellingen en foutmeldingen.
+2.3 Audio maakt het levend
+Nozomi reageert op spreken, luisteren, denken en antwoorden via motion, glow, waveform en orb-states.
+2.4 Local-first en lichtgewicht
+De ervaring moet snel, offlinevriendelijk en bruikbaar zijn op mindere hardware.
+2.5 Groeiende ondersteuning
+Beginners krijgen veel begeleiding. Gevorderden krijgen meer Japans en minder hulp. De interface evolueert mee met de gebruiker.
+ 
+⸻
+ 
+3. PRODUCTPOSITIE
+Nozomi is:
+	•	geen klassieke taalapp
+	•	geen ChatGPT-kloon
+	•	geen overvolle dashboard-hel
+	•	geen quizmachine
+	•	geen AI-dierentuin met 47 features waarvan niemand er 3 gebruikt
+Nozomi is wél:
+	•	een companion
+	•	een conversatiecoach
+	•	een taalbad
+	•	een subtiele leeromgeving
+	•	een rustige, levende interface
+ 
+⸻
+ 
+4. KERNDOELEN VAN HET PRODUCT
+Nozomi moet op elk moment deze doelen dienen:
+	1.	De gebruiker laten spreken, typen of luisteren in natuurlijke interactie.
+	2.	Onmiddellijk taalfeedback geven zonder de flow te breken.
+	3.	Japans op een visuele manier toegankelijk maken.
+	4.	Herhaling en context gebruiken om vocab en grammar te versterken.
+	5.	Een sfeer neerzetten die futuristisch, zacht en geloofwaardig voelt.
+	6.	Op laptop en mobiel bruikbaar blijven zonder zware technische ballast.
+ 
+⸻
+ 
+5. DE ABSOLUTE HOOFDRULE: 3 TAALLAGEN OVERAL
+Alles wat Nozomi toont, bevat standaard drie lagen:
+	1.	Japans
+	2.	Romaji
+	3.	Engels
+Dat geldt voor:
+	•	chatberichten
+	•	suggesties
+	•	buttons
+	•	onboarding
+	•	menu’s
+	•	fouten
+	•	systeemmeldingen
+	•	prompts
+	•	scenario’s
+	•	instellingen
+	•	badges
+	•	hints
+	•	loading states
+	•	labels
+	•	onboarding flows
+	•	voice feedback
+	•	notifications
+	•	tutorials
+Deze drie lagen maken van de hele app een taalomgeving. De UI zelf is dus een lesinstrument.
+ 
+⸻
+ 
+6. TAALDISPLAY HIËRARCHIE
+De visuele hiërarchie is altijd:
+Primair
+Japans
+	•	grootste tekst
+	•	hoofdfocus
+	•	meest zichtbaar
+	•	rechtstreeks leercontact
+Secundair
+Romaji
+	•	ondersteunend
+	•	iets kleiner
+	•	helpt bij uitspraak
+	•	mag nooit de hoofdrol opeisen
+Tertiair
+Engels
+	•	kleinste laag
+	•	context en begrip
+	•	subtiel aanwezig
+	•	eventueel lichter of transparanter
+ 
+⸻
+ 
+7. VOORBEELD VAN DE STANDAARD OUTPUT
+Chatbericht
+今日はどうだった？ Kyō wa dō datta? How was your day?
+Suggestie
+うん、疲れた Un, tsukareta Yeah, I’m tired
+Knop
+話す Hanasu Speak
+Systeemmelding
+マイクが見つかりません Maiku ga mitsukarimasen Microphone not found
+ 
+⸻
+ 
+8. LEERFILOSOFIE
+Nozomi leert niet via harde schoolstructuren, maar via natuurlijke blootstelling met begeleide herhaling.
+Dat gebeurt via:
+	•	conversational repetition
+	•	contextuele vocab-herhaling
+	•	grammar exposure in echte zinnen
+	•	lichte correctie zonder breekijzer-gedrag
+	•	veel kleine taalprikkels verspreid over de interface
+	•	progressieve afbouw van hulp
+De gebruiker moet voelen dat hij gewoon spreekt. Het systeem doet ondertussen stiekem het werk.
+Dat is precies de bedoeling. Mensen hebben toch al genoeg dingen om zich zorgen over te maken.
+ 
+⸻
+ 
+9. CORE USER EXPERIENCE
+De basiservaring van Nozomi ziet er zo uit:
+	1.	Gebruiker opent de app.
+	2.	De orb reageert op aanwezigheid.
+	3.	De interface nodigt uit tot spreken of typen.
+	4.	De gebruiker stelt een vraag of begint een gesprek.
+	5.	Nozomi herkent input, analyseert context en kiest een antwoord.
+	6.	Nozomi toont antwoord in drie lagen.
+	7.	Nozomi geeft optionele reply-suggesties.
+	8.	De gebruiker volgt of wijkt af.
+	9.	Het gesprek loopt verder in een natuurlijke loop.
+ 
+⸻
+ 
+10. PRODUCTSTRUCTUUR
+Nozomi bestaat uit vijf hoofdlaag-systemen:
+10.1 Interaction Layer
+Alles rond input en output:
+	•	tekst
+	•	voice
+	•	touch
+	•	suggesties
+	•	quick replies
+10.2 Language Layer
+Alle taalcontent:
+	•	Japanese
+	•	romaji
+	•	English
+	•	level tagging
+	•	grammar/vocab metadata
+10.3 Experience Layer
+De visuele en emotionele sfeer:
+	•	orb
+	•	motion
+	•	ambient glow
+	•	transitions
+	•	audio-reactive effecten
+10.4 Learning Layer
+Het daadwerkelijke leermechanisme:
+	•	herhaling
+	•	context
+	•	progression
+	•	difficulty scaling
+	•	exposure tracking
+10.5 System Layer
+Techniek en state:
+	•	storage
+	•	indexing
+	•	recognition
+	•	playback
+	•	rendering
+	•	state management
+ 
+⸻
+ 
+11. PLATFORMKEUZE
+Progressive Web App
+Nozomi wordt een PWA, omdat dat de beste balans geeft tussen:
+	•	snelle startup
+	•	weinig overhead
+	•	installable op desktop en mobiel
+	•	responsive gedrag
+	•	offline mogelijkheden
+	•	lagere hardware-eisen
+	•	eenvoudiger onderhoud
+Waarom geen Electron als kern?
+Electron kan prima, maar voegt meestal gewicht toe waar Nozomi juist licht moet blijven. Voor V1 is PWA de betere keuze.
+Later mogelijk:
+	•	desktop wrapper
+	•	native mobile companion
+	•	optional shell voor extra OS-integratie
+Maar eerst moet de kern degelijk zijn. Eerst de motor. Daarna de spoilers en onzin.
+ 
+⸻
+ 
+12. AANBEVOLEN TECH STACK
+Frontend
+	•	React
+	•	Vite
+	•	TypeScript
+Styling
+	•	TailwindCSS
+Animatie
+	•	Framer Motion
+State management
+	•	Zustand
+Storage
+	•	IndexedDB
+	•	Dexie.js
+Audio
+	•	Web Audio API
+	•	Browser Speech Recognition API
+Later uitbreidbaar naar
+	•	Whisper.cpp voor lokale STT
+	•	lokale TTS engine
+	•	optionele local model integratie
+ 
+⸻
+ 
+13. PROJECTSTRUCTUUR
+src/
+ ├── components/
+ │    ├── orb/
+ │    ├── chat/
+ │    ├── suggestions/
+ │    ├── audio/
+ │    ├── language/
+ │    └── ui/
+ │
+ ├── systems/
+ │    ├── conversation/
+ │    ├── personality/
+ │    ├── speech/
+ │    ├── animations/
+ │    ├── suggestions/
+ │    ├── japanese/
+ │    └── translations/
+ │
+ ├── database/
+ │    ├── vocab/
+ │    ├── grammar/
+ │    ├── conversations/
+ │    ├── ui/
+ │    └── scenarios/
+ │
+ ├── store/
+ │    └── useNozomiStore.ts
+ │
+ ├── hooks/
+ ├── pages/
+ └── utils/
+ 
+⸻
+ 
+14. HOMESCREEN CONCEPT
+De homescreen is de kernervaring.
+Centrale focus
+The Nozomi Orb
+Dit is geen simpele decoratie. Het is het visuele anker van de hele app.
+De orb functioneert als:
+	•	emotionele aanwezigheid
+	•	audio-reactive indicator
+	•	speaking/listening/thinking state visual
+	•	focuspunt op de homepage
+	•	symbool van Nozomi zelf
+ 
+⸻
+ 
+15. ORB STATES
+15.1 Idle
+Wanneer er geen actieve interactie is.
+Kenmerken:
+	•	zachte ademhaling
+	•	trage glow
+	•	subtiele particles
+	•	laag contrast
+	•	rustige hover-beweging
+Doel:
+	•	aanwezigheid zonder druk
+	•	geen lege, dode interface
+	•	visuele rust
+15.2 Listening
+Wanneer audio wordt gedetecteerd.
+Kenmerken:
+	•	waveform rings
+	•	pulserende randen
+	•	reactieve intensiteit
+	•	dynamische volume respons
+Doel:
+	•	duidelijk tonen dat Nozomi luistert
+	•	vertrouwen geven dat input actief wordt opgepakt
+15.3 Thinking
+Tijdens verwerking of antwoordvorming.
+Kenmerken:
+	•	orbiting particles
+	•	interne energiebeweging
+	•	datastroom-effecten
+	•	zachte versnelling in de orb
+Doel:
+	•	gevoel van cognitieve activiteit
+	•	wachttijd visueel subtiel invullen
+15.4 Speaking
+Wanneer Nozomi antwoordt.
+Kenmerken:
+	•	gesynchroniseerde pulsing
+	•	voice-reactive glow
+	•	speech wave animatie
+	•	rhythmische motion
+Doel:
+	•	stem en visuele laag laten samenvallen
+	•	de companion echt “aanwezig” laten voelen
+ 
+⸻
+ 
+16. AUDIO-REACTIVE SYSTEM
+Nozomi moet geluid voelen. Niet alleen horen.
+Technologie
+Gebruik:
+	•	AudioContext
+	•	AnalyserNode
+	•	frequency data
+	•	amplitude tracking
+	•	smoothing filters
+Voorbeeldflow
+const analyser = audioContext.createAnalyser()
+const dataArray = new Uint8Array(analyser.frequencyBinCount)
+analyser.getByteFrequencyData(dataArray)
+Audio stuurt:
+	•	orb scale
+	•	glow intensity
+	•	particle speed
+	•	ring amplitude
+	•	micro-transitions
+	•	speaking visual feedback
+Belangrijke regel
+De audio-reactie moet subtiel blijven. Niet als een overkoffie-geworden visualizer die denkt dat hij een concert is.
+ 
+⸻
+ 
+17. CHAT UI CONCEPT
+De chatinterface is geen klassieke chatbox, maar een elegante conversatieruimte.
+Message cards
+Elke boodschap verschijnt als een kaart met:
+	•	translucente achtergrond
+	•	glassmorphism
+	•	zachte glow-rand
+	•	floating motion
+	•	drie taallagen
+	•	duidelijke leesbaarheid
+Tekstvolgorde
+	1.	Japans
+	2.	Romaji
+	3.	Engels
+Visuele regels
+	•	Japans het grootst
+	•	romaji kleiner en ondersteunend
+	•	Engels subtiel
+	•	geen rommelige blokken
+	•	geen visuele overbelasting
+ 
+⸻
+ 
+18. LANGUAGE TEXT COMPONENT
+Alle taalweergave komt uit één herbruikbare component.
+<LanguageText
+  jp="今日はどうだった？"
+  romaji="Kyō wa dō datta?"
+  en="How was your day?"
+/>
+Waarom dit essentieel is
+	•	uniforme stijl
+	•	minder bugs
+	•	schaalbare content
+	•	eenvoudig herbruikbaar
+	•	progressie centraal aanpasbaar
+	•	consistentie over de hele app
+ 
+⸻
+ 
+19. PROGRESSION SYSTEM
+Nozomi moet groeien mee met de gebruiker.
+Beginner
+	•	Japans
+	•	romaji
+	•	Engels volledig zichtbaar
+	•	veel ondersteunende hints
+	•	lage drempel
+	•	duidelijke knoppen
+Intermediate
+	•	Engels wordt subtieler
+	•	romaji optioneel of samengevouwen
+	•	meer Japans in UI
+	•	meer context, minder uitleg
+Advanced
+	•	Japans dominant
+	•	romaji verborgen via hover/tap
+	•	Engels optioneel of enkel op aanvraag
+	•	meer natuurlijke flow
+	•	minder crutches
+Dit zorgt voor een product dat niet alleen leerzaam is, maar ook volwassen wordt met de gebruiker.
+ 
+⸻
+ 
+20. SUGGESTION ENGINE
+Nozomi geeft snelle reply-suggesties die passen bij de context.
+Functies
+	•	contextuele antwoorden
+	•	moeilijkheidsselectie
+	•	toonvariatie
+	•	natuurlijke reply-stijl
+	•	tempo-afhankelijk gebruik
+Voorbeeld
+[
+  {
+    "jp": "うん、疲れた",
+    "romaji": "Un, tsukareta",
+    "en": "Yeah, I’m tired"
+  },
+  {
+    "jp": "でも楽しかった",
+    "romaji": "Demo tanoshikatta",
+    "en": "But it was fun"
+  }
+]
+Suggestie-gedrag
+	•	korte zinnen voor snelle interactie
+	•	langere zinnen als de gebruiker meer taal aankan
+	•	suggesties passend bij onderwerp, niveau en modus
+	•	swipe- of tap-interactie op mobiel
+ 
+⸻
+ 
+21. CONVERSATION ENGINE
+De conversation engine is de kernlogica die bepaalt wat Nozomi doet nadat de gebruiker iets zegt.
+Input-flow
+Gebruiker spreekt of typt → intent detection → topic analysis → difficulty matching → response selection → suggestion generation → language formatting → UI rendering → audio output
+Wat de engine moet kunnen
+	•	onderwerp herkennen
+	•	taalniveau inschatten
+	•	context onthouden binnen sessie
+	•	stilistische consistentie behouden
+	•	antwoorden opdelen in bruikbare taalvormen
+Belangrijk
+De engine hoeft in V1 geen supercomplex permanent geheugen te hebben. Een sterke context buffer per sessie is al voldoende.
+ 
+⸻
+ 
+22. CONTEXT BUFFER
+De app bewaart kortlopende conversatiecontext.
+Voorbeeld
+conversation = [
+  {
+    role: "user",
+    text: "今日は疲れた"
+  },
+  {
+    role: "nozomi",
+    text: "お疲れさま"
+  }
+]
+Doel
+	•	coherente antwoorden
+	•	onderwerp vasthouden
+	•	natuurlijke flow
+	•	reply-suggesties baseren op vorige beurt
+V1-aanpak
+	•	sessiegeheugen
+	•	geen zware permanente persona-learning
+	•	optioneel later uitbreiden met lokale geheugenlagen
+ 
+⸻
+ 
+23. JAPANESE DATABASE STRUCTUUR
+De inhoud van Nozomi moet gestructureerd zijn zodat het systeem makkelijk kan genereren, vergelijken en selecteren.
+Sentence object
+{
+  "jp": "今日はどうだった？",
+  "romaji": "Kyō wa dō datta?",
+  "en": "How was your day?",
+  "level": "N5",
+  "tags": ["daily", "casual"]
+}
+Vocab object
+{
+  "word": "食べる",
+  "romaji": "taberu",
+  "meaning": "to eat",
+  "level": "N5",
+  "examples": []
+}
+UI object
+{
+  "jp": "設定",
+  "romaji": "Settei",
+  "en": "Settings"
+}
+Waarom dit belangrijk is
+	•	eenvoudige filtering op niveau
+	•	makkelijk hergebruik
+	•	consistent taalmodel voor UI en content
+	•	uitbreidbaar met tags en scenario’s
+ 
+⸻
+ 
+24. SCENARIO-BASED LEARNING
+Nozomi kan verschillende gesprekssituaties aanbieden.
+Voorbeelden
+	•	daily life
+	•	shopping
+	•	work
+	•	feelings
+	•	travel
+	•	hobbies
+	•	food
+	•	family
+	•	learning
+	•	casual small talk
+Waarom scenario’s nuttig zijn
+	•	context geeft beter leerresultaat
+	•	vocab is thematisch coherenter
+	•	gesprek voelt natuurlijker
+	•	gebruiker krijgt minder willekeurige zinnen
+ 
+⸻
+ 
+25. PERSONA EN TONALITY SYSTEM
+Nozomi moet een herkenbare persoonlijkheid hebben, maar niet in de goedkope “anime-meisje op speed”-zin die sommige mensen blijkbaar als productstrategie zien.
+Mogelijke toonmodi
+	•	calm
+	•	supportive
+	•	playful
+	•	teasing
+	•	philosophical
+Basiskenmerken
+	•	warm
+	•	intelligent
+	•	rustig
+	•	licht speels
+	•	consistent
+	•	niet overdreven emotioneel
+	•	niet irritant druk
+Persona-regel
+Nozomi moet zich gedragen als een rustige, slimme companion. Niet als een circusact met een geluidseffect per zin.
+ 
+⸻
+ 
+26. SPEECH SYSTEM
+Spraak is een van de belangrijkste onderdelen van Nozomi.
+Input V1
+	•	browser speech recognition
+Toekomst
+	•	Whisper.cpp
+	•	lokale STT
+	•	betere offline spraakherkenning
+	•	wake-word ondersteuning
+Output
+	•	browser TTS in V1
+	•	later betere lokale of native voice synthesis
+ 
+⸻
+ 
+27. SPEECH FLOW
+Microphone input → speech detection → speech-to-text → conversation engine → language formatting → response generation → text-to-speech → orb speaking state
+ 
+⸻
+ 
+28. WAKE WORD / FUTURE MODE
+Later kan Nozomi reageren op een wake word zoals “Nozomi”.
+Mogelijke functies
+	•	wake word only mode
+	•	push-to-talk mode
+	•	continuous listening mode
+	•	interruptible speech
+	•	turn-taking audio model
+Opmerking
+Voor V1 is wake word niet noodzakelijk. Het is een latere uitbreiding, niet de basis.
+ 
+⸻
+ 
+29. MOTION DESIGN PRINCIPES
+Animatie is onderdeel van de identiteit van Nozomi.
+Belangrijke animaties
+	•	orb breathing
+	•	audio pulses
+	•	message float-ins
+	•	ripple effects
+	•	holographic particle drift
+	•	subtle glow transitions
+	•	suggestion pill animations
+	•	loading state shimmer
+Motion rules
+	•	smooth
+	•	traag genoeg om rust te geven
+	•	nooit chaotisch
+	•	nooit hyperactief
+	•	geen visuele epilepsie met ambitie
+ 
+⸻
+ 
+30. VISUELE STIJL
+Nozomi combineert:
+	•	futuristische holographic UI
+	•	minimalistische sci-fi
+	•	zachte anime-sfeer
+	•	ambient glow
+	•	transparante lagen
+	•	premium dark theme
+	•	lichte accentkleuren
+	•	rustige contrastopbouw
+Gevoelsdoelen
+	•	premium
+	•	kalm
+	•	modern
+	•	zacht
+	•	verfijnd
+	•	technologisch zonder agressief te zijn
+ 
+⸻
+ 
+31. UI COMPONENTEN
+31.1 Orb component
+	•	state-driven
+	•	audio-reactive
+	•	hover feedback
+	•	idle breathing
+	•	thinking/speaking/listening variants
+31.2 Chat component
+	•	message cards
+	•	bilingual/trilingual rendering
+	•	smooth transitions
+	•	infinite scroll of conversation
+31.3 Suggestion component
+	•	capsule pills
+	•	quick reply
+	•	animated touch feedback
+	•	level-aware suggestions
+31.4 Audio component
+	•	recording state
+	•	mic permission handling
+	•	waveform overlay
+	•	speaking playback state
+31.5 Language component
+	•	standardized display of jp/romaji/en
+	•	progressive simplification depending on level
+31.6 UI component set
+	•	buttons
+	•	labels
+	•	toggles
+	•	modals
+	•	settings
+	•	tooltips
+	•	empty states
+ 
+⸻
+ 
+32. EMPTY STATE DESIGN
+Lege schermen mogen niet dood zijn.
+Voorbeelden
+	•	“Say something to begin” in drie talen
+	•	zachte orb animatie
+	•	subtiele prompt
+	•	voorbeeldsuggesties
+	•	licht uitnodigende sfeer
+De gebruiker moet nooit denken dat de app kapot is omdat er nog geen content is. Dat soort design is de stille moord op engagement.
+ 
+⸻
+ 
+33. ONBOARDING FLOW
+Onboarding moet kort, helder en meteen bruikbaar zijn.
+Stap 1
+Uitleg van Nozomi in drie talen
+Stap 2
+Mic permissie / text input keuze
+Stap 3
+Niveau kiezen
+	•	beginner
+	•	intermediate
+	•	advanced
+Stap 4
+Toonstijl selecteren
+	•	calm
+	•	playful
+	•	supportive
+	•	teasing
+Stap 5
+Eerste gespreksstart
+ 
+⸻
+ 
+34. SETTINGS STRUCTUUR
+Instellingen moeten ook meertalig zijn.
+Mogelijke settings
+	•	language display mode
+	•	romaji visibility
+	•	English visibility
+	•	voice speed
+	•	voice pitch
+	•	theme
+	•	orb intensity
+	•	motion reduction
+	•	conversation mode
+	•	difficulty mode
+	•	speaker toggle
+	•	mic toggle
+Belangrijk
+Settings mogen niet technisch aanvoelen. Ze moeten begrijpelijk zijn en in dezelfde taalstructuur passen als de rest.
+ 
+⸻
+ 
+35. MOBILE UX
+Op mobiel moet Nozomi nog steeds goed werken.
+Mobiele prioriteiten
+	•	thumb-friendly buttons
+	•	ruime touch targets
+	•	korte suggesties
+	•	verticale flow
+	•	snelle mic access
+	•	goed leesbare taalblokken
+	•	minimale frictie
+Mobiele interface
+	•	orb centraal
+	•	chat onderaan
+	•	quick replies direct bereikbaar
+	•	voice button prominent
+	•	swipe gestures voor suggesties
+ 
+⸻
+ 
+36. DESKTOP UX
+Op desktop kan de ervaring iets rijker zijn.
+Desktop voordelen
+	•	grotere orb presence
+	•	bredere conversation area
+	•	sidebar of context panel
+	•	meer ruimte voor visuals
+	•	hover states sterker
+Desktop prioriteiten
+	•	lage CPU/RAM belasting
+	•	snelle startup
+	•	geen zware shell nodig
+	•	soepel op oudere laptops
+ 
+⸻
+ 
+37. PERFORMANCE DOELEN
+Nozomi moet snel en licht blijven.
+Doelen
+	•	snelle eerste render
+	•	minimale RAM footprint
+	•	lage CPU load
+	•	soepele animaties
+	•	beperkte reflows
+	•	efficiënt audioverwerking
+	•	compacte state management
+Belangrijke keuzes
+	•	componenten slim splitsen
+	•	animaties niet overal tegelijk
+	•	database-indexing voor content
+	•	lazy loading waar mogelijk
+	•	caching van veelgebruikte content
+ 
+⸻
+ 
+38. OFFLINE / LOCAL-FIRST STRATEGIE
+Nozomi moet in basis bruikbaar blijven zonder continue cloudafhankelijkheid.
+Local-first functies
+	•	opgeslagen gesprekken
+	•	vocab cache
+	•	UI text storage
+	•	scenario data
+	•	recent gebruikte replies
+	•	sessiecontext
+Voordelen
+	•	sneller
+	•	privacyvriendelijker
+	•	stabieler
+	•	bruikbaar zonder direct internet
+ 
+⸻
+ 
+39. AI-GEBRUIK IN NOZOMI
+AI is niet het fundament. AI is een hulpmiddel.
+Waar AI eventueel voor gebruikt wordt
+	•	natuurlijke variatie
+	•	fallback responses
+	•	extra conversational flow
+	•	creatieve paragraafvorming
+	•	scenario-variatie
+Waar AI niet voor bedoeld is
+	•	volledige app-logica
+	•	basis UI structuur
+	•	dataopslag
+	•	leerflow zelf
+	•	kernarchitectuur
+Nozomi moet niet afhankelijk zijn van magie om te functioneren. Magie breekt altijd precies wanneer een gebruiker op je knop drukt.
+ 
+⸻
+ 
+40. LEERMECHANISMEN
+Nozomi gebruikt een mix van verborgen en expliciete leerstrategieën.
+Verborgen learning
+	•	herhaling zonder quiz-gevoel
+	•	taalblootstelling in de UI
+	•	suggesties als leerinput
+	•	contextuele vocab-herhaling
+Expliciete learning
+	•	vertaalhulpen
+	•	hover/tap verklaringen
+	•	optional breakdowns
+	•	difficulty hints
+	•	grammar notes
+Leerresultaat
+	•	meer herkennen
+	•	beter lezen
+	•	betere uitspraak
+	•	snellere reactie in Japans
+	•	natuurlijke zinsbouw
+ 
+⸻
+ 
+41. V1 PRIORITEITEN
+Must have
+	•	PWA
+	•	orb UI
+	•	audio-reactive visuals
+	•	Japanese + romaji + English layers
+	•	suggestions
+	•	speech input
+	•	speech output
+	•	context buffer
+	•	conversation engine
+	•	responsive design
+	•	trilingual UI system
+Nice to have
+	•	mood states
+	•	theme modes
+	•	advanced suggestion personalization
+	•	richer scenario selection
+	•	local storage history
+	•	improved voice controls
+Later
+	•	wake word
+	•	interruptible speech
+	•	local model support
+	•	relationship progression
+	•	emotional memory
+	•	achievements
+	•	streaks
+	•	offline voice processing
+	•	multiplayer exchange
+ 
+⸻
+ 
+42. RELATIE- EN PROGRESSIESYSTEEM
+Later kan Nozomi evolueren van tool naar companion.
+Mogelijke progressie
+	•	gebruiker wordt vaker herkend
+	•	tone changes
+	•	unlockable speech patterns
+	•	more natural shorthand replies
+	•	deeper topic continuity
+	•	soft bonding mechanics
+Belangrijk
+Dit moet subtiel blijven. Niet sentimenteel manipuleren alsof een taalapp ineens therapie denkt te zijn.
+ 
+⸻
+ 
+43. CONTENT STRATEGY
+Nozomi heeft content nodig die steeds uitbreidbaar is.
+Content types
+	•	conversation sentences
+	•	vocab entries
+	•	grammar examples
+	•	scenario packs
+	•	UI labels
+	•	system phrases
+	•	starter prompts
+	•	emotion phrases
+	•	correction phrases
+Content criteria
+	•	natuurlijk
+	•	bruikbaar
+	•	niet te complex
+	•	consistent per level
+	•	rijk genoeg voor hergebruik
+ 
+⸻
+ 
+44. ERROR HANDLING
+Ook fouten moeten in stijl blijven.
+Voorbeeld
+マイクが使えません Maiku ga tsukaemasen The microphone cannot be used
+Foutregels
+	•	duidelijk
+	•	vriendelijk
+	•	kort
+	•	altijd in drie lagen waar relevant
+	•	nooit technisch onbegrijpelijk
+ 
+⸻
+ 
+45. ACCESSIBILITY
+Nozomi moet toegankelijk zijn voor zoveel mogelijk gebruikers.
+Vereisten
+	•	keyboard support
+	•	screen reader compatibility
+	•	voldoende contrast
+	•	motion reduction optie
+	•	font scaling
+	•	duidelijke focus states
+	•	heldere interactiestatus
+ 
+⸻
+ 
+46. SECURITY EN PRIVACY
+Omdat voice en language data gevoelig kunnen zijn, moet Nozomi respectvol omgaan met gegevens.
+Basisprincipes
+	•	minimale dataopslag
+	•	lokale opslag waar mogelijk
+	•	duidelijke mic-permissie
+	•	transparante privacyflow
+	•	geen onnodige tracking
+	•	sessiecontext beperken tot wat functioneel nodig is
+ 
+⸻
+ 
+47. ANALYTICS ZONDER DOM GEDOE
+Als er analytics komen, dan moet dat bescheiden en nuttig zijn.
+Metingen die zinvol zijn
+	•	speech usage
+	•	suggestion usage
+	•	session length
+	•	most used scenario’s
+	•	language level progression
+	•	retention of feature usage
+Niet doen
+	•	alles tracken omdat het kan
+	•	manipulatieve engagement traps
+	•	irritante popups
+ 
+⸻
+ 
+48. TECHNISCHE ARCHITECTUUR SAMENVATTING
+Frontend
+	•	React
+	•	Vite
+	•	TypeScript
+	•	Tailwind
+	•	Framer Motion
+State
+	•	Zustand
+Data
+	•	IndexedDB
+	•	Dexie.js
+Audio
+	•	Web Audio API
+	•	Speech Recognition API
+	•	later Whisper.cpp
+Architecture style
+	•	modular
+	•	component-driven
+	•	layered data model
+	•	reusable language display system
+	•	local-first by default
+ 
+⸻
+ 
+49. ENGINEERING PRINCIPES
+Nozomi moet gebouwd worden volgens deze regels:
+	1.	De taalcomponent is heilig en centraal.
+	2.	De orb is niet decoratief maar functioneel.
+	3.	Input en output moeten direct voelbaar zijn.
+	4.	Nooit onnodig zware architectuur.
+	5.	De UI moet voor elke toestand een visuele respons hebben.
+	6.	Content moet makkelijk uitbreidbaar zijn.
+	7.	De ervaring moet in stilte overtuigen, niet schreeuwen.
+ 
+⸻
+ 
+50. MVP-DEFINITIE
+Een goede eerste versie van Nozomi bevat:
+	•	homescreen met orb
+	•	text input
+	•	mic input
+	•	speech output
+	•	trilingual messages
+	•	suggestions
+	•	session context
+	•	responsive UI
+	•	scenario starter
+	•	light settings
+	•	local storage
+	•	basic level system
+Dat is genoeg om de kernervaring echt te laten werken.
+ 
+⸻
+ 
+51. TOEKOMSTIGE UITBREIDINGEN
+Later kan Nozomi groeien richting:
+	•	wake word
+	•	emotional states
+	•	relationship system
+	•	achievement layers
+	•	conversation memory
+	•	adaptive difficulty
+	•	grammar coach mode
+	•	offline recognition
+	•	local model routing
+	•	voice cloning of custom voices
+	•	avatar variants
+	•	scenario packs
+	•	community content packs
+	•	multiplayer language exchange
+ 
+⸻
+ 
+52. PRODUCTFILOSOFIE IN ÉÉN ZIN
+Nozomi draait niet om de slimste AI, maar om een rustige, levende, elegante taalervaring die Japans leren natuurlijk laat voelen.
+ 
+⸻
+ 
+53. KORTE EINDVERSIE VOOR PRESENTATIE OF README
+Nozomi is een futuristische Japanese learning companion als lichte PWA. De app combineert natuurlijke gesprekken, voice interaction, audio-reactive visuals en een volledige drielaagse taalweergave in Japans, romaji en Engels. Nozomi voelt aan als een rustige digitale aanwezigheid die je helpt Japans leren door conversatie, herhaling en context, zonder klassieke lesstructuur of zware technische overhead.
+ 
+⸻
+ 
+54. AANGEPASTE POSITIONERINGSTEKST
+Nozomi is a calm, futuristic Japanese learning companion that helps users improve through natural conversation, immersive design, and trilingual language exposure. It blends speech, text, and visual feedback into one lightweight experience that feels intuitive, premium, and alive.
+ 
+⸻
+ 
+55. ULTIEME SAMENVATTING
+Nozomi moet zijn:
+	•	licht
+	•	vloeiend
+	•	premium
+	•	futuristisch
+	•	rustgevend
+	•	conversatiegericht
+	•	meertalige taalomgeving
+	•	speech-driven
+	•	local-first
+	•	progressief
+	•	schaalbaar
+En vooral:
+een app die je Japans laat leren zonder dat het voelt alsof je huiswerk maakt in een neonjasje.
+Ik kan hier meteen ook een volgende versie van maken als echte product-spec, met aparte secties voor MVP scope, user stories, data schema’s, componenten, state machine, en Cursor AI build prompt.

@@ -1,0 +1,8 @@
+JMdict data used in NOZOMI
+
+Dictionary: JMdict (Electronic Dictionary Research and Development Group)
+Converted via: scriptin/jmdict-simplified (CC BY-SA 4.0)
+https://github.com/scriptin/jmdict-simplified
+
+This import uses the English glosses, common-words subset.
+See http://www.edrdg.org/jmdict/j_jmdict.html for license terms.

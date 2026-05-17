@@ -1,0 +1,13 @@
+{
+  "name": "nozomi-v4",
+  "private": true,
+  "description": "Nozomi workspace — run scripts from repo root or from nozomi-app/",
+  "scripts": {
+    "dev": "npm run dev --prefix nozomi-app",
+    "build": "npm run build --prefix nozomi-app",
+    "preview": "npm run preview --prefix nozomi-app",
+    "test": "npm run test --prefix nozomi-app",
+    "test:watch": "npm run test:watch --prefix nozomi-app",
+    "test:e2e": "npm run test:e2e --prefix nozomi-app"
+  }
+}

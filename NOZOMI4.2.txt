@@ -1,0 +1,563 @@
+NOZOMI
+
+
+NOZOMI - COMPLETE DEVELOPMENT CONCEPT & TECHNICAL BLUEPRINT
+PROJECT VISIE
+Nozomi is een futuristische conversational Japanese learning companion gebouwd als een lichte PWA (Progressive Web App).
+De focus ligt op:
+	•	natuurlijke gesprekken
+	•	immersive UX
+	•	speech interaction
+	•	guided language learning
+	•	companion sfeer
+	•	realtime interactie
+	•	lage latency
+	•	lage hardwarevereisten
+	•	gratis/local-first architectuur
+Nozomi moet aanvoelen als:
+een intelligente digitale aanwezigheid waarmee je Japans oefent op een natuurlijke manier.
+Niet als:
+	•	een klassieke lesapp
+	•	een AI demo
+	•	een ChatGPT clone
+	•	een overload aan knoppen en functies
+De ervaring moet:
+	•	kalm
+	•	premium
+	•	vloeiend
+	•	futuristisch
+	•	minimalistisch voelen.
+ 
+⸻
+ 
+CORE FUNCTIONALITEITEN
+Conversational Japanese Learning
+Gebruiker kan:
+	•	typen
+	•	praten via microfoon
+	•	realtime gesprekken voeren
+Nozomi:
+	•	antwoordt natuurlijk
+	•	toont Japans
+	•	toont romaji
+	•	toont Engelse vertaling
+	•	geeft slimme reply suggesties
+	•	begeleidt gesprekken
+ 
+⸻
+ 
+ABSOLUTE CORE RULE - 3 LANGUAGE LAYERS
+ALLES dat Nozomi toont moet bestaan uit:
+	1.	Japans
+	2.	Romaji
+	3.	Engels
+ALTIJD.
+Niet enkel chatberichten.
+Maar ook:
+	•	suggesties
+	•	onboarding
+	•	knoppen
+	•	feedback
+	•	scenario’s
+	•	menu’s
+	•	tutorials
+	•	systeemmeldingen
+	•	notificaties
+	•	conversation starters
+Nozomi is:
+een volledige immersive language layer.
+Zelfs UI interacties worden taalblootstelling.
+ 
+⸻
+ 
+VOORBEELD MESSAGE STRUCTUUR
+今日はどうだった？
+Kyō wa dō datta?
+How was your day?
+ 
+⸻
+ 
+VOORBEELD SUGGESTIONS
+[うん、疲れた]
+Un, tsukareta
+Yeah, I’m tired
+
+[でも楽しかった]
+Demo tanoshikatta
+But it was fun
+ 
+⸻
+ 
+VOORBEELD UI LABELS
+話す
+Hanasu
+Speak
+ 
+⸻
+ 
+LEERSYSTEEM
+Nozomi gebruikt:
+	•	hidden learning
+	•	conversational repetition
+	•	natuurlijke vocab herhaling
+	•	contextual grammar exposure
+Gebruiker moet voelen:
+“ik praat gewoon”
+Terwijl het systeem:
+	•	vocab traint
+	•	grammar versterkt
+	•	reading verbetert
+	•	uitspraak ondersteunt
+ 
+⸻
+ 
+PLATFORM
+Progressive Web App (PWA)
+Voordelen:
+	•	mobiel + desktop
+	•	installable
+	•	snelle startup
+	•	lage RAM usage
+	•	offline mogelijkheden
+	•	geen Electron nodig
+ 
+⸻
+ 
+TECH STACK
+FRONTEND
+Core
+	•	React
+	•	Vite
+	•	TypeScript
+Styling
+	•	TailwindCSS
+Animaties
+	•	Framer Motion
+State Management
+	•	Zustand
+Database
+	•	IndexedDB
+	•	Dexie.js
+Audio
+	•	Web Audio API
+	•	Browser Speech Recognition API
+ 
+⸻
+ 
+PROJECT STRUCTUUR
+src/
+ ├── components/
+ │    ├── orb/
+ │    ├── chat/
+ │    ├── suggestions/
+ │    ├── audio/
+ │    ├── language/
+ │    └── ui/
+ │
+ ├── systems/
+ │    ├── conversation/
+ │    ├── personality/
+ │    ├── speech/
+ │    ├── animations/
+ │    ├── suggestions/
+ │    ├── japanese/
+ │    └── translations/
+ │
+ ├── database/
+ │    ├── vocab/
+ │    ├── grammar/
+ │    ├── conversations/
+ │    ├── ui/
+ │    └── scenarios/
+ │
+ ├── store/
+ │    └── useNozomiStore.ts
+ │
+ ├── hooks/
+ │
+ ├── pages/
+ │
+ └── utils/
+ 
+⸻
+ 
+UI & VISUAL DESIGN
+Algemene stijl
+Mix van:
+	•	futuristische holografische UI
+	•	minimalistische sci-fi
+	•	anime sfeer
+	•	zachte glow effecten
+	•	ambient motion
+De interface moet:
+	•	premium voelen
+	•	rustig ogen
+	•	licht aanvoelen
+	•	niet overweldigend zijn
+ 
+⸻
+ 
+HOMESCREEN
+Centrale focus:
+Nozomi Orb
+Een levende energie-orb die:
+	•	zweeft
+	•	pulseert
+	•	reageert op audio
+	•	states visualiseert
+	•	subtiele moods toont
+ 
+⸻
+ 
+ORB STATES
+1. Idle
+	•	zachte ademhaling
+	•	trage glow
+	•	minimale particles
+2. Listening
+Wanneer audio gedetecteerd wordt:
+	•	waveform rings
+	•	audio-reactive pulses
+	•	realtime volume reactie
+3. Thinking
+Tijdens verwerking:
+	•	orbiting particles
+	•	interne energiebeweging
+	•	datastroom-effecten
+4. Speaking
+Tijdens antwoorden:
+	•	synchronized pulsing
+	•	voice-reactive glow
+	•	speech wave animations
+ 
+⸻
+ 
+AUDIO REACTIVE SYSTEM
+Technologie:
+Gebruik:
+	•	Web Audio API
+	•	AudioContext
+	•	analyser nodes
+	•	frequency data
+Voorbeeld flow:
+const analyser = audioContext.createAnalyser()
+const dataArray = new Uint8Array(analyser.frequencyBinCount)
+
+analyser.getByteFrequencyData(dataArray)
+Gebruik audio intensity voor:
+	•	orb scale
+	•	glow intensity
+	•	particle speed
+	•	wave amplitude
+ 
+⸻
+ 
+CHAT UI
+Message Cards
+Gebruik:
+	•	glassmorphism
+	•	translucent panels
+	•	glow borders
+	•	floating animations
+ 
+⸻
+ 
+MESSAGE STRUCTUUR
+Elke message toont:
+今日は何をした？
+Kyō wa nani o shita?
+What did you do today?
+Structuur:
+	•	Japans groot
+	•	romaji medium
+	•	Engels kleiner/subtiel
+ 
+⸻
+ 
+LANGUAGE DISPLAY COMPONENT SYSTEM
+Alles gebruikt één centrale component.
+Voorbeeld:
+<LanguageText
+  jp="今日はどうだった？"
+  romaji="Kyō wa dō datta?"
+  en="How was your day?"
+/>
+Dit zorgt voor:
+	•	consistente styling
+	•	schaalbaarheid
+	•	herbruikbaarheid
+	•	uniforme UX
+ 
+⸻
+ 
+VISUELE HIËRARCHIE
+Japanese
+	•	grootste tekst
+	•	hoofd focus
+Romaji
+	•	medium grootte
+	•	ondersteunend
+	•	eventueel italic
+English
+	•	kleiner
+	•	subtiel transparanter
+	•	contextlaag
+Belangrijk: Romaji mag nooit domineren. Gebruikers moeten langzaam richting Japans groeien.
+ 
+⸻
+ 
+PROGRESSION SYSTEM
+Beginner
+	•	Japans + romaji + Engels volledig zichtbaar
+Intermediate
+	•	Engels subtieler
+	•	romaji optioneel
+Advanced
+	•	vooral Japans
+	•	vertaling verborgen tot hover/tap
+Dus de interface “groeit” mee met de gebruiker.
+ 
+⸻
+ 
+SUGGESTION BUTTONS
+Design:
+	•	capsule pills
+	•	hover glow
+	•	animated transitions
+Functionaliteit:
+	•	klik = instant send
+	•	swipe mogelijk mobiel
+	•	quick reply systeem
+Elke suggestion bevat:
+[今日は忙しかった]
+Kyō wa isogashikatta
+Today was busy
+ 
+⸻
+ 
+MOTION DESIGN
+Belangrijke animaties:
+	•	orb breathing
+	•	message float-ins
+	•	ripple effects
+	•	holographic particles
+	•	audio pulses
+	•	glow transitions
+Alles moet:
+	•	smooth
+	•	traag genoeg
+	•	rustgevend voelen.
+Niet: hyperactieve gaming UI.
+ 
+⸻
+ 
+CONVERSATION ENGINE
+Core systeem
+Nozomi gebruikt:
+	•	topic detection
+	•	context buffers
+	•	response pools
+	•	sentence databases
+	•	suggestion generation
+ 
+⸻
+ 
+CONVERSATION FLOW
+User Input
+   ↓
+Intent Detection
+   ↓
+Topic Analysis
+   ↓
+Difficulty Matching
+   ↓
+Response Selection
+   ↓
+Reply Suggestion Generation
+   ↓
+Language Layer Formatting
+   ↓
+UI Rendering
+ 
+⸻
+ 
+CONTEXT BUFFER
+Voorbeeld:
+conversation = [
+ {
+   role: "user",
+   text: "今日は疲れた"
+ },
+ {
+   role: "nozomi",
+   text: "お疲れさま"
+ }
+]
+Geen complex permanent geheugen nodig in V1.
+ 
+⸻
+ 
+JAPANESE DATABASE STRUCTUUR
+Sentence Object
+{
+ "jp": "今日はどうだった？",
+ "romaji": "Kyō wa dō datta?",
+ "en": "How was your day?",
+ "level": "N5",
+ "tags": ["daily", "casual"]
+}
+ 
+⸻
+ 
+VOCAB DATABASE
+{
+ "word": "食べる",
+ "romaji": "taberu",
+ "meaning": "to eat",
+ "level": "N5",
+ "examples": []
+}
+ 
+⸻
+ 
+UI DATABASE STRUCTUUR
+Zelfs UI labels:
+{
+ "jp": "設定",
+ "romaji": "Settei",
+ "en": "Settings"
+}
+ 
+⸻
+ 
+SUGGESTION ENGINE
+Nozomi genereert:
+	•	contextuele antwoorden
+	•	verschillende toonstijlen
+	•	difficulty-aware replies
+Bijvoorbeeld:
+[
+ {
+   "jp": "うん、疲れた",
+   "romaji": "Un, tsukareta",
+   "en": "Yeah, I’m tired"
+ },
+ {
+   "jp": "でも楽しかった",
+   "romaji": "Demo tanoshikatta",
+   "en": "But it was fun"
+ }
+]
+ 
+⸻
+ 
+PERSONALITY SYSTEM
+Personality Modes
+	•	calm
+	•	playful
+	•	teasing
+	•	supportive
+	•	philosophical
+Nozomi moet:
+	•	intelligent voelen
+	•	warm zijn
+	•	licht speels zijn
+	•	consistent aanvoelen
+Geen:
+	•	overdreven anime cringe
+	•	extreme emotiesimulatie
+ 
+⸻
+ 
+SPEECH SYSTEM
+Input
+V1:
+	•	browser speech recognition
+Later:
+	•	Whisper.cpp
+ 
+⸻
+ 
+SPEECH FLOW
+Microphone Input
+   ↓
+Speech Detection
+   ↓
+Speech To Text
+   ↓
+Conversation Engine
+   ↓
+Language Layer Formatting
+   ↓
+Response
+   ↓
+Text To Speech
+ 
+⸻
+ 
+PERFORMANCE DOELEN
+Nozomi moet:
+	•	snel starten
+	•	lage latency hebben
+	•	soepel draaien op oudere laptops
+	•	mobielvriendelijk zijn
+	•	minimale RAM gebruiken
+ 
+⸻
+ 
+AI GEBRUIK
+AI wordt bewust beperkt gehouden.
+Gebruik AI enkel voor:
+	•	natuurlijke variatie
+	•	fallback generation
+	•	extra conversational flow
+Niet: voor volledige systeemarchitectuur.
+ 
+⸻
+ 
+V1 PRIORITEITEN
+MUST HAVE
+	•	PWA
+	•	orb UI
+	•	audio reactive animations
+	•	Japanese + romaji + English
+	•	suggestions
+	•	speech input
+	•	speech output
+	•	context buffer
+	•	conversation engine
+	•	responsive design
+	•	full 3-language layer system
+ 
+⸻
+ 
+LATER FEATURES
+Toekomstige uitbreidingen
+	•	wake word (“Nozomi”)
+	•	realtime interruption
+	•	relationship progression
+	•	emotional states
+	•	local AI models
+	•	adaptive learning
+	•	avatars
+	•	achievements
+	•	streak systems
+	•	offline mode
+	•	multiplayer exchange
+ 
+⸻
+ 
+BELANGRIJKSTE PRODUCTFILOSOFIE
+Nozomi draait niet om:
+“de slimste AI”.
+Nozomi draait om:
+	•	aanwezigheid
+	•	rust
+	•	natuurlijke gesprekken
+	•	conversational immersion
+	•	elegante UX
+	•	slimme begeleiding
+	•	lage drempel
+De ervaring moet voelen alsof:
+een futuristische Japanse companion rustig met je praat en je ongemerkt helpt beter Japans te worden.
+Niet alsof een browser tab zichzelf in brand steekt omdat developers besloten dat élke toast notification absoluut “AI-powered blockchain neural quantum synergy” moest bevatten.
