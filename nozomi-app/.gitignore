@@ -4,5 +4,7 @@ dist
 *.local
 .vite
 coverage
+test-results/
+playwright-report/
 ../data/jmdict/*.json
 ../data/jmdict/*.zip
