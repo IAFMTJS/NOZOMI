@@ -349,8 +349,9 @@ export async function transcribeAudioBlob(
     const heartbeat = window.setInterval(() => {
       voiceDebug('offline-stt:infer-wait', { dtype: pipelineActiveDtype })
     }, 5000)
-    const chunkSec = isIos() ? 8 : 15
-    const strideSec = isIos() ? 2 : 3
+    const lowMem = isIos() || isLowMemoryDevice()
+    const chunkSec = lowMem ? 6 : 15
+    const strideSec = lowMem ? 2 : 3
     let out: { text?: string }
     try {
       out = await withTimeout(

@@ -63,11 +63,7 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     strictPort: false,
     allowedHosts: true,
-    // Required for onnxruntime-web threaded WASM (local Whisper STT).
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-    },
+    // No COOP/COEP — they break Web Speech live captions; Whisper runs single-threaded WASM.
     hmr: {
       protocol: 'wss',
       // Match HTTPS dev port when testing on phone over LAN (avoids spurious full reloads).
@@ -79,9 +75,5 @@ export default defineConfig(({ command }) => ({
     host: true,
     port: 4173,
     allowedHosts: true,
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-    },
   },
 }))

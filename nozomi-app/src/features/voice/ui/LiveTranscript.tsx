@@ -2,6 +2,7 @@ import { UI_LABELS } from '@/data/ui-labels'
 import { useListenPhase } from '@/features/voice/hooks/useListenPhase'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
+import { getActiveSttEngine, isListenSessionActive } from '@/systems/speech/listenStore'
 import { useLanguageFallback } from '@/hooks/useLanguageFallback'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
@@ -10,11 +11,10 @@ export function LiveTranscript() {
   const liveTranscript = useUiStore((s) => s.liveTranscript)
   const speechInputLang = useNozomiStore((s) => s.settings.speechInputLang)
   const phase = useListenPhase()
+  const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
+  const activeEngine = isListenSessionActive() ? getActiveSttEngine() : null
   const usesLocalStt =
-    resolveSttEngineForLang(
-      getSttEngine(),
-      resolveSpeechRecognitionLang(speechInputLang),
-    ) === 'local'
+    (activeEngine ?? resolveSttEngineForLang(getSttEngine(), recognitionLang)) === 'local'
   const { romaji, en, pending } = useLanguageFallback(liveTranscript)
   const trimmed = liveTranscript.trim()
 
@@ -37,6 +37,9 @@ export function LiveTranscript() {
           : phase === 'capturing' && usesLocalStt && !trimmed
             ? UI_LABELS.statusRecordingLocal
             : UI_LABELS.heardYou
+
+  const showRomajiEn =
+    trimmed.length > 0 && trimmed !== UI_LABELS.statusFinalizing.jp
 
   return (
     <div
@@ -61,7 +64,7 @@ export function LiveTranscript() {
             </span>
           )}
         </p>
-        {trimmed && (
+        {showRomajiEn && (
           <>
             {romaji ? (
               <p className="msg-romaji whitespace-pre-line text-xs italic leading-snug text-nozomi-muted">

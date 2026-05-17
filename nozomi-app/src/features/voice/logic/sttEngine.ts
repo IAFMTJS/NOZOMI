@@ -42,6 +42,7 @@ export function resolveSttEngineForLang(
 
 /** Default engine when user has not chosen one in settings. */
 export function getDefaultSttEngine(): SttEngine {
+  if (isIos()) return 'local'
   const defaultLang = resolveSpeechRecognitionLang('auto')
   if (browserSttAvailable() && browserSttViableForLang(defaultLang)) {
     return 'browser'

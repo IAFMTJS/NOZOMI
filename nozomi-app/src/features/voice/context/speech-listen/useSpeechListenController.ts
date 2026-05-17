@@ -9,6 +9,7 @@ import {
   VOICE_TURN_TIMEOUT_MS,
 } from '@/contexts/speech-listen/constants'
 import type { SpeechListenApi } from '@/contexts/speech-listen/types'
+import { UI_LABELS } from '@/data/ui-labels'
 import { useConversation } from '@/features/conversation'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
@@ -17,6 +18,7 @@ import {
   getLastOfflineSttError,
   isOfflineSttReady,
   preloadOfflineStt,
+  releaseOfflineSttPipeline,
   whenOfflineSttReady,
 } from '@/systems/speech/offlineStt'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
@@ -25,6 +27,7 @@ import {
   cancelListening,
   endListenSessionAfterTurn,
   finalizeListening,
+  getActiveSttEngine,
   getCapturedTranscript,
   getListenSession,
   getListenSignals,
@@ -323,6 +326,9 @@ export function useSpeechListenController(): SpeechListenApi {
 
       setTranscriptFinalizing(false)
       processingRef.current = true
+      if (getActiveSttEngine() === 'local') {
+        releaseOfflineSttPipeline()
+      }
       voiceDebug('ui:final-start', { incoming: trimmed.slice(0, 160), ...captureSnapshot() })
       markListenTurnHandled()
       setLiveTranscript(trimmed)
@@ -696,6 +702,8 @@ export function useSpeechListenController(): SpeechListenApi {
     if (pendingInterimRef.current.trim()) {
       lastTranscriptRef.current = pendingInterimRef.current
       setLiveTranscript(pendingInterimRef.current)
+    } else if (getActiveSttEngine() === 'local') {
+      setLiveTranscript(UI_LABELS.statusFinalizing.jp)
     }
 
     const heardNow = resolveHeardText()
@@ -714,7 +722,7 @@ export function useSpeechListenController(): SpeechListenApi {
     }
 
     const started = Date.now()
-    const engine = getSttEngine()
+    const engine = getActiveSttEngine() ?? getSttEngine()
     const maxWait =
       engine === 'local'
         ? FINISH_WAIT_LOCAL_MS

@@ -7,6 +7,7 @@ import {
   getLastOfflineSttError,
   isOfflineSttReady,
   preloadOfflineStt,
+  releaseOfflineSttPipeline,
   transcribeAudioBlob,
   whenOfflineSttReady,
 } from '@/systems/speech/offlineStt'
@@ -98,6 +99,8 @@ function runRecordedFinalize(generation: number): void {
       }
       return transcribeAudioBlob(blob, lang, { hadSound: soundStart })
     })
+    // Free Whisper WASM before conversation work — keeps mobile tabs alive after stop.
+    releaseOfflineSttPipeline()
     if (
       getListenGeneration() !== generation ||
       !getListenSession() ||
