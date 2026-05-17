@@ -10,7 +10,11 @@ export function useStoreHydrated(): boolean {
       setHydrated(true)
       return
     }
-    return useNozomiStore.persist.onFinishHydration(() => setHydrated(true))
+
+    const unsub = useNozomiStore.persist.onFinishHydration(() => setHydrated(true))
+    void useNozomiStore.persist.rehydrate()
+
+    return unsub
   }, [])
 
   return hydrated

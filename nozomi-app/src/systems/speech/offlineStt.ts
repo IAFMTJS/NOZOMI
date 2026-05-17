@@ -1,4 +1,4 @@
-import { decodeRecordingTo16kMono } from '@/systems/speech/audioDecode'
+import { decodeRecordingTo16kMono, pcmRms } from '@/systems/speech/audioDecode'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 
 type WhisperLang = 'english' | 'japanese' | 'dutch'
@@ -13,14 +13,23 @@ const MODEL_EN = 'Xenova/whisper-tiny.en'
 const MODEL_MULTI = 'Xenova/whisper-tiny'
 
 const LOAD_TIMEOUT_MS = 180_000
+const INFER_TIMEOUT_MS = 90_000
+const SILENT_RMS = 0.003
 
 /** q8 breaks on onnxruntime-web 1.26-dev (Missing required scale); try q4 then fp32. */
 const WASM_DTYPES = ['q4', 'fp32'] as const
 type WasmDtype = (typeof WASM_DTYPES)[number]
 
+type TranscriberOptions = {
+  language?: WhisperLang
+  task?: string
+  chunk_length_s?: number
+  stride_length_s?: number
+}
+
 type Transcriber = (
   audio: Float32Array,
-  options?: { language?: WhisperLang; task?: string },
+  options?: TranscriberOptions,
 ) => Promise<{ text: string }>
 
 let pipelinePromise: Promise<Transcriber> | null = null
@@ -225,14 +234,29 @@ export async function clearOfflineSttCache(): Promise<void> {
   voiceDebug('offline-stt:cache-cleared')
 }
 
+/** Drop in-memory Whisper session (model files stay in Cache API). */
+export function releaseOfflineSttPipeline(): void {
+  pipelinePromise = null
+  pipelineModelId = null
+  pipelineReadyForLang = null
+  pipelineActiveDtype = null
+  voiceDebug('offline-stt:pipeline-released')
+}
+
 export function preloadOfflineStt(lang = 'en-US'): void {
   const generation = pipelineLoadGeneration
   void loadPipeline(lang).catch((err) => noteLoadFailure(err, generation))
 }
 
+export type TranscribeBlobOptions = {
+  /** When true, skip the silence gate (mic already detected voice energy). */
+  hadSound?: boolean
+}
+
 export async function transcribeAudioBlob(
   blob: Blob,
   bcp47: string,
+  options: TranscribeBlobOptions = {},
 ): Promise<string> {
   if (!blob.size) return ''
   lastOfflineSttError = null
@@ -249,19 +273,37 @@ export async function transcribeAudioBlob(
       return ''
     }
 
+    const rms = pcmRms(audio)
+    voiceDebug('offline-stt:levels', { rms: +rms.toFixed(5) })
+    if (!options.hadSound && rms < SILENT_RMS) {
+      lastOfflineSttError = 'offline-stt:silent'
+      voiceDebugWarn('offline-stt:silent', { rms })
+      return ''
+    }
+
     const transcriber = await loadPipeline(bcp47)
     voiceDebug('offline-stt:infer', {
       samples: audio.length,
       dtype: pipelineActiveDtype,
     })
-    const out = await withTimeout(
-      transcriber(audio, {
-        language: whisperLang(bcp47),
-        task: 'transcribe',
-      }),
-      60_000,
-      'offline-stt:infer',
-    )
+    const heartbeat = window.setInterval(() => {
+      voiceDebug('offline-stt:infer-wait', { dtype: pipelineActiveDtype })
+    }, 5000)
+    let out: { text?: string }
+    try {
+      out = await withTimeout(
+        transcriber(audio, {
+          language: whisperLang(bcp47),
+          task: 'transcribe',
+          chunk_length_s: 15,
+          stride_length_s: 3,
+        }),
+        INFER_TIMEOUT_MS,
+        'offline-stt:infer',
+      )
+    } finally {
+      window.clearInterval(heartbeat)
+    }
     const text = (out?.text ?? '').trim()
     voiceDebug('offline-stt:done', {
       length: text.length,

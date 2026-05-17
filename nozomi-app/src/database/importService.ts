@@ -198,6 +198,18 @@ export async function getVocabById(id: number): Promise<VocabEntry | undefined> 
   return db.vocabulary.get(id)
 }
 
+export async function getVocabByIds(ids: number[]): Promise<VocabEntry[]> {
+  if (!ids.length) return []
+  const rows = await db.vocabulary.bulkGet(ids)
+  return rows.filter((v): v is VocabEntry => v != null)
+}
+
+/** First vocabulary row when no word is selected. */
+export async function getDefaultVocab(): Promise<VocabEntry | null> {
+  const first = await db.vocabulary.orderBy('id').first()
+  return first ?? null
+}
+
 /** Find best vocab match for a tapped word or phrase. */
 export async function lookupVocabBySurface(
   surface: string,
@@ -320,6 +332,13 @@ export async function getStoryById(
 ): Promise<Story | undefined> {
   await ensureExtendedDataLoaded()
   return db.stories.get(storyId)
+}
+
+/** Featured stories for the story picker (newest / catalog order). */
+export async function listStoriesForPicker(limit = 24): Promise<Story[]> {
+  await ensureExtendedDataLoaded()
+  const rows = await db.stories.orderBy('id').reverse().limit(limit).toArray()
+  return rows
 }
 
 export async function getBeatsForStory(storyId: number): Promise<StoryBeat[]> {

@@ -30,7 +30,7 @@ test.describe('Nozomi smoke', () => {
               favoriteVocabIds: [],
             },
           },
-          version: 0,
+          version: 6,
         }),
       )
     })

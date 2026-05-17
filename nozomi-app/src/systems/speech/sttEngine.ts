@@ -6,10 +6,6 @@ const STORAGE_KEY = 'nozomi.sttEngine'
 /** In-memory override for this tab only (e.g. one-shot browser fallback). */
 let sessionEngineOverride: SttEngine | null = null
 
-function isMobileDevice(): boolean {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-}
-
 export function browserSttAvailable(): boolean {
   const w = window as Window & {
     SpeechRecognition?: typeof SpeechRecognition
@@ -20,9 +16,8 @@ export function browserSttAvailable(): boolean {
 
 /** Default engine when user has not chosen one in settings. */
 export function getDefaultSttEngine(): SttEngine {
-  if (isMobileDevice() && browserSttAvailable()) {
-    return 'browser'
-  }
+  // Browser STT is near-instant with live interim text; local Whisper WASM can take 30s+ per turn.
+  if (browserSttAvailable()) return 'browser'
   return 'local'
 }
 

@@ -16,12 +16,12 @@ import { BTN_ROW } from '@/utils/touch'
 
 const STEPS = 4
 
-const JLPT_LEVELS: { key: JlptLevel; disabled?: boolean }[] = [
+const JLPT_LEVELS: { key: JlptLevel }[] = [
   { key: 'N5' },
   { key: 'N4' },
   { key: 'N3' },
   { key: 'N2' },
-  { key: 'N1', disabled: true },
+  { key: 'N1' },
 ]
 
 const PERSONALITIES: {
@@ -149,25 +149,19 @@ export function OnboardingPage() {
                 role="listbox"
                 aria-label={UI_LABELS.chooseJlpt.en}
               >
-                {JLPT_LEVELS.map(({ key, disabled }) => (
+                {JLPT_LEVELS.map(({ key }) => (
                   <button
                     key={key}
                     type="button"
-                    disabled={disabled}
                     onClick={() => setJlptLevel(key)}
                     className={`${BTN_ROW} shrink-0 px-5 transition ${
                       jlptLevel === key
                         ? 'border-nozomi-accent bg-nozomi-bg-elevated ring-1 ring-nozomi-accent/40'
                         : 'border-white/10 bg-nozomi-bg-elevated/80'
-                    } ${disabled ? 'opacity-40' : ''}`}
+                    }`}
                     aria-pressed={jlptLevel === key}
                   >
                     <span className="font-medium text-nozomi-text">{key}</span>
-                    {disabled && (
-                      <span className="mt-0.5 block text-[10px] text-nozomi-muted">
-                        soon
-                      </span>
-                    )}
                   </button>
                 ))}
               </motion.div>

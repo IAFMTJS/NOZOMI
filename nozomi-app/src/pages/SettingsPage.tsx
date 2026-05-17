@@ -4,6 +4,7 @@ import { AppHeader } from '@/components/ui/AppHeader'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import { cancelListening, stopSpeaking } from '@/systems/speech/speechService'
 import { getSttEngine, setSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
 import { SPEECH_LANG_OPTIONS } from '@/data/speech-lang-options'
@@ -22,6 +23,8 @@ const PERSONALITY_MODES: { key: PersonalityMode; label: LT }[] = [
   { key: 'calm', label: UI_LABELS.toneCalm },
   { key: 'supportive', label: UI_LABELS.toneSupportive },
   { key: 'playful', label: UI_LABELS.tonePlayful },
+  { key: 'teasing', label: UI_LABELS.toneTeasing },
+  { key: 'philosophical', label: UI_LABELS.tonePhilosophical },
   { key: 'teacher', label: UI_LABELS.toneTeacher },
 ]
 
@@ -89,7 +92,7 @@ export function SettingsPage() {
 
         <section className="space-y-2">
           <LanguageText text={UI_LABELS.chooseTone} size="sm" />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {PERSONALITY_MODES.map(({ key, label }) => (
               <button
                 key={key}
@@ -156,6 +159,10 @@ export function SettingsPage() {
                 key={key}
                 type="button"
                 onClick={() => {
+                  if (key === sttEngine) return
+                  stopSpeaking()
+                  cancelListening()
+                  useUiStore.getState().resetVoiceUi()
                   setSttEngine(key)
                   setSttEngineState(key)
                 }}
@@ -302,6 +309,25 @@ export function SettingsPage() {
           className={`${BTN_ROW} glass-panel w-full text-left`}
         >
           <LanguageText text={UI_LABELS.words} size="sm" passive />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/favorites')}
+          className={`${BTN_ROW} glass-panel w-full text-left`}
+        >
+          <LanguageText text={UI_LABELS.favorites} size="sm" passive />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            cancelListening()
+            stopSpeaking()
+            setProfile({ onboardingComplete: false })
+            navigate('/onboarding')
+          }}
+          className={`${BTN_ROW} glass-panel w-full text-left`}
+        >
+          <LanguageText text={UI_LABELS.restartOnboarding} size="sm" passive />
         </button>
         <button
           type="button"

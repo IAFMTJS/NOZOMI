@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react'
+import {
+  getOrbAudioLevel,
+  subscribeOrbAudioLevel,
+} from '@/systems/orb/orbAudioLevel'
+import { isMobileDevice } from '@/utils/device'
 import type { OrbState } from '@/types/domain'
 
 interface Props {
   size: number
   state: OrbState
-  audioLevel: number
   intensity: number
   reduced: boolean
 }
@@ -31,13 +35,27 @@ function stateHue(state: OrbState): { h1: number; h2: number; h3: number } {
   }
 }
 
-export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props) {
+export function OrbCanvas({ size, state, intensity, reduced }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const timeRef = useRef(0)
+  const stateRef = useRef(state)
+  const audioRef = useRef(0)
+  const intensityRef = useRef(intensity)
+  const reducedRef = useRef(reduced)
+
+  stateRef.current = state
+  intensityRef.current = intensity
+  reducedRef.current = reduced
 
   useEffect(() => {
-    const n = 72
+    return subscribeOrbAudioLevel(() => {
+      audioRef.current = getOrbAudioLevel()
+    })
+  }, [])
+
+  useEffect(() => {
+    const n = isMobileDevice() ? 48 : 72
     particlesRef.current = Array.from({ length: n }, (_, i) => ({
       angle: (i / n) * Math.PI * 2,
       dist: 0.35 + (i % 5) * 0.08,
@@ -62,30 +80,43 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
     canvas.style.height = `${size}px`
 
     let raf = 0
-    const hues = stateHue(state)
+    let running = true
+    let paused = document.hidden
+
+    const onVisibility = () => {
+      paused = document.hidden
+      if (!paused) draw()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     const draw = () => {
-      if (!reduced) timeRef.current += 0.016
+      if (!running || paused) return
+      const reducedNow = reducedRef.current
+      timeRef.current += reducedNow ? 0.01 : 0.016
+      audioRef.current = getOrbAudioLevel()
       const t = timeRef.current
       const w = canvas.width
       const h = canvas.height
       const cx = w / 2
       const cy = h / 2
+      const audioLevelNow = audioRef.current
+      const intensityNow = intensityRef.current
+      const stateNow = stateRef.current
+      const hues = stateHue(stateNow)
       const baseR = w * 0.22
-      const pulse = 1 + audioLevel * 0.22 * intensity
+      const pulse = 1 + audioLevelNow * 0.22 * intensityNow
       const R = baseR * pulse
       const { h1, h2, h3 } = hues
 
       ctx.clearRect(0, 0, w, h)
 
-      // Ambient nebula blobs
       ctx.globalCompositeOperation = 'screen'
       for (let b = 0; b < 4; b++) {
         const bx = cx + Math.cos(t * 0.4 + b * 1.7) * R * 0.35
         const by = cy + Math.sin(t * 0.35 + b * 2.1) * R * 0.3
-        const br = R * (1.2 + b * 0.25 + audioLevel * 0.3)
+        const br = R * (1.2 + b * 0.25 + audioLevelNow * 0.3)
         const g = ctx.createRadialGradient(bx, by, 0, bx, by, br)
-        g.addColorStop(0, `hsla(${h1 + b * 15}, 90%, 65%, ${0.12 + audioLevel * 0.08})`)
+        g.addColorStop(0, `hsla(${h1 + b * 15}, 90%, 65%, ${0.12 + audioLevelNow * 0.08})`)
         g.addColorStop(0.5, `hsla(${h2}, 80%, 50%, 0.06)`)
         g.addColorStop(1, 'transparent')
         ctx.fillStyle = g
@@ -95,8 +126,7 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      // Outer energy rings (segmented arcs)
-      const ringCount = state === 'thinking' ? 6 : 5
+      const ringCount = stateNow === 'thinking' ? 6 : 5
       for (let r = 0; r < ringCount; r++) {
         const ringR = R * (1.05 + r * 0.14) + Math.sin(t * 2 + r) * 3 * dpr
         const rot = t * (0.25 + r * 0.08) * (r % 2 === 0 ? 1 : -1)
@@ -121,18 +151,23 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
         }
       }
 
-      // Orbiting particles
       const particles = particlesRef.current
       const speedMult =
-        state === 'listening' ? 1.8 : state === 'thinking' ? 2.4 : state === 'speaking' ? 1.4 : 0.9
+        stateNow === 'listening'
+          ? 1.8
+          : stateNow === 'thinking'
+            ? 2.4
+            : stateNow === 'speaking'
+              ? 1.4
+              : 0.9
       ctx.globalCompositeOperation = 'lighter'
       for (const p of particles) {
         const layerScale = 1 + p.layer * 0.12
         const ang = p.angle + t * p.speed * speedMult * (p.layer === 1 ? -1 : 1)
-        const dist = R * p.dist * layerScale + audioLevel * R * 0.15
+        const dist = R * p.dist * layerScale + audioLevelNow * R * 0.15
         const x = cx + Math.cos(ang) * dist
         const y = cy + Math.sin(ang) * dist * 0.92
-        const alpha = 0.25 + p.layer * 0.15 + audioLevel * 0.35
+        const alpha = 0.25 + p.layer * 0.15 + audioLevelNow * 0.35
         const g = ctx.createRadialGradient(x, y, 0, x, y, p.size * 3 * dpr)
         g.addColorStop(0, `hsla(${p.hue + h1 * 0.05}, 100%, 85%, ${alpha})`)
         g.addColorStop(1, 'transparent')
@@ -143,7 +178,6 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      // Plasma core — chromatic layers
       for (const [ox, hueOff, alpha] of [
         [-2 * dpr, -8, 0.55],
         [2 * dpr, 8, 0.45],
@@ -170,7 +204,6 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
       }
       ctx.globalAlpha = 1
 
-      // Core highlight + dark rim (3D sphere)
       const highlight = ctx.createRadialGradient(
         cx - R * 0.35,
         cy - R * 0.4,
@@ -198,15 +231,14 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
       ctx.arc(cx, cy, R * 0.98, 0, Math.PI * 2)
       ctx.stroke()
 
-      // State overlays
-      if (state === 'listening') {
+      if (stateNow === 'listening') {
         const bars = 11
         const bw = 3 * dpr
         const gap = 4 * dpr
         const totalW = bars * (bw + gap)
         for (let i = 0; i < bars; i++) {
           const bh =
-            (12 + audioLevel * 40 + Math.sin(t * 8 + i * 0.7) * 8) * dpr
+            (12 + audioLevelNow * 40 + Math.sin(t * 8 + i * 0.7) * 8) * dpr
           const x = cx - totalW / 2 + i * (bw + gap)
           const g = ctx.createLinearGradient(x, cy - bh / 2, x, cy + bh / 2)
           g.addColorStop(0, 'rgba(255,255,255,0.95)')
@@ -219,7 +251,7 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
         ctx.shadowBlur = 0
       }
 
-      if (state === 'speaking') {
+      if (stateNow === 'speaking') {
         for (let rip = 0; rip < 3; rip++) {
           const phase = (t * 1.2 + rip * 0.33) % 1
           const ripR = R * (1 + phase * 0.9)
@@ -231,7 +263,7 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
         }
       }
 
-      if (state === 'thinking') {
+      if (stateNow === 'thinking') {
         for (let i = 0; i < 3; i++) {
           const a = t * 2.5 + (i * Math.PI * 2) / 3
           const x = cx + Math.cos(a) * R * 0.55
@@ -250,8 +282,12 @@ export function OrbCanvas({ size, state, audioLevel, intensity, reduced }: Props
     }
 
     draw()
-    return () => cancelAnimationFrame(raf)
-  }, [size, state, audioLevel, intensity, reduced])
+    return () => {
+      running = false
+      document.removeEventListener('visibilitychange', onVisibility)
+      cancelAnimationFrame(raf)
+    }
+  }, [size])
 
   return (
     <canvas

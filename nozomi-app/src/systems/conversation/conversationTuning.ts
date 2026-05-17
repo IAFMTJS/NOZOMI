@@ -30,7 +30,7 @@ export async function ensureConversationTuningLoaded(): Promise<void> {
 export function tuningPenaltyForSentence(jp: string): number {
   let penalty = 0
   for (const frag of loaded.avoidJpContains) {
-    if (frag && jp.includes(frag)) penalty -= 28
+    if (frag && jp.includes(frag)) penalty -= 40
   }
   return penalty
 }

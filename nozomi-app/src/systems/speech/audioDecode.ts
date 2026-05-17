@@ -1,6 +1,19 @@
 const TARGET_RATE = 16_000
-/** Cap inference length on mobile/low-memory devices (Whisper is ~linear in duration). */
-const MAX_SAMPLES = 30 * TARGET_RATE
+
+function maxInferenceSamples(): number {
+  return 30 * TARGET_RATE
+}
+
+/** RMS loudness of mono PCM in [0, ~1]. */
+export function pcmRms(samples: Float32Array): number {
+  if (samples.length === 0) return 0
+  let sum = 0
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i]
+    sum += s * s
+  }
+  return Math.sqrt(sum / samples.length)
+}
 
 /** Decode a recorded blob (webm/opus) to mono 16 kHz PCM for Whisper. */
 export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array> {
@@ -13,8 +26,9 @@ export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array
       decoded.sampleRate === TARGET_RATE
         ? mono
         : await resampleToRate(mono, decoded.sampleRate, TARGET_RATE)
-    if (atTarget.length <= MAX_SAMPLES) return atTarget
-    return atTarget.slice(-MAX_SAMPLES)
+    const maxSamples = maxInferenceSamples()
+    if (atTarget.length <= maxSamples) return atTarget
+    return atTarget.slice(-maxSamples)
   } finally {
     await ctx.close()
   }

@@ -95,6 +95,14 @@ export type UiLabelKey =
   | 'contextPanelEmpty'
   | 'favorite'
   | 'unfavorite'
+  | 'chatNav'
+  | 'favorites'
+  | 'favoritesEmpty'
+  | 'wordsLoadError'
+  | 'restartOnboarding'
+  | 'chooseStory'
+  | 'tabScenarios'
+  | 'tabStories'
 
 export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
   appName: { jp: 'ノゾミ', romaji: 'Nozomi', en: 'Nozomi' },
@@ -486,4 +494,28 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     romaji: 'Oki ni iri kaijo',
     en: 'Remove favorite',
   },
+  chatNav: { jp: 'チャット', romaji: 'Chatto', en: 'Chat' },
+  favorites: { jp: 'お気に入り', romaji: 'Oki ni iri', en: 'Favorites' },
+  favoritesEmpty: {
+    jp: 'お気に入りの単語はまだありません',
+    romaji: 'Oki ni iri no tango wa mada arimasen',
+    en: 'No favorite words yet',
+  },
+  wordsLoadError: {
+    jp: '単語を読み込めませんでした',
+    romaji: 'Tango wo yomikome masen deshita',
+    en: 'Could not load vocabulary',
+  },
+  restartOnboarding: {
+    jp: 'オンボーディングをやり直す',
+    romaji: 'Onboodingu wo yarinaosu',
+    en: 'Restart onboarding',
+  },
+  chooseStory: {
+    jp: 'ストーリーを選ぶ',
+    romaji: 'Sutoorii wo erabu',
+    en: 'Choose a story',
+  },
+  tabScenarios: { jp: 'シナリオ', romaji: 'Shinario', en: 'Scenarios' },
+  tabStories: { jp: 'ストーリー', romaji: 'Sutoorii', en: 'Stories' },
 }

@@ -4,33 +4,77 @@ import { AppHeader } from '@/components/ui/AppHeader'
 import { WordDetailCard } from '@/components/vocab/WordDetailCard'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
-import { useNozomiStore } from '@/store/useNozomiStore'
-import { getRelatedVocab, getVocabById } from '@/database/importService'
+import { useUiStore } from '@/store/useUiStore'
+import {
+  getDefaultVocab,
+  getRelatedVocab,
+  getVocabById,
+} from '@/database/importService'
 import type { VocabEntry } from '@/types/domain'
+import { BTN_ROW } from '@/utils/touch'
 
 export function WordPage() {
   const navigate = useNavigate()
-  const activeVocab = useNozomiStore((s) => s.activeVocab)
-  const setActiveVocab = useNozomiStore((s) => s.setActiveVocab)
+  const dataReady = useUiStore((s) => s.dataReady)
+  const activeVocab = useUiStore((s) => s.activeVocab)
+  const setActiveVocab = useUiStore((s) => s.setActiveVocab)
   const [related, setRelated] = useState<VocabEntry[]>([])
   const [word, setWord] = useState<VocabEntry | null>(activeVocab)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
+    if (!dataReady) return
+    let cancelled = false
     async function load() {
-      const w = activeVocab ?? (await getVocabById(1)) ?? null
-      setWord(w)
-      if (w) {
+      setLoadError(false)
+      try {
+        const w =
+          activeVocab ??
+          (await getVocabById(1)) ??
+          (await getDefaultVocab())
+        if (cancelled) return
+        if (!w) {
+          setLoadError(true)
+          setWord(null)
+          return
+        }
+        setWord(w)
         const rel = await getRelatedVocab(w.category, w.id, 3)
-        setRelated(rel)
+        if (!cancelled) setRelated(rel)
+      } catch {
+        if (!cancelled) {
+          setLoadError(true)
+          setWord(null)
+        }
       }
     }
     void load()
-  }, [activeVocab])
+    return () => {
+      cancelled = true
+    }
+  }, [activeVocab, dataReady])
 
-  if (!word) {
+  if (!dataReady) {
     return (
       <div className="app-page items-center justify-center px-4">
         <LanguageText text={UI_LABELS.loading} align="center" size="sm" />
+      </div>
+    )
+  }
+
+  if (loadError || !word) {
+    return (
+      <div className="app-page items-center justify-center px-4" data-testid="word-page">
+        <div className="max-w-sm space-y-4 text-center">
+          <LanguageText text={UI_LABELS.wordsLoadError} align="center" size="sm" />
+          <button
+            type="button"
+            onClick={() => navigate('/chat')}
+            className={`${BTN_ROW} mx-auto`}
+          >
+            <LanguageText text={UI_LABELS.chatNav} size="sm" passive />
+          </button>
+        </div>
       </div>
     )
   }

@@ -1,13 +1,13 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { lookupVocabBySurface } from '@/database/importService'
-import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 
 const DESKTOP_QUERY = '(min-width: 1280px)'
 
 export function useWordTap() {
   const navigate = useNavigate()
-  const setActiveVocab = useNozomiStore((s) => s.setActiveVocab)
+  const setActiveVocab = useUiStore((s) => s.setActiveVocab)
 
   return useCallback(
     async (surface: string) => {

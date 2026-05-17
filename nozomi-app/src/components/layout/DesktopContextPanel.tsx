@@ -4,14 +4,14 @@ import { WordDetailCard } from '@/components/vocab/WordDetailCard'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { getRelatedVocab } from '@/database/importService'
-import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import type { VocabEntry } from '@/types/domain'
 
 export function DesktopContextPanel() {
   const navigate = useNavigate()
-  const activeVocab = useNozomiStore((s) => s.activeVocab)
-  const setActiveVocab = useNozomiStore((s) => s.setActiveVocab)
-  const clearActiveVocab = useNozomiStore((s) => s.clearActiveVocab)
+  const activeVocab = useUiStore((s) => s.activeVocab)
+  const setActiveVocab = useUiStore((s) => s.setActiveVocab)
+  const clearActiveVocab = useUiStore((s) => s.clearActiveVocab)
   const [related, setRelated] = useState<VocabEntry[]>([])
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function DesktopContextPanel() {
   return (
     <aside
       data-testid="context-panel"
-      className="hidden h-full min-h-0 xl:flex xl:w-80 xl:shrink-0 xl:flex-col xl:border-l xl:border-nozomi-border/30 xl:bg-nozomi-surface/30"
+      className="hidden h-full min-h-0 lg:flex lg:w-72 lg:shrink-0 lg:flex-col lg:border-l lg:border-nozomi-border/30 lg:bg-nozomi-surface/30 xl:w-80"
       aria-label={UI_LABELS.contextPanel.en}
     >
       <div className="flex items-center justify-between border-b border-nozomi-border/20 px-4 py-3">

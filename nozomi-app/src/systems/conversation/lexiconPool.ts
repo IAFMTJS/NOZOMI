@@ -41,8 +41,8 @@ function vocabToSentence(
     jp = head.length <= 8 ? `${head}って何？` : `${head}のこと？`
     en = `About ${entry.en}?`
   } else if (intent === 'greeting') {
-    jp = head.length <= 10 ? `${head}、こんにちは。` : `「${head}」ですね。`
-    en = entry.en
+    // Greetings come from the sentence DB; lexicon stubs like "望み、こんにちは。" read unnatural.
+    return null
   } else {
     jp = `「${head}」ですね。`
     en = `${entry.en}, right?`

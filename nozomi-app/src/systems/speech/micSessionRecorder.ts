@@ -1,3 +1,4 @@
+import { levelFromRms, rmsFromTimeDomain } from '@/systems/speech/audioLevel'
 import { voiceDebug, voiceDebugError } from '@/systems/speech/voiceDebug'
 
 type RecorderCallbacks = {
@@ -55,12 +56,11 @@ function stopLevelLoop(): void {
 
 function startLevelLoop(s: MediaStream, onLevel: (n: number) => void): void {
   stopLevelLoop()
-  const data = new Uint8Array(128)
+  const data = new Uint8Array(256)
   const tick = () => {
     if (!levelAnalyser) return
-    levelAnalyser.getByteFrequencyData(data)
-    const avg = data.reduce((a, b) => a + b, 0) / data.length
-    onLevel(Math.min(1, avg / 96))
+    levelAnalyser.getByteTimeDomainData(data)
+    onLevel(levelFromRms(rmsFromTimeDomain(data)))
     levelRaf = requestAnimationFrame(tick)
   }
   void (async () => {
@@ -215,6 +215,13 @@ export function stopMicSession(): Promise<Blob | null> {
     }
 
     try {
+      if (recorder.state === 'recording') {
+        try {
+          recorder.requestData()
+        } catch {
+          /* ignore */
+        }
+      }
       recorder.stop()
     } catch {
       finish(null)

@@ -1,6 +1,6 @@
 import { UI_LABELS } from '@/data/ui-labels'
 import { useRomajiFallback } from '@/hooks/useRomajiFallback'
-import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import type { SpeechState } from '@/types/domain'
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function LiveTranscript({ speechState }: Props) {
-  const liveTranscript = useNozomiStore((s) => s.liveTranscript)
+  const liveTranscript = useUiStore((s) => s.liveTranscript)
   const romaji = useRomajiFallback(liveTranscript, '')
   const show =
     liveTranscript.length > 0 ||

@@ -1,4 +1,5 @@
-import { useNozomiStore } from '@/store/useNozomiStore'
+import { useOrbAudioLevel } from '@/hooks/useOrbAudioLevel'
+import { isMobileDevice } from '@/utils/device'
 
 interface Props {
   bars?: number
@@ -7,7 +8,8 @@ interface Props {
 }
 
 export function WaveformStrip({ bars = 48, className = '', tall = false }: Props) {
-  const level = useNozomiStore((s) => s.audioLevel)
+  const level = useOrbAudioLevel()
+  const barCount = isMobileDevice() ? Math.min(bars, 32) : bars
   const h = tall ? 56 : 48
   return (
     <div
@@ -15,7 +17,7 @@ export function WaveformStrip({ bars = 48, className = '', tall = false }: Props
       style={{ height: h }}
       aria-hidden
     >
-      {Array.from({ length: bars }).map((_, i) => {
+      {Array.from({ length: barCount }).map((_, i) => {
         const wave = 0.45 + Math.sin(i * 0.35) * 0.35 + Math.cos(i * 0.12) * 0.2
         const barH = 6 + level * (tall ? 44 : 36) * wave
         return (

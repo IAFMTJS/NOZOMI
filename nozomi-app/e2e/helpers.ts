@@ -44,7 +44,7 @@ export const ONBOARDED_STORAGE = {
       { role: 'nozomi', content: '楽しい！元気？', topic: 'daily' },
     ],
   },
-  version: 0,
+  version: 6,
 }
 
 export async function seedOnboarded(page: Page): Promise<void> {

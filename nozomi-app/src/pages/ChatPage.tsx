@@ -5,6 +5,7 @@ import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { SuggestionPills } from '@/components/suggestions/SuggestionPills'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import { useConversation } from '@/hooks/useConversation'
 import { useWordTap } from '@/hooks/useWordTap'
 import { UI_LABELS } from '@/data/ui-labels'
@@ -21,7 +22,7 @@ export function ChatPage() {
   const location = useLocation()
   const messages = useNozomiStore((s) => s.chatMessages)
   const suggestions = useNozomiStore((s) => s.chatSuggestions)
-  const dataReady = useNozomiStore((s) => s.dataReady)
+  const dataReady = useUiStore((s) => s.dataReady)
   const session = useNozomiStore((s) => s.chatSession)
   const { sendUserMessage, startConversation, startScenarioConversation } =
     useConversation()

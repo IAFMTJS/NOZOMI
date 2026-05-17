@@ -101,9 +101,13 @@ export async function blendWithPersonality(
   const line = await pickPersonalityLine(mode, context)
   if (!line || !hasTrilingualFields(line) || !hasTrilingualFields(base)) return base
   if (line.jp === base.jp || isGenericGreetingLine(line.jp)) return base
+  if (isGenericGreetingLine(base.jp) || context === 'greeting') return base
+
+  const combined = `${line.jp} ${base.jp}`
+  if (combined.length > 52) return base
 
   return {
-    jp: `${line.jp} ${base.jp}`,
+    jp: combined,
     romaji: `${line.romaji} ${base.romaji}`,
     en: `${line.en} ${base.en}`,
   }

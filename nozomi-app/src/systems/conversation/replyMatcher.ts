@@ -6,7 +6,11 @@ import {
   tuningBoostForSentence,
   tuningPenaltyForSentence,
 } from './conversationTuning'
-import { isConversationalReply, isGenericGreetingLine } from './engineHelpers'
+import {
+  isConversationalReply,
+  isGenericGreetingLine,
+  isOverusedReply,
+} from './engineHelpers'
 import { RESPONSE_HINTS } from './responseHints'
 import type { Intent } from './intent'
 import type { Sentence } from '@/types/domain'
@@ -56,11 +60,14 @@ function ngramOverlapRatio(a: string, b: string, n = 3): number {
 
 function repetitionPenalty(sentence: Sentence, excludeJp: string[]): number {
   let penalty = 0
+  if (excludeJp.length > 0 && isOverusedReply(sentence.jp)) penalty -= 35
+  if (excludeJp.length > 0 && isGenericGreetingLine(sentence.jp)) penalty -= 28
   for (const prev of excludeJp) {
-    if (sentence.jp === prev) return -80
+    if (sentence.jp === prev) return -120
     const overlap = ngramOverlapRatio(prev, sentence.jp)
-    if (overlap > 0.5) penalty -= 25
-    else if (overlap > 0.35) penalty -= 12
+    if (overlap > 0.45) penalty -= 40
+    else if (overlap > 0.3) penalty -= 18
+    else if (overlap > 0.2) penalty -= 8
   }
   return penalty
 }
@@ -249,9 +256,14 @@ export function pickContextualSentence(
 
   const base = preferTrilingual(pool)
   const candidates = base.filter(
-    (s) => !excludeJp.includes(s.jp) && !recentIds.has(s.id),
+    (s) =>
+      !excludeJp.includes(s.jp) &&
+      !recentIds.has(s.id) &&
+      !(excludeJp.length > 0 && isOverusedReply(s.jp)),
   )
-  let list = candidates.length ? candidates : preferTrilingual(pool)
+  let list = candidates.length
+    ? candidates
+    : preferTrilingual(pool).filter((s) => !excludeJp.includes(s.jp))
   if (!list.length) return null
 
   const conversational = list.filter(isConversationalReply)

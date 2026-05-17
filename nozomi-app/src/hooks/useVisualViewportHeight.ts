@@ -2,13 +2,19 @@ import { useSyncExternalStore } from 'react'
 
 function subscribe(onStoreChange: () => void) {
   const viewport = window.visualViewport
-  window.addEventListener('resize', onStoreChange)
-  viewport?.addEventListener('resize', onStoreChange)
-  viewport?.addEventListener('scroll', onStoreChange)
+  let raf = 0
+  const schedule = () => {
+    cancelAnimationFrame(raf)
+    raf = requestAnimationFrame(onStoreChange)
+  }
+  window.addEventListener('resize', schedule)
+  viewport?.addEventListener('resize', schedule)
+  viewport?.addEventListener('scroll', schedule)
   return () => {
-    window.removeEventListener('resize', onStoreChange)
-    viewport?.removeEventListener('resize', onStoreChange)
-    viewport?.removeEventListener('scroll', onStoreChange)
+    cancelAnimationFrame(raf)
+    window.removeEventListener('resize', schedule)
+    viewport?.removeEventListener('resize', schedule)
+    viewport?.removeEventListener('scroll', schedule)
   }
 }
 

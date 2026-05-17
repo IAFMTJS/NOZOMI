@@ -28,7 +28,7 @@ beforeAll(() => {
 describe('prepareVoiceInput', () => {
   it('maps common romaji greetings to Japanese in engine text', () => {
     const { display, engine } = prepareVoiceInput('konnichiwa')
-    expect(display).toBe('konnichiwa')
+    expect(display).toContain('こんにちは')
     expect(engine).toContain('こんにちは')
   })
 
@@ -49,12 +49,25 @@ describe('prepareVoiceInput', () => {
   })
 
   it('maps whole-line English STT to Japanese semantics', () => {
-    const { engine } = prepareVoiceInput("I'm tired")
+    const { display, engine } = prepareVoiceInput("I'm tired")
+    expect(display).toContain('疲れた')
     expect(engine).toContain('疲れた')
   })
 
   it('maps how are you', () => {
-    const { engine } = prepareVoiceInput('how are you')
+    const { display, engine } = prepareVoiceInput('how are you')
+    expect(display).toContain('元気')
+    expect(engine).toContain('元気')
+  })
+
+  it('maps thank you', () => {
+    const { display, engine } = prepareVoiceInput('thank you')
+    expect(display).toContain('ありがとう')
+    expect(engine).toContain('ありがとう')
+  })
+
+  it('enriches genki desu ka spacing variants', () => {
+    const { engine } = prepareVoiceInput('genki desu ka')
     expect(engine).toContain('元気')
   })
 })

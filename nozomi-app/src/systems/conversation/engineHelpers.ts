@@ -16,6 +16,23 @@ const NARRATIVE_OPENERS = /^(彼は|彼女は|彼ら|その人|当人|彼の|彼
 const LEXICON_ECHO = /^「[^」]{1,12}」ですね[。.]?$/
 const GENERIC_GREETING = /^(こんにちは|おはよう|こんばんは)[！!]?$/
 
+/** Lines that dominated simulation — deprioritize after first use in a thread. */
+const OVERUSED_REPLY = [
+  /^こんにちは[！!]?$/,
+  /^そっか、大変だったね[。.]?$/,
+  /^今日はどうだった[？?]?$/,
+  /^また話そうね[。.]?$/,
+  /^うん、疲れた[。.]?$/,
+  /^でも楽しかった[。.]?$/,
+  /^お疲れさま[。.]?$/,
+  /^今日は楽しかったね[。.]?$/,
+]
+
+export function isOverusedReply(jp: string): boolean {
+  const t = jp.trim()
+  return OVERUSED_REPLY.some((re) => re.test(t))
+}
+
 /** Short, dialogue-style lines suitable as chat / voice replies. */
 export function isConversationalReply(sentence: Sentence): boolean {
   const jp = sentence.jp.trim()
@@ -27,13 +44,19 @@ export function isConversationalReply(sentence: Sentence): boolean {
 }
 
 export function isGenericGreetingLine(jp: string): boolean {
-  return GENERIC_GREETING.test(jp.trim())
+  const t = jp.trim()
+  if (GENERIC_GREETING.test(t)) return true
+  // Lexicon stub pattern: 「望み、こんにちは。」 etc.
+  if (/^.{1,14}、こんにちは[。！!]?$/.test(t)) return true
+  if (/^[^「]{1,8}、こんにちは/.test(t)) return true
+  return false
 }
 
 export function filterQualityPool(pool: Sentence[]): Sentence[] {
   return pool.filter((s) => {
     if (!isConversationalReply(s)) return false
     if (isGenericGreetingLine(s.jp)) return false
+    if (isOverusedReply(s.jp)) return false
     if (tuningPenaltyForSentence(s.jp) < -24) return false
     return true
   })

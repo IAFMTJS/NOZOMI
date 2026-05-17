@@ -1,9 +1,11 @@
 import { useCallback } from 'react'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import {
   createOpeningTurn,
   createScenarioOpening,
   createStoryOpening,
+  createStoryOpeningForId,
   processUserMessage,
 } from '@/systems/conversation/engine'
 import { advanceStory } from '@/systems/conversation/storyRunner'
@@ -54,7 +56,7 @@ export function useConversation() {
   const addVoiceMessage = useNozomiStore((s) => s.addVoiceMessage)
   const setSuggestions = useNozomiStore((s) => s.setSuggestions)
   const pushContext = useNozomiStore((s) => s.pushContext)
-  const setOrbState = useNozomiStore((s) => s.setOrbState)
+  const setOrbState = useUiStore((s) => s.setOrbState)
   const setSessionTopic = useNozomiStore((s) => s.setSessionTopic)
   const setStorySession = useNozomiStore((s) => s.setStorySession)
   const setSettings = useNozomiStore((s) => s.setSettings)
@@ -288,11 +290,39 @@ export function useConversation() {
     [applyResponse, profile, setOrbState, settings],
   )
 
+  const startStoryConversation = useCallback(
+    async (storyId: number, surface: ConversationSurface = 'voice') => {
+      useNozomiStore.setState({
+        voiceMessages: [],
+        voiceContextBuffer: [],
+        voiceSuggestions: [],
+        voicePinnedSuggestion: null,
+        voiceSession: {
+          activeIntent: 'free_chat',
+          topicStack: ['daily'],
+          turnCount: 0,
+        },
+      })
+      setSettings({ voiceStoryMode: true })
+      setOrbState('thinking')
+      stopSpeaking()
+      const opening = await createStoryOpeningForId(profile, storyId, settings)
+      if (opening) {
+        applyResponse(opening, surface)
+      } else {
+        setOrbState('idle')
+        setSettings({ voiceStoryMode: false })
+      }
+    },
+    [applyResponse, profile, setOrbState, setSettings],
+  )
+
   return {
     sendUserMessage,
     startConversation,
     startVoiceConversation,
     startScenarioConversation,
+    startStoryConversation,
     setVoiceStoryMode,
     deliverNozomi,
   }

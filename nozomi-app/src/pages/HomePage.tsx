@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { NozomiOrb } from '@/components/orb/NozomiOrb'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { LanguageText } from '@/components/language/LanguageText'
@@ -11,42 +11,33 @@ import { useConversation } from '@/hooks/useConversation'
 import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
-import { usePersistHydration } from '@/hooks/usePersistHydration'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import { useSpeechListen } from '@/contexts/SpeechListenContext'
 import type { ScenarioCategory } from '@/types/domain'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const hydrated = usePersistHydration()
-  const onboardingComplete = useNozomiStore((s) => s.profile.onboardingComplete)
   const startScenario = useNozomiStore((s) => s.startScenario)
-  const speechState = useNozomiStore((s) => s.speechState)
-  const orbState = useNozomiStore((s) => s.orbState)
+  const speechState = useUiStore((s) => s.speechState)
+  const orbState = useUiStore((s) => s.orbState)
   const voiceMessages = useNozomiStore((s) => s.voiceMessages)
   const [pickerOpen, setPickerOpen] = useState(false)
   const { armAndGoToListen } = useSpeechListen()
   const { setVoiceStoryMode } = useConversation()
   const voiceTurnCount = useNozomiStore((s) => s.voiceSession.turnCount)
-  const showStoryToggle = voiceTurnCount >= 5
+  const showStoryToggle = voiceTurnCount >= 2
   const orbSize = useOrbSize(380, 240)
-
-  if (!hydrated) {
-    return (
-      <div className="presence-screen items-center justify-center">
-        <NozomiOrb size={160} />
-      </div>
-    )
-  }
-
-  if (!onboardingComplete) {
-    return <Navigate to="/onboarding" replace />
-  }
 
   const handleScenario = (category: ScenarioCategory) => {
     startScenario(category)
     setPickerOpen(false)
     navigate('/listen', { state: { scenarioStart: category } })
+  }
+
+  const handleStory = (storyId: number) => {
+    setPickerOpen(false)
+    navigate('/listen', { state: { storyStart: storyId } })
   }
 
   return (
@@ -112,7 +103,12 @@ export function HomePage() {
         }}
       />
 
-      <ScenarioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onSelect={handleScenario} />
+      <ScenarioPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleScenario}
+        onSelectStory={handleStory}
+      />
     </div>
   )
 }

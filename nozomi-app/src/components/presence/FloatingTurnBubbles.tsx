@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { LanguageText } from '@/components/language/LanguageText'
 import { useMotionProps } from '@/hooks/useMotionProps'
 import { useWordTap } from '@/hooks/useWordTap'
-import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import type { ChatMessage } from '@/types/domain'
 
 function FloatBubble({
@@ -53,11 +53,7 @@ export function FloatingTurnBubbles({
   onViewHistory,
 }: Props) {
   const handleWordTap = useWordTap()
-  const orbState = useNozomiStore((s) => s.orbState)
-  const reducedMotion = useNozomiStore((s) => s.settings.reducedMotion)
-  const gentleLayout =
-    reducedMotion ||
-    (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)
+  const orbState = useUiStore((s) => s.orbState)
   const motionProps = useMotionProps({
     initial: { opacity: 0 },
     animate: { opacity: 1 },
@@ -75,7 +71,7 @@ export function FloatingTurnBubbles({
       }`}
       data-testid="voice-turn-panel"
     >
-      <AnimatePresence mode={gentleLayout ? 'sync' : 'popLayout'}>
+      <AnimatePresence mode="sync">
         {recent.map((m) => (
           <FloatBubble
             key={m.id}

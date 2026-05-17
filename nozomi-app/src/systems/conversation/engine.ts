@@ -24,6 +24,7 @@ import {
   getRandomSentences,
   getSentencesByFilter,
   getStoryByCategory,
+  getStoryById,
   getStoryForTopic,
 } from '@/database/importService'
 import { SEED_SENTENCES } from '@/database/seedData'
@@ -389,7 +390,7 @@ export async function processUserMessage(
   const recentJp = context
     .filter((c) => c.role === 'nozomi')
     .map((c) => c.content)
-    .slice(-6)
+    .slice(-10)
 
   const recentUserText = context
     .filter((c) => c.role === 'user')
@@ -486,17 +487,14 @@ export async function createOpeningTurn(
   }
 }
 
-/** Start a guided story for voice or chat (topic-matched from stories DB). */
-export async function createStoryOpening(
+async function storyOpeningFromRecord(
   profile: UserProfile,
-  topic = 'daily',
-  settings: AppSettings = DEFAULT_SETTINGS,
-): Promise<EngineResponse> {
-  const story = await getStoryForTopic(topic)
-  if (!story) return createOpeningTurn(profile, topic, settings)
-
+  story: NonNullable<Awaited<ReturnType<typeof getStoryById>>>,
+  topic: string,
+  settings: AppSettings,
+): Promise<EngineResponse | null> {
   const beat = await getFirstBeatForStory(story.id)
-  if (!beat) return createOpeningTurn(profile, topic, settings)
+  if (!beat) return null
 
   const beats = await getBeatsForStory(story.id)
   const storySession: StorySession = {
@@ -511,19 +509,49 @@ export async function createStoryOpening(
     { jp: beat.jp, romaji: beat.romaji, en: beat.en },
     0.2,
   )
+  const enriched = enrichGrammarTags({
+    message,
+    sentenceId: beat.id,
+  })
   const suggestions = await buildContextualSuggestions({
     topic: story.category || topic,
     level: profile.jlptLevel,
-    nozomiMessage: message,
+    nozomiMessage: enriched.message,
     count: resolveSuggestionCount(settings, profile),
   })
   return {
-    message,
+    message: enriched.message,
     suggestions,
     topic: story.category || topic,
     intent: 'greeting',
+    grammarTags: enriched.grammarTags,
+    sentenceId: enriched.sentenceId,
     story: storySession,
   }
+}
+
+/** Start a guided story for voice or chat (topic-matched from stories DB). */
+export async function createStoryOpening(
+  profile: UserProfile,
+  topic = 'daily',
+  settings: AppSettings = DEFAULT_SETTINGS,
+): Promise<EngineResponse> {
+  const story = await getStoryForTopic(topic)
+  if (!story) return createOpeningTurn(profile, topic, settings)
+
+  const opening = await storyOpeningFromRecord(profile, story, topic, settings)
+  return opening ?? createOpeningTurn(profile, topic, settings)
+}
+
+export async function createStoryOpeningForId(
+  profile: UserProfile,
+  storyId: number,
+  settings: AppSettings = DEFAULT_SETTINGS,
+): Promise<EngineResponse | null> {
+  const story = await getStoryById(storyId)
+  if (!story) return null
+  const topic = story.category || 'daily'
+  return storyOpeningFromRecord(profile, story, topic, settings)
 }
 
 /** Start a themed conversation (scenario starter) */

@@ -6,10 +6,11 @@ import {
   speechLangDisplayName,
 } from '@/systems/speech/speechLocale'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 
 export function ListeningMicHint() {
-  const speechState = useNozomiStore((s) => s.speechState)
-  const liveTranscript = useNozomiStore((s) => s.liveTranscript)
+  const speechState = useUiStore((s) => s.speechState)
+  const liveTranscript = useUiStore((s) => s.liveTranscript)
   const speechLangPref = useNozomiStore((s) => s.settings.speechInputLang)
   const resolvedLang = speechLangDisplayName(
     resolveSpeechRecognitionLang(speechLangPref),

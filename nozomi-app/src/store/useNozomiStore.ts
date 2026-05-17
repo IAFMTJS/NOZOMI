@@ -1,24 +1,30 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type {
   AppSettings,
   ChatMessage,
   ConversationTurn,
-  OrbState,
   ScenarioCategory,
   SessionState,
-  SpeechState,
   StorySession,
   UserProfile,
-  VocabEntry,
 } from '@/types/domain'
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '@/types/domain'
+import { createDebouncedPersistStorage } from '@/store/debouncedPersistStorage'
+import { useUiStore } from '@/store/useUiStore'
+
+/** In-memory cap — prevents unbounded growth during long voice sessions on mobile. */
+export const MAX_SESSION_MESSAGES = 24
+
+function trimMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.length <= MAX_SESSION_MESSAGES
+    ? messages
+    : messages.slice(-MAX_SESSION_MESSAGES)
+}
 
 interface NozomiState {
   profile: UserProfile
   settings: AppSettings
-  orbState: OrbState
-  speechState: SpeechState
   chatSession: SessionState
   voiceSession: SessionState
   chatMessages: ChatMessage[]
@@ -27,19 +33,9 @@ interface NozomiState {
   voiceContextBuffer: ConversationTurn[]
   chatSuggestions: import('@/types/domain').Suggestion[]
   voiceSuggestions: import('@/types/domain').Suggestion[]
-  /** Voice-mode hint only — not posted as a user chat message */
   voicePinnedSuggestion: import('@/types/domain').Suggestion | null
-  audioLevel: number
-  liveTranscript: string
-  dataReady: boolean
-  activeVocab: VocabEntry | null
   setProfile: (p: Partial<UserProfile>) => void
   setSettings: (s: Partial<AppSettings>) => void
-  setOrbState: (s: OrbState) => void
-  setSpeechState: (s: SpeechState) => void
-  setAudioLevel: (n: number) => void
-  setLiveTranscript: (text: string) => void
-  setDataReady: (v: boolean) => void
   addChatMessage: (m: ChatMessage) => void
   addVoiceMessage: (m: ChatMessage) => void
   setSuggestions: (
@@ -51,8 +47,6 @@ interface NozomiState {
   ) => void
   pushContext: (surface: 'chat' | 'voice', t: ConversationTurn) => void
   clearSession: () => void
-  setActiveVocab: (v: VocabEntry | null) => void
-  clearActiveVocab: () => void
   setSessionTopic: (surface: 'chat' | 'voice', topic: string) => void
   startScenario: (category: ScenarioCategory) => void
   setStorySession: (surface: 'chat' | 'voice', story: StorySession | null) => void
@@ -84,8 +78,6 @@ export const useNozomiStore = create<NozomiState>()(
     (set) => ({
       profile: DEFAULT_PROFILE,
       settings: DEFAULT_SETTINGS,
-      orbState: 'idle',
-      speechState: 'idle',
       chatSession: defaultSession(),
       voiceSession: defaultSession(),
       chatMessages: [],
@@ -95,23 +87,18 @@ export const useNozomiStore = create<NozomiState>()(
       chatSuggestions: [],
       voiceSuggestions: [],
       voicePinnedSuggestion: null,
-      audioLevel: 0,
-      liveTranscript: '',
-      dataReady: false,
-      activeVocab: null,
       setProfile: (p) =>
         set((s) => ({ profile: { ...s.profile, ...p } })),
       setSettings: (s) =>
         set((st) => ({ settings: { ...st.settings, ...s } })),
-      setOrbState: (orbState) => set({ orbState }),
-      setSpeechState: (speechState) => set({ speechState }),
-      setAudioLevel: (audioLevel) => set({ audioLevel }),
-      setLiveTranscript: (liveTranscript) => set({ liveTranscript }),
-      setDataReady: (dataReady) => set({ dataReady }),
       addChatMessage: (m) =>
-        set((s) => ({ chatMessages: [...s.chatMessages, m] })),
+        set((s) => ({
+          chatMessages: trimMessages([...s.chatMessages, m]),
+        })),
       addVoiceMessage: (m) =>
-        set((s) => ({ voiceMessages: [...s.voiceMessages, m] })),
+        set((s) => ({
+          voiceMessages: trimMessages([...s.voiceMessages, m]),
+        })),
       setSuggestions: (surface, suggestions) =>
         set(
           surface === 'voice'
@@ -144,7 +131,8 @@ export const useNozomiStore = create<NozomiState>()(
                 },
               }),
         })),
-      clearSession: () =>
+      clearSession: () => {
+        useUiStore.getState().resetVoiceUi()
         set({
           chatMessages: [],
           voiceMessages: [],
@@ -155,13 +143,8 @@ export const useNozomiStore = create<NozomiState>()(
           voicePinnedSuggestion: null,
           chatSession: defaultSession(),
           voiceSession: defaultSession(),
-          orbState: 'idle',
-          speechState: 'idle',
-          liveTranscript: '',
-          audioLevel: 0,
-        }),
-      setActiveVocab: (activeVocab) => set({ activeVocab }),
-      clearActiveVocab: () => set({ activeVocab: null }),
+        })
+      },
       setSessionTopic: (surface, topic) =>
         set((s) => ({
           ...(surface === 'voice'
@@ -184,7 +167,8 @@ export const useNozomiStore = create<NozomiState>()(
                 },
               }),
         })),
-      startScenario: (category) =>
+      startScenario: (category) => {
+        useUiStore.getState().setOrbState('idle')
         set({
           voiceMessages: [],
           voiceContextBuffer: [],
@@ -200,8 +184,8 @@ export const useNozomiStore = create<NozomiState>()(
             topicStack: [category],
             turnCount: 0,
           },
-          orbState: 'idle',
-        }),
+        })
+      },
       setStorySession: (surface, story) =>
         set((s) => ({
           ...(surface === 'voice'
@@ -253,37 +237,44 @@ export const useNozomiStore = create<NozomiState>()(
     }),
     {
       name: 'nozomi-storage',
-      version: 5,
+      version: 7,
+      storage: createJSONStorage(() => createDebouncedPersistStorage()),
+      onRehydrateStorageError: () => {
+        try {
+          localStorage.removeItem('nozomi-storage')
+        } catch {
+          /* ignore */
+        }
+      },
       migrate: (persisted, fromVersion) => {
-        const state = persisted as Partial<NozomiState> & {
-          profile?: Partial<UserProfile> & { xp?: number; streakDays?: number }
+        const state = persisted as Record<string, unknown>
+        if (fromVersion < 2 && state.settings && typeof state.settings === 'object') {
+          const settings = state.settings as AppSettings
+          if (settings.speechInputLang === 'en-US') {
+            state.settings = { ...settings, speechInputLang: 'auto' }
+          }
         }
-        if (fromVersion < 2 && state.settings?.speechInputLang === 'en-US') {
-          state.settings = { ...state.settings, speechInputLang: 'auto' }
+        // v3 used to force onboardingComplete — do not auto-skip onboarding on upgrade.
+        if (fromVersion < 4 && state.settings && typeof state.settings === 'object') {
+          state.settings = {
+            ...(state.settings as AppSettings),
+            voiceStoryMode: false,
+          }
         }
-        if (fromVersion < 3 && state.profile) {
-          state.profile = { ...state.profile, onboardingComplete: true }
+        if (fromVersion < 5 && state.profile && typeof state.profile === 'object') {
+          const { xp: _xp, streakDays: _streak, ...profileRest } = state.profile as UserProfile & {
+            xp?: number
+            streakDays?: number
+          }
+          state.profile = profileRest
         }
-        if (fromVersion < 4 && state.settings) {
-          state.settings = { ...state.settings, voiceStoryMode: false }
-        }
-        if (fromVersion < 5 && state.profile) {
-          const { xp: _xp, streakDays: _streak, ...profileRest } = state.profile
-          state.profile = profileRest as UserProfile
-        }
-        return state as NozomiState
+        return state
       },
       partialize: (s) => ({
         profile: s.profile,
         settings: s.settings,
-        chatMessages: s.chatMessages.slice(-50),
-        voiceMessages: s.voiceMessages.slice(-50),
-        chatContextBuffer: s.chatContextBuffer.slice(-12),
-        voiceContextBuffer: s.voiceContextBuffer.slice(-12),
         chatSession: s.chatSession,
         voiceSession: s.voiceSession,
-        chatSuggestions: s.chatSuggestions,
-        voiceSuggestions: s.voiceSuggestions,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<NozomiState> & {
@@ -291,27 +282,25 @@ export const useNozomiStore = create<NozomiState>()(
           contextBuffer?: ConversationTurn[]
           session?: SessionState
           suggestions?: import('@/types/domain').Suggestion[]
+          chatMessages?: ChatMessage[]
+          voiceMessages?: ChatMessage[]
         }
-        const migratedChatMessages = p.chatMessages ?? p.messages ?? []
-        const migratedChatContext = p.chatContextBuffer ?? p.contextBuffer ?? []
         const migratedChatSession = { ...current.chatSession, ...p.chatSession, ...p.session }
-        const migratedChatSuggestions = p.chatSuggestions ?? p.suggestions ?? []
         return {
           ...current,
-          ...p,
           profile: mergeProfile(current.profile, p.profile),
           settings: {
             ...DEFAULT_SETTINGS,
             ...(p.settings ?? {}),
           },
-          chatMessages: migratedChatMessages,
-          voiceMessages: p.voiceMessages ?? current.voiceMessages,
-          chatContextBuffer: migratedChatContext,
-          voiceContextBuffer: p.voiceContextBuffer ?? current.voiceContextBuffer,
           chatSession: migratedChatSession,
           voiceSession: p.voiceSession ?? current.voiceSession,
-          chatSuggestions: migratedChatSuggestions,
-          voiceSuggestions: p.voiceSuggestions ?? current.voiceSuggestions,
+          chatMessages: current.chatMessages,
+          voiceMessages: current.voiceMessages,
+          chatContextBuffer: current.chatContextBuffer,
+          voiceContextBuffer: current.voiceContextBuffer,
+          chatSuggestions: current.chatSuggestions,
+          voiceSuggestions: current.voiceSuggestions,
         }
       },
     },

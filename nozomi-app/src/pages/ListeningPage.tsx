@@ -19,7 +19,9 @@ import { WaveformStrip } from '@/components/audio/WaveformStrip'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useSpeechListen } from '@/contexts/SpeechListenContext'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
+import { useSpeechOutputActive } from '@/hooks/useSpeechOutputActive'
 import {
   isListenSessionActive,
   micNeedsSecureContext,
@@ -29,24 +31,35 @@ import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 import type { ScenarioCategory } from '@/types/domain'
 
-type ListenLocationState = { autoStart?: boolean; scenarioStart?: ScenarioCategory }
+type ListenLocationState = {
+  /** @deprecated use sessionArmed */
+  autoStart?: boolean
+  /** Home orb armed listen — start exactly once on this navigation. */
+  sessionArmed?: boolean
+  scenarioStart?: ScenarioCategory
+  storyStart?: number
+}
 
 export function ListeningPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const speechState = useNozomiStore((s) => s.speechState)
-  const orbState = useNozomiStore((s) => s.orbState)
-  const dataReady = useNozomiStore((s) => s.dataReady)
+  const speechState = useUiStore((s) => s.speechState)
+  const orbState = useUiStore((s) => s.orbState)
+  const dataReady = useUiStore((s) => s.dataReady)
   const messages = useNozomiStore((s) => s.voiceMessages)
   const voiceSuggestions = useNozomiStore((s) => s.voiceSuggestions)
   const voicePinnedSuggestion = useNozomiStore((s) => s.voicePinnedSuggestion)
   const setVoicePinnedSuggestion = useNozomiStore((s) => s.setVoicePinnedSuggestion)
   const settings = useNozomiStore((s) => s.settings)
-  const { startVoiceConversation, startScenarioConversation, setVoiceStoryMode } =
-    useConversation()
+  const {
+    startVoiceConversation,
+    startScenarioConversation,
+    startStoryConversation,
+    setVoiceStoryMode,
+  } = useConversation()
   const voiceTurnCount = useNozomiStore((s) => s.voiceSession.turnCount)
   const voiceStoryMode = useNozomiStore((s) => s.settings.voiceStoryMode)
-  const showStoryToggle = voiceTurnCount >= 5 || voiceStoryMode
+  const showStoryToggle = voiceTurnCount >= 2 || voiceStoryMode
   const {
     beginListening,
     finishRecording,
@@ -67,7 +80,12 @@ export function ListeningPage() {
   const isCapturing = isListening || isPreparing
   const isProcessing = speechState === 'processing'
   const isSpeaking = orbState === 'speaking'
-  const micDisabled = isCapturing || isProcessing || isSpeaking
+  const speechOutputActive = useSpeechOutputActive()
+  const orbBusy = isProcessing || isPreparing
+  const canBeginOrb =
+    !isListening && !orbBusy && !isSpeaking && !speechOutputActive
+  const dockBeginDisabled =
+    isProcessing || isSpeaking || speechOutputActive || isListening || isPreparing
   const hasTurn = messages.length > 0
   const showReplyUi =
     hasTurn &&
@@ -80,8 +98,10 @@ export function ListeningPage() {
   const orbSize = useOrbSize(orbPreferred, orbReserved)
 
   const bootedRef = useRef(false)
-  const autoStartedRef = useRef(false)
+  const listenBootKeyRef = useRef<string | null>(null)
   const voiceOpenedRef = useRef(false)
+  const listenMountedRef = useRef(false)
+  const leaveCancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const pinnedSuggestionKey = voicePinnedSuggestion
     ? suggestionKey(
@@ -96,11 +116,20 @@ export function ListeningPage() {
   useEffect(() => {
     if (!dataReady || voiceOpenedRef.current) return
     const navState = location.state as ListenLocationState | null
+    if (navState?.storyStart != null) {
+      voiceOpenedRef.current = true
+      void startStoryConversation(navState.storyStart, 'voice')
+      window.history.replaceState(
+        navState.autoStart || navState.sessionArmed ? { sessionArmed: true } : {},
+        document.title,
+      )
+      return
+    }
     if (navState?.scenarioStart) {
       voiceOpenedRef.current = true
       void startScenarioConversation(navState.scenarioStart, 'voice')
       window.history.replaceState(
-        navState.autoStart ? { autoStart: true } : {},
+        navState.autoStart || navState.sessionArmed ? { sessionArmed: true } : {},
         document.title,
       )
       return
@@ -113,33 +142,59 @@ export function ListeningPage() {
     location.state,
     messages.length,
     startScenarioConversation,
+    startStoryConversation,
     startVoiceConversation,
   ])
 
   useEffect(() => {
+    listenMountedRef.current = true
+    if (leaveCancelTimerRef.current) {
+      clearTimeout(leaveCancelTimerRef.current)
+      leaveCancelTimerRef.current = null
+    }
     clearError()
-    const autoStart = (location.state as ListenLocationState | null)?.autoStart
-    if (isListenSessionActive()) {
+
+    const navState = location.state as ListenLocationState | null
+    const shouldArm = Boolean(navState?.sessionArmed || navState?.autoStart)
+    const bootKey = `${location.key}:${shouldArm}`
+    if (listenBootKeyRef.current !== bootKey) {
+      listenBootKeyRef.current = bootKey
+      if (isListenSessionActive()) {
+        attachToActiveSession()
+      } else if (shouldArm) {
+        beginListening()
+      } else if (!bootedRef.current) {
+        attachToActiveSession()
+      }
+      if (shouldArm) {
+        window.history.replaceState(
+          navState?.scenarioStart || navState?.storyStart != null
+            ? { ...navState, sessionArmed: undefined, autoStart: undefined }
+            : {},
+          document.title,
+        )
+      }
+    } else if (isListenSessionActive()) {
       attachToActiveSession()
-    } else if (autoStart && !autoStartedRef.current) {
-      autoStartedRef.current = true
-      beginListening()
-      window.history.replaceState({}, document.title)
-    } else if (!bootedRef.current && attachToActiveSession()) {
-      /* resume existing session only */
     }
     bootedRef.current = true
 
     return () => {
+      listenMountedRef.current = false
       detachUi()
-      window.setTimeout(() => {
-        if (window.location.pathname !== '/listen' && isListenSessionActive()) {
+      leaveCancelTimerRef.current = setTimeout(() => {
+        leaveCancelTimerRef.current = null
+        if (
+          !listenMountedRef.current &&
+          window.location.pathname !== '/listen' &&
+          isListenSessionActive()
+        ) {
           cancelSession()
         }
-      }, 80)
+      }, 280)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [location.key])
 
   const handleLeave = () => {
     cancelSession()
@@ -151,7 +206,11 @@ export function ListeningPage() {
       finishRecording()
       return
     }
-    if (!micDisabled) {
+    if (orbBusy) {
+      cancelSession()
+      return
+    }
+    if (canBeginOrb) {
       beginListening()
     }
   }
@@ -165,7 +224,11 @@ export function ListeningPage() {
     isListening
       ? UI_LABELS.tapOrbToStop
       : isProcessing
-        ? UI_LABELS.processingSpeech
+        ? {
+            jp: '文字起こし中…タップでキャンセル',
+            romaji: 'Mojiokoshi chuu… tap de kyanseru',
+            en: 'Transcribing… tap orb to cancel',
+          }
         : isPreparing && !offlineSttReady
           ? {
               jp: '音声モデルを読み込み中…（初回は1分ほど）',
@@ -174,9 +237,9 @@ export function ListeningPage() {
             }
           : isPreparing
             ? {
-                jp: 'マイク準備中…',
-                romaji: 'Maiku junbi chuu…',
-                en: 'Preparing microphone…',
+                jp: 'マイク準備中…タップでキャンセル',
+                romaji: 'Maiku junbi chuu… tap de kyanseru',
+                en: 'Preparing microphone… tap orb to cancel',
               }
           : UI_LABELS.tapOrbToSpeak
 
@@ -220,12 +283,18 @@ export function ListeningPage() {
           <button
             type="button"
             onClick={handleOrbPress}
-            disabled={micDisabled}
-            className="presence-orb-anchor touch-target touch-manipulation disabled:cursor-not-allowed"
+            className={`presence-orb-anchor touch-target touch-manipulation${
+              orbBusy ? ' opacity-90' : ''
+            }`}
+            aria-busy={orbBusy}
             aria-label={
               isListening
                 ? UI_LABELS.tapOrbToStop.en
-                : UI_LABELS.tapOrbToSpeak.en
+                : isProcessing
+                  ? 'Cancel speech processing'
+                  : isPreparing
+                    ? 'Cancel microphone setup'
+                    : UI_LABELS.tapOrbToSpeak.en
             }
           >
             <span className="presence-orb-glow" aria-hidden />
@@ -237,7 +306,7 @@ export function ListeningPage() {
             <WaveformStrip tall className="absolute bottom-0 mx-auto w-full max-w-xs px-4 opacity-80" />
           )}
 
-          {!isCapturing && !isProcessing && (
+          {!isProcessing && (
             <div className="presence-hint mt-3 max-w-xs">
               <LanguageText text={statusHint} size="sm" align="center" passive />
             </div>
@@ -252,9 +321,6 @@ export function ListeningPage() {
             suggestions={voiceSuggestions}
             selectedKey={pinnedSuggestionKey}
             onSelect={(s) => {
-              const idx = voiceSuggestions.findIndex(
-                (x, i) => suggestionKey(x, i) === suggestionKey(s, i),
-              )
               setVoicePinnedSuggestion(s)
               if (settings.suggestionVoiceEnabled) {
                 stopSpeaking()
@@ -262,7 +328,7 @@ export function ListeningPage() {
                   rate: settings.voiceRate,
                   pitch: settings.voicePitch,
                 })
-              } else if (!micDisabled) {
+              } else if (!dockBeginDisabled) {
                 beginListening()
               }
             }}
@@ -276,7 +342,7 @@ export function ListeningPage() {
           label: UI_LABELS.continueTalking,
           icon: 'refresh',
           onClick: beginListening,
-          disabled: micDisabled,
+          disabled: dockBeginDisabled,
         }}
         center={{
           id: 'mic',
@@ -284,11 +350,11 @@ export function ListeningPage() {
           icon: 'mic',
           onClick: handleOrbPress,
           primary: true,
-          disabled: micDisabled,
+          disabled: !canBeginOrb && !isListening,
         }}
         right={{
           id: 'chat',
-          label: hasTurn ? UI_LABELS.openChat : UI_LABELS.openChat,
+          label: UI_LABELS.openChat,
           icon: 'chat',
           onClick: () => navigate('/chat'),
         }}
