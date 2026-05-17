@@ -34,7 +34,11 @@ import {
 } from '@/systems/speech/speechService'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import { getSttEngine } from '@/systems/speech/sttEngine'
-import { getLastOfflineSttError, preloadOfflineStt } from '@/systems/speech/offlineStt'
+import {
+  getLastOfflineSttError,
+  preloadOfflineStt,
+  whenOfflineSttReady,
+} from '@/systems/speech/offlineStt'
 import {
   installVoiceDebugConsole,
   voiceDebug,
@@ -53,6 +57,7 @@ type SpeechListenApi = {
   detachUi: () => void
   errorCode: SpeechErrorCode | undefined
   clearError: () => void
+  offlineSttReady: boolean
 }
 
 const SpeechListenContext = createContext<SpeechListenApi | null>(null)
@@ -67,6 +72,7 @@ function useSpeechListenController(): SpeechListenApi {
   const setAudioLevel = useNozomiStore((s) => s.setAudioLevel)
   const setLiveTranscript = useNozomiStore((s) => s.setLiveTranscript)
   const [errorCode, setErrorCode] = useState<SpeechErrorCode | undefined>()
+  const [offlineSttReady, setOfflineSttReady] = useState(false)
   const mountedRef = useRef(true)
   const processingRef = useRef(false)
   const everHeardRef = useRef(false)
@@ -100,7 +106,11 @@ function useSpeechListenController(): SpeechListenApi {
   }, [resolveHeardText])
 
   useEffect(() => {
+    setOfflineSttReady(false)
     preloadOfflineStt(recognitionLang)
+    void whenOfflineSttReady(recognitionLang).then(() => {
+      if (mountedRef.current) setOfflineSttReady(true)
+    })
     if ('speechSynthesis' in window) {
       const warmVoices = () => {
         window.speechSynthesis.getVoices()
@@ -509,6 +519,7 @@ function useSpeechListenController(): SpeechListenApi {
       detachUi,
       errorCode,
       clearError,
+      offlineSttReady,
     }),
     [
       armAndGoToListen,
@@ -519,6 +530,7 @@ function useSpeechListenController(): SpeechListenApi {
       detachUi,
       errorCode,
       clearError,
+      offlineSttReady,
     ],
   )
 }

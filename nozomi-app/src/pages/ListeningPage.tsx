@@ -1,29 +1,29 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { ListeningMicHint } from '@/components/audio/ListeningMicHint'
-import { SpeechLangQuickPick } from '@/components/audio/SpeechLangQuickPick'
-import { ListeningStatus } from '@/components/audio/ListeningStatus'
 import { LiveTranscript } from '@/components/audio/LiveTranscript'
 import { MicPermissionBanner } from '@/components/audio/MicPermissionBanner'
-import { VoiceTurnPanel } from '@/components/audio/VoiceTurnPanel'
-import { SuggestionPills } from '@/components/suggestions/SuggestionPills'
-import { useConversation } from '@/hooks/useConversation'
-import { WaveformStrip } from '@/components/audio/WaveformStrip'
-import { LanguageText } from '@/components/language/LanguageText'
 import { NozomiOrb } from '@/components/orb/NozomiOrb'
-import { IconStop } from '@/components/ui/Icons'
+import { ChatHistorySheet } from '@/components/presence/ChatHistorySheet'
+import { FloatingTurnBubbles } from '@/components/presence/FloatingTurnBubbles'
+import { PresenceDock } from '@/components/presence/PresenceDock'
+import { PresenceStatusRow } from '@/components/presence/PresenceStatusRow'
+import { PresenceSuggestions } from '@/components/presence/PresenceSuggestions'
+import { LanguageText } from '@/components/language/LanguageText'
+import { suggestionKey } from '@/components/suggestions/SuggestionPills'
+import { useConversation } from '@/hooks/useConversation'
+import { speakJapanese, stopSpeaking } from '@/systems/speech/speechService'
+import { WaveformStrip } from '@/components/audio/WaveformStrip'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useSpeechListen } from '@/contexts/SpeechListenContext'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
-import type { LanguageText as LT } from '@/types/domain'
 import {
   isListenSessionActive,
   micNeedsSecureContext,
   speechSupported,
 } from '@/systems/speech/speechService'
-import { BTN_ROW_SM, BTN_TOUCH } from '@/utils/touch'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 type ListenLocationState = { autoStart?: boolean }
@@ -32,9 +32,14 @@ export function ListeningPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const speechState = useNozomiStore((s) => s.speechState)
+  const orbState = useNozomiStore((s) => s.orbState)
+  const dataReady = useNozomiStore((s) => s.dataReady)
   const messages = useNozomiStore((s) => s.voiceMessages)
   const voiceSuggestions = useNozomiStore((s) => s.voiceSuggestions)
-  const { sendUserMessage } = useConversation()
+  const voicePinnedSuggestion = useNozomiStore((s) => s.voicePinnedSuggestion)
+  const setVoicePinnedSuggestion = useNozomiStore((s) => s.setVoicePinnedSuggestion)
+  const settings = useNozomiStore((s) => s.settings)
+  const { startVoiceConversation } = useConversation()
   const {
     beginListening,
     finishRecording,
@@ -43,7 +48,10 @@ export function ListeningPage() {
     detachUi,
     errorCode,
     clearError,
+    offlineSttReady,
   } = useSpeechListen()
+  const [historyOpen, setHistoryOpen] = useState(false)
+
   const needsHttps = micNeedsSecureContext()
   const micBlocked =
     needsHttps || !speechSupported().stt || speechState === 'error'
@@ -52,13 +60,35 @@ export function ListeningPage() {
   const isCapturing = isListening || isPreparing
   const isProcessing = speechState === 'processing'
   const hasTurn = messages.length > 0
-  const orbPreferred = hasTurn && !isCapturing ? 220 : 280
-  const orbReserved = hasTurn && !isCapturing ? 400 : 380
-  const showReplyUi = hasTurn && !isCapturing && !isProcessing
+  const showReplyUi =
+    hasTurn &&
+    !isProcessing &&
+    voiceSuggestions.length > 0 &&
+    (!isCapturing || voicePinnedSuggestion != null)
+
+  const orbPreferred = 340
+  const orbReserved = 260
   const orbSize = useOrbSize(orbPreferred, orbReserved)
 
   const bootedRef = useRef(false)
   const autoStartedRef = useRef(false)
+  const voiceOpenedRef = useRef(false)
+
+  const pinnedSuggestionKey = voicePinnedSuggestion
+    ? suggestionKey(
+        voicePinnedSuggestion,
+        Math.max(
+          0,
+          voiceSuggestions.findIndex((s) => s.jp === voicePinnedSuggestion.jp),
+        ),
+      )
+    : null
+
+  useEffect(() => {
+    if (!dataReady || voiceOpenedRef.current || messages.length > 0) return
+    voiceOpenedRef.current = true
+    void startVoiceConversation()
+  }, [dataReady, messages.length, startVoiceConversation])
 
   useEffect(() => {
     clearError()
@@ -105,24 +135,30 @@ export function ListeningPage() {
     beginListening()
   }
 
-  const statusText: LT =
+  const statusHint =
     isListening
       ? UI_LABELS.tapOrbToStop
       : isProcessing
         ? UI_LABELS.processingSpeech
-        : isPreparing
+        : isPreparing && !offlineSttReady
           ? {
-              jp: 'マイク準備中…',
-              romaji: 'Maiku junbi chuu…',
-              en: 'Preparing microphone…',
+              jp: '音声モデルを読み込み中…（初回は1分ほど）',
+              romaji: 'Onsei moderu wo yomikomi chuu…',
+              en: 'Loading speech model… (first time may take ~1 min)',
             }
+          : isPreparing
+            ? {
+                jp: 'マイク準備中…',
+                romaji: 'Maiku junbi chuu…',
+                en: 'Preparing microphone…',
+              }
           : UI_LABELS.tapOrbToSpeak
 
-  return (
-    <div className="app-page">
-      <AppHeader onClose={handleLeave} onSettings={() => navigate('/settings')} />
-      <main className="app-page-scroll relative flex flex-col items-center gap-3 px-6 pt-4 pb-4">
-        {micBlocked ? (
+  if (micBlocked) {
+    return (
+      <div className="presence-screen" data-testid="listen-page">
+        <AppHeader compact onClose={handleLeave} onSettings={() => navigate('/settings')} />
+        <main className="flex flex-1 items-center justify-center px-6">
           <MicPermissionBanner
             title={needsHttps ? micNeedsHttpsLabel() : undefined}
             showSecondary={!needsHttps}
@@ -130,88 +166,108 @@ export function ListeningPage() {
             onRetry={needsHttps ? undefined : handleRetry}
             onUseText={() => navigate('/chat')}
           />
-        ) : (
-          <>
-            <ListeningStatus state={speechState} />
-            {!isCapturing && !isProcessing && (
-              <SpeechLangQuickPick />
-            )}
-            <ListeningMicHint />
-            <LiveTranscript speechState={speechState} />
-            {hasTurn && !isCapturing && <VoiceTurnPanel />}
-            <div className="orb-stage flex flex-col items-center justify-center w-full max-w-md shrink-0">
-              <button
-                type="button"
-                onClick={handleOrbPress}
-                disabled={isPreparing || isProcessing}
-                className={`${BTN_TOUCH} touch-target rounded-full disabled:cursor-not-allowed`}
-                aria-label={
-                  isListening
-                    ? UI_LABELS.tapOrbToStop.en
-                    : UI_LABELS.tapOrbToSpeak.en
-                }
-              >
-                <NozomiOrb size={orbSize} showPlatform className="pointer-events-none" />
-              </button>
-            </div>
-            {isListening && (
-              <WaveformStrip tall className="mx-auto w-full max-w-lg px-2" />
-            )}
-            {showReplyUi && voiceSuggestions.length > 0 && (
-              <SuggestionPills
-                compact
-                suggestions={voiceSuggestions}
-                onSelect={(s) => void sendUserMessage(s.jp, 'voice')}
-              />
-            )}
-          </>
-        )}
-      </main>
-      {!micBlocked && (
-        <div className="flex shrink-0 flex-col items-center gap-2 px-6 pt-1 pb-6 safe-bottom">
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="presence-screen" data-testid="listen-page">
+      <AppHeader compact onClose={handleLeave} onSettings={() => navigate('/settings')} />
+      <PresenceStatusRow speechState={speechState} orbState={orbState} />
+
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <FloatingTurnBubbles
+          messages={messages}
+          onViewHistory={() => setHistoryOpen(true)}
+        />
+
+        <section
+          className={`presence-stage ${orbState === 'thinking' ? 'presence-dimmed' : ''}`}
+        >
+          <button
+            type="button"
+            onClick={handleOrbPress}
+            disabled={isPreparing || isProcessing}
+            className="presence-orb-anchor touch-target touch-manipulation disabled:cursor-not-allowed"
+            aria-label={
+              isListening
+                ? UI_LABELS.tapOrbToStop.en
+                : UI_LABELS.tapOrbToSpeak.en
+            }
+          >
+            <span className="presence-orb-glow" aria-hidden />
+            <span className="presence-orb-ring" aria-hidden />
+            <NozomiOrb size={orbSize} showPlatform className="relative z-10 pointer-events-none" />
+          </button>
+
           {isListening && (
-            <button
-              type="button"
-              onClick={finishRecording}
-              className={`${BTN_TOUCH} touch-target flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border-2 border-nozomi-purple/60 bg-nozomi-surface/80 text-nozomi-text glow-purple`}
-              aria-label={UI_LABELS.doneSpeaking.en}
-            >
-              <IconStop size={26} />
-            </button>
+            <WaveformStrip tall className="absolute bottom-0 mx-auto w-full max-w-xs px-4 opacity-80" />
           )}
-          <LanguageText text={statusText} size="sm" align="center" />
+
           {!isCapturing && !isProcessing && (
-            <div className="flex w-full max-w-xs gap-2">
-              <button
-                type="button"
-                onClick={beginListening}
-                className={`${BTN_ROW_SM} flex-1 border border-nozomi-purple/50`}
-              >
-                <LanguageText
-                  text={UI_LABELS.continueTalking}
-                  size="sm"
-                  align="center"
-                  passive
-                />
-              </button>
-              {hasTurn && (
-                <button
-                  type="button"
-                  onClick={() => navigate('/chat')}
-                  className={`${BTN_ROW_SM} flex-1 bg-nozomi-purple`}
-                >
-                  <LanguageText
-                    text={UI_LABELS.openChat}
-                    size="sm"
-                    align="center"
-                    passive
-                  />
-                </button>
-              )}
+            <div className="presence-hint mt-3 max-w-xs">
+              <LanguageText text={statusHint} size="sm" align="center" passive />
             </div>
           )}
-        </div>
-      )}
+
+          <ListeningMicHint />
+          <LiveTranscript speechState={speechState} />
+        </section>
+
+        {showReplyUi && (
+          <PresenceSuggestions
+            suggestions={voiceSuggestions}
+            selectedKey={pinnedSuggestionKey}
+            onSelect={(s) => {
+              const idx = voiceSuggestions.findIndex(
+                (x, i) => suggestionKey(x, i) === suggestionKey(s, i),
+              )
+              setVoicePinnedSuggestion(s)
+              if (settings.suggestionVoiceEnabled) {
+                stopSpeaking()
+                speakJapanese(s.jp, {
+                  rate: settings.voiceRate,
+                  pitch: settings.voicePitch,
+                })
+              }
+              if (!isCapturing && !isProcessing) {
+                beginListening()
+              }
+            }}
+          />
+        )}
+      </div>
+
+      <PresenceDock
+        left={{
+          id: 'retry',
+          label: UI_LABELS.continueTalking,
+          icon: 'refresh',
+          onClick: beginListening,
+          disabled: isCapturing || isProcessing,
+        }}
+        center={{
+          id: 'mic',
+          label: UI_LABELS.speak,
+          icon: 'mic',
+          onClick: handleOrbPress,
+          primary: true,
+          disabled: isPreparing || isProcessing,
+        }}
+        right={{
+          id: 'chat',
+          label: hasTurn ? UI_LABELS.openChat : UI_LABELS.openChat,
+          icon: 'chat',
+          onClick: () => navigate('/chat'),
+        }}
+      />
+
+      <ChatHistorySheet
+        open={historyOpen}
+        messages={messages}
+        onClose={() => setHistoryOpen(false)}
+      />
     </div>
   )
 }

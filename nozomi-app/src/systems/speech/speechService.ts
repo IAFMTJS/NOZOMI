@@ -6,8 +6,10 @@ import {
 } from '@/systems/speech/micSessionRecorder'
 import {
   getLastOfflineSttError,
+  isOfflineSttReady,
   preloadOfflineStt,
   transcribeAudioBlob,
+  whenOfflineSttReady,
 } from '@/systems/speech/offlineStt'
 import { getSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
@@ -101,6 +103,8 @@ export function isListenSessionActive(): boolean {
 }
 
 /** Console diagnostics — call `nozomiVoiceDump()` in devtools. */
+export { isOfflineSttReady, whenOfflineSttReady }
+
 export function getSttDebugState(): Record<string, unknown> {
   return {
     listenGeneration,
@@ -121,6 +125,7 @@ export function getSttDebugState(): Record<string, unknown> {
     hasRecognition: !!recognition,
     sttEngine: activeSttEngine,
     offlineSttError: getLastOfflineSttError(),
+    offlineSttReady: isOfflineSttReady(activeListenLang),
     signals: getListenSignals(),
   }
 }
@@ -450,6 +455,41 @@ function startRecordedListening(
   recognition = null
   preloadOfflineStt(activeListenLang)
 
+  let micRecorderReady = false
+  let sttModelReady = isOfflineSttReady(activeListenLang)
+
+  const maybeStartListening = () => {
+    if (listenGeneration !== generation || !listenSession || listenSession.stopped) {
+      return
+    }
+    if (micRecorderReady && sttModelReady) {
+      signalAudioStart = true
+      voiceDebug('rec:ready', { generation, sttModelReady: true })
+      dispatch('onStateChange', 'listening')
+    }
+  }
+
+  void whenOfflineSttReady(activeListenLang)
+    .then(() => {
+      if (listenGeneration !== generation || !listenSession || listenSession.stopped) {
+        return
+      }
+      sttModelReady = true
+      voiceDebug('offline-stt:preload-done', { generation, lang: activeListenLang })
+      maybeStartListening()
+    })
+    .catch((err) => {
+      voiceDebugError('offline-stt:preload-blocked', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      dispatch('onError', {
+        code: 'start-failed',
+        message:
+          err instanceof Error ? err.message : 'Speech model failed to load',
+      })
+      dispatch('onStateChange', 'error')
+    })
+
   voiceDebug('rec:session-start', { generation, lang: activeListenLang })
   dispatch('onStateChange', 'permission_pending')
 
@@ -458,9 +498,9 @@ function startRecordedListening(
       if (listenGeneration !== generation || !listenSession || listenSession.stopped) {
         return
       }
-      signalAudioStart = true
-      voiceDebug('rec:ready', { generation })
-      dispatch('onStateChange', 'listening')
+      micRecorderReady = true
+      voiceDebug('rec:mic-ready', { generation, sttModelReady })
+      maybeStartListening()
     },
     onLevel: (level) => {
       if (level > 0.1) signalSoundStart = true

@@ -8,7 +8,14 @@ import { devNetworkUrlsPlugin } from './plugins/devNetworkUrls'
 
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(__dirname, 'src') },
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      // transformers.js imports /webgpu; route to WASM bundle (WebGPU load hangs on some Windows GPUs).
+      'onnxruntime-web/webgpu': path.resolve(
+        __dirname,
+        'node_modules/onnxruntime-web/dist/ort.wasm.bundle.min.mjs',
+      ),
+    },
   },
   plugins: [
     basicSsl(),
@@ -52,11 +59,20 @@ export default defineConfig({
       },
     }),
   ],
+  optimizeDeps: {
+    // Keep ORT + transformers on their published ESM graph (avoids wasm/version skew in prebundle).
+    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+  },
   server: {
     host: true,
     port: 5173,
     strictPort: false,
     allowedHosts: true,
+    // Required for onnxruntime-web threaded WASM (local Whisper STT).
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
     hmr: {
       protocol: 'wss',
     },
@@ -65,5 +81,9 @@ export default defineConfig({
     host: true,
     port: 4173,
     allowedHosts: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
   },
 })

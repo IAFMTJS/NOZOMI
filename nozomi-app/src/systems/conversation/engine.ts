@@ -1,6 +1,11 @@
 import { detectIntent, type Intent } from './intent'
 import { detectTopic } from './topic'
-import { pickContextualSentence, type MatchContext } from './replyMatcher'
+import {
+  pickByResponseHints,
+  pickContextualSentence,
+  type MatchContext,
+} from './replyMatcher'
+import { prioritizeConversationalPool } from './engineHelpers'
 import { buildContextualSuggestions } from './contextualSuggestions'
 import {
   lexiconSentencesForConversation,
@@ -209,12 +214,40 @@ async function resolveMessage(
     }
   }
 
+  const scoringText = [matchContext.recentUserText, input].filter(Boolean).join(' ')
+  const hintPick = pickByResponseHints(pool, scoringText, recentJp)
+  if (hintPick) {
+    markSentenceExposure(hintPick)
+    return {
+      message: await blendWithPersonality(mode, 'general', toLanguageText(hintPick)),
+      grammarTags: hintPick.grammarTags,
+      sentenceId: hintPick.id,
+    }
+  }
+
   const picked = contextualPick(pool, input, intent, topic, recentJp, matchContext)
   if (picked) {
     return {
       message: await blendWithPersonality(mode, 'general', toLanguageText(picked)),
       grammarTags: picked.grammarTags,
       sentenceId: picked.id,
+    }
+  }
+
+  const topicLine = pickSentence(
+    pool.filter(
+      (s) =>
+        s.category === topic &&
+        s.jp.length <= 42 &&
+        !recentJp.includes(s.jp),
+    ),
+    recentJp,
+  )
+  if (topicLine) {
+    return {
+      message: await blendWithPersonality(mode, 'general', toLanguageText(topicLine)),
+      grammarTags: topicLine.grammarTags,
+      sentenceId: topicLine.id,
     }
   }
 
@@ -232,8 +265,10 @@ export async function processUserMessage(
   profile: UserProfile,
   context: ConversationTurn[],
   forcedTopic?: string,
+  options?: { suggestionHint?: string; voice?: boolean },
 ): Promise<EngineResponse> {
   const input = rawInput.trim()
+  const voiceMode = options?.voice === true
   const intent = detectIntent(input)
   const topic =
     forcedTopic ??
@@ -264,6 +299,11 @@ export async function processUserMessage(
     )
   }
 
+  pool = prioritizeConversationalPool(pool)
+  if (voiceMode) {
+    pool = boostPoolWithSeeds(pool, level, topic)
+  }
+
   const recentJp = context
     .filter((c) => c.role === 'nozomi')
     .map((c) => c.content)
@@ -275,6 +315,17 @@ export async function processUserMessage(
     .slice(-2)
     .join(' ')
 
+  const recentNozomiText = context
+    .filter((c) => c.role === 'nozomi')
+    .map((c) => c.content)
+    .slice(-1)
+    .join(' ')
+
+  const hint = options?.suggestionHint?.trim()
+  const contextualUserText = [recentNozomiText, recentUserText, hint, input]
+    .filter(Boolean)
+    .join(' ')
+
   const resolved = await resolveMessage(
     intent,
     pool,
@@ -282,14 +333,18 @@ export async function processUserMessage(
     topic,
     recentJp,
     mode,
-    { recentUserText, lexiconHints: lexiconHintsForInput(input) },
+    {
+      recentUserText: contextualUserText,
+      lexiconHints: lexiconHintsForInput(input),
+      voiceMode,
+    },
   )
   const suggestionCount = profile.immersionLevel === 'beginner' ? 3 : 3
   const suggestions = await buildContextualSuggestions({
     topic,
     level,
     nozomiMessage: resolved.message,
-    recentUserText: [recentUserText, input].filter(Boolean).join(' '),
+    recentUserText: contextualUserText,
     count: suggestionCount,
   })
   return {

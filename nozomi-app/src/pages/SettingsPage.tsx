@@ -6,6 +6,7 @@ import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { getSttEngine, setSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
 import { SPEECH_LANG_OPTIONS } from '@/data/speech-lang-options'
+import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import type { ImmersionLevel, LanguageText as LT } from '@/types/domain'
 import { BTN_ROW } from '@/utils/touch'
 
@@ -28,10 +29,13 @@ export function SettingsPage() {
   const setProfile = useNozomiStore((s) => s.setProfile)
   const clearSession = useNozomiStore((s) => s.clearSession)
   const [sttEngine, setSttEngineState] = useState<SttEngine>(getSttEngine)
+  const activeSpeechLabel =
+    SPEECH_LANG_OPTIONS.find((o) => o.key === settings.speechInputLang)?.label.en ??
+    settings.speechInputLang
 
   return (
     <div className="app-page">
-      <AppHeader showBack titleKey="settings" />
+      <AppHeader showBack titleKey="settings" hideSettings />
       <main className="app-page-scroll space-y-4 px-4 py-6">
         <section className="space-y-2">
           <p className="section-label px-1">
@@ -70,6 +74,11 @@ export function SettingsPage() {
           checked={settings.voiceEnabled}
           onChange={(v) => setSettings({ voiceEnabled: v })}
         />
+        <SettingToggle
+          label={UI_LABELS.suggestionVoiceEnabled}
+          checked={settings.suggestionVoiceEnabled}
+          onChange={(v) => setSettings({ suggestionVoiceEnabled: v })}
+        />
 
         <section className="space-y-2">
           <LanguageText text={UI_LABELS.sttEngine} size="sm" />
@@ -95,23 +104,32 @@ export function SettingsPage() {
         </section>
 
         <section className="space-y-2">
-          <LanguageText text={UI_LABELS.speechInputLang} size="sm" />
+          <div className="flex items-baseline justify-between gap-2 px-0.5">
+            <LanguageText text={UI_LABELS.speechInputLang} size="sm" />
+            <p className="shrink-0 text-xs text-nozomi-cyan">{activeSpeechLabel}</p>
+          </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {SPEECH_LANG_OPTIONS.map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
+                aria-pressed={settings.speechInputLang === key}
                 onClick={() => setSettings({ speechInputLang: key })}
                 className={`${BTN_ROW} glass-panel transition ${
                   settings.speechInputLang === key
-                    ? 'border-nozomi-purple ring-1 ring-nozomi-purple/50'
+                    ? 'border-nozomi-purple bg-purple-950/40 ring-1 ring-nozomi-purple/50'
                     : ''
                 }`}
               >
-                <LanguageText text={label} size="sm" align="center" passive />
+                <span className="pointer-events-none block w-full">
+                  <LanguageText text={label} size="sm" align="center" passive />
+                </span>
               </button>
             ))}
           </div>
+          <p className="px-0.5 text-[10px] text-nozomi-muted">
+            STT: {resolveSpeechRecognitionLang(settings.speechInputLang)}
+          </p>
         </section>
         <SettingToggle
           label={UI_LABELS.motionReduce}

@@ -12,13 +12,15 @@ import { TappableJapanese } from './TappableJapanese'
 
 interface Props {
   text: LanguageTextType | Partial<LanguageTextType>
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   align?: 'left' | 'center' | 'right'
   className?: string
   tappable?: boolean
   onWordTap?: (surface: string) => void
   /** Inside <button>: do not steal taps from the parent control */
   passive?: boolean
+  /** Presence layout: clear JP / romaji / EN hierarchy */
+  hierarchy?: 'default' | 'presence'
 }
 
 export function LanguageText({
@@ -29,6 +31,7 @@ export function LanguageText({
   tappable = false,
   onWordTap,
   passive = false,
+  hierarchy = 'default',
 }: Props) {
   const profile = useNozomiStore((s) => s.profile)
   const settings = useNozomiStore((s) => s.settings)
@@ -38,14 +41,34 @@ export function LanguageText({
   const vis = getLanguageVisibility(profile.immersionLevel, settings)
   const [revealed, setRevealed] = useState(false)
 
-  const jpSize =
-    size === 'lg'
+  const presence = hierarchy === 'presence'
+  const jpSize = presence
+    ? size === 'xs'
+      ? 'msg-jp text-xs leading-tight'
+      : size === 'sm'
+        ? 'msg-jp text-sm'
+        : size === 'lg'
+          ? 'msg-jp text-2xl md:text-3xl'
+          : 'msg-jp text-lg'
+    : size === 'lg'
       ? 'text-2xl md:text-3xl font-semibold'
       : size === 'sm'
         ? 'text-base font-medium'
         : 'text-xl font-semibold'
-  const romajiSize = size === 'lg' ? 'text-sm' : 'text-xs'
-  const enSize = vis.englishSubtle ? 'text-xs opacity-50' : 'text-xs opacity-70'
+  const romajiSize = presence
+    ? size === 'xs'
+      ? 'msg-romaji text-[10px] leading-tight'
+      : 'msg-romaji text-xs'
+    : size === 'lg'
+      ? 'text-sm'
+      : 'text-xs'
+  const enSize = presence
+    ? size === 'xs'
+      ? 'msg-en text-[10px] leading-tight'
+      : 'msg-en text-[0.6875rem]'
+    : vis.englishSubtle
+      ? 'text-xs opacity-50'
+      : 'text-xs opacity-70'
 
   const alignClass =
     align === 'center'
@@ -88,15 +111,21 @@ export function LanguageText({
       {vis.showJapanese && (
         <TappableJapanese
           text={display.jp}
-          className={`${jpSize} text-nozomi-text leading-snug`}
+          className={`${jpSize} ${presence ? '' : 'text-nozomi-text'} leading-snug`}
           onWordTap={wordTap}
         />
       )}
       {showRomaji && (
-        <p className={`${romajiSize} text-nozomi-muted italic`}>{display.romaji}</p>
+        <p
+          className={`${romajiSize} ${presence ? '' : 'text-nozomi-muted italic'}`}
+        >
+          {display.romaji}
+        </p>
       )}
       {showEnglish && (
-        <p className={`${enSize} text-nozomi-muted`}>{display.en}</p>
+        <p className={`${enSize} ${presence ? '' : 'text-nozomi-muted'}`}>
+          {display.en}
+        </p>
       )}
       {canReveal && (
         <button

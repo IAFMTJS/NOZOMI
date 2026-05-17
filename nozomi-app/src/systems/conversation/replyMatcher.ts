@@ -1,6 +1,7 @@
 import { preferTrilingual } from '@/utils/languageCompleteness'
 import { tokenizeJapanese, isJapaneseToken } from '@/utils/japaneseTokens'
 import { isScenarioIntent } from '@/data/scenarioIntents'
+import { isConversationalReply } from './engineHelpers'
 import { RESPONSE_HINTS } from './responseHints'
 import type { Intent } from './intent'
 import type { Sentence } from '@/types/domain'
@@ -10,6 +11,8 @@ export type MatchContext = {
   recentUserText?: string
   /** Fragments from JMdict / lexicon lookups on the current input */
   lexiconHints?: { jpHints: string[]; enHints: string[] }
+  /** STT input is noisier — accept slightly weaker lexical matches */
+  voiceMode?: boolean
 }
 
 function tokenizeLatin(input: string): string[] {
@@ -95,15 +98,6 @@ function scoreSentence(
     }
   }
 
-  if (input.length >= 2) {
-    for (const ch of input) {
-      if (/[\u3040-\u9fff]/.test(ch) && sentence.jp.includes(ch)) {
-        score += 0.5
-        signal += 0.5
-      }
-    }
-  }
-
   for (const hint of RESPONSE_HINTS) {
     if (!hint.re.test(input)) continue
     if (hint.jpHints.some((h) => sentence.jp.includes(h))) {
@@ -157,7 +151,31 @@ function scoreSentence(
     signal += 5
   }
 
+  if (isConversationalReply(sentence)) {
+    score += 2
+    signal += 2
+  }
+
   return { total: score, signal }
+}
+
+/** Direct hint→sentence match when fuzzy scoring fails (common for voice / English). */
+export function pickByResponseHints(
+  pool: Sentence[],
+  input: string,
+  excludeJp: string[],
+): Sentence | null {
+  const conversational = pool.filter(isConversationalReply)
+  for (const hint of RESPONSE_HINTS) {
+    if (!hint.re.test(input)) continue
+    const match = conversational.find(
+      (s) =>
+        !excludeJp.includes(s.jp) &&
+        hint.jpHints.some((h) => h.length > 0 && s.jp.includes(h)),
+    )
+    if (match) return match
+  }
+  return null
 }
 
 export function pickContextualSentence(
@@ -175,8 +193,13 @@ export function pickContextualSentence(
   const candidates = base.filter(
     (s) => !excludeJp.includes(s.jp) && !recentIds.has(s.id),
   )
-  const list = candidates.length ? candidates : preferTrilingual(pool)
+  let list = candidates.length ? candidates : preferTrilingual(pool)
   if (!list.length) return null
+
+  const conversational = list.filter(isConversationalReply)
+  if (conversational.length >= 3) {
+    list = conversational
+  }
 
   const scored = list.map((sentence) => ({
     sentence,
@@ -192,11 +215,20 @@ export function pickContextualSentence(
   const best = ranked[0]
   if (!best) return null
 
+  if (matchContext.voiceMode) {
+    const conversationalBest = ranked.find((r) =>
+      isConversationalReply(r.sentence),
+    )
+    return conversationalBest?.sentence ?? best.sentence
+  }
+
   const lowSignalIntent =
     intent === 'statement' || intent === 'question' || intent === 'unknown'
   if (lowSignalIntent && best.signal < 2) {
     const topicFallback = ranked.find(
-      (r) => r.sentence.category === topic && r.sentence.jp.length <= 40,
+      (r) =>
+        r.sentence.category === topic &&
+        isConversationalReply(r.sentence),
     )
     if (topicFallback && topicFallback.signal >= 1) {
       return topicFallback.sentence

@@ -162,6 +162,8 @@ export interface AppSettings {
   /** Browser speech-to-text language */
   speechInputLang: SpeechInputLang
   voiceEnabled: boolean
+  /** Read reply suggestions aloud when selected (voice mode) */
+  suggestionVoiceEnabled: boolean
   voiceRate: number
   voicePitch: number
   orbIntensity: number
@@ -177,6 +179,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showEnglish: true,
   speechInputLang: 'auto',
   voiceEnabled: true,
+  suggestionVoiceEnabled: false,
   voiceRate: 1,
   voicePitch: 1,
   orbIntensity: 1,
@@ -195,5 +198,5 @@ export const DEFAULT_PROFILE: UserProfile = {
   personalityMode: 'calm',
   xp: 0,
   streakDays: 0,
-  onboardingComplete: false,
+  onboardingComplete: true,
 }

@@ -9,6 +9,11 @@ describe('detectIntent', () => {
 
   it('detects question', () => {
     expect(detectIntent('今日はどう？')).toBe('question')
+    expect(detectIntent('ラーメン好きか')).toBe('question')
+  })
+
+  it('detects romaji greeting from speech', () => {
+    expect(detectIntent('konnichiwa')).toBe('greeting')
   })
 
   it('detects farewell', () => {

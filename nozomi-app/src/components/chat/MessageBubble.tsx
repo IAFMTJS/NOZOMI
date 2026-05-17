@@ -11,6 +11,7 @@ interface Props {
   message: ChatMessage
   onWordTap?: (surface: string) => void
   compact?: boolean
+  variant?: 'default' | 'float' | 'history'
 }
 
 function formatTime(ts: number): string {
@@ -18,10 +19,18 @@ function formatTime(ts: number): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export function MessageBubble({ message, onWordTap, compact = false }: Props) {
+export function MessageBubble({
+  message,
+  onWordTap,
+  compact = false,
+  variant = 'default',
+}: Props) {
   const isUser = message.role === 'user'
   const [grammarOpen, setGrammarOpen] = useState(false)
-  const canShowGrammar = !isUser && Boolean(message.grammarTags)
+  const isFloat = variant === 'float'
+  const isHistory = variant === 'history'
+  const canShowGrammar =
+    !isUser && Boolean(message.grammarTags) && !isFloat && !isHistory
   const motionProps = useMotionProps({
     initial: { opacity: 0, y: 10 },
     animate: { opacity: 1, y: 0 },
@@ -34,7 +43,13 @@ export function MessageBubble({ message, onWordTap, compact = false }: Props) {
     >
       <div
         className={`max-w-[92%] ${compact ? 'px-2.5 py-1.5' : 'px-4 py-3'} ${
-          isUser ? 'bubble-user' : 'bubble-ai'
+          isFloat
+            ? `float-bubble ${isUser ? 'float-bubble-user' : 'float-bubble-ai'}`
+            : isHistory
+              ? `float-bubble ${isUser ? 'float-bubble-user' : 'float-bubble-ai'}`
+              : isUser
+                ? 'bubble-user'
+                : 'bubble-ai'
         }`}
       >
         {!compact &&
@@ -58,6 +73,7 @@ export function MessageBubble({ message, onWordTap, compact = false }: Props) {
           text={message.text}
           size={compact ? 'sm' : 'md'}
           align={isUser ? 'right' : 'left'}
+          hierarchy={isFloat || isHistory ? 'presence' : 'default'}
           tappable={!isUser && Boolean(onWordTap)}
           onWordTap={onWordTap}
         />

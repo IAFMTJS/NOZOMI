@@ -4,7 +4,6 @@ import { HomePage } from '@/pages/HomePage'
 import { ChatPage } from '@/pages/ChatPage'
 import { ListeningPage } from '@/pages/ListeningPage'
 import { WordPage } from '@/pages/WordPage'
-import { OnboardingPage } from '@/pages/OnboardingPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import {
   ensureDataLoaded,
@@ -16,8 +15,10 @@ import { AppShell } from '@/components/layout/AppShell'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { SpeechListenProvider } from '@/contexts/SpeechListenContext'
 import { DevConnectBanner } from '@/components/dev/DevConnectBanner'
+import { useStoreHydrated } from '@/hooks/useStoreHydrated'
 
 export default function App() {
+  const storeHydrated = useStoreHydrated()
   const setDataReady = useNozomiStore((s) => s.setDataReady)
 
   useEffect(() => {
@@ -27,6 +28,16 @@ export default function App() {
       .then(() => setDataReady(true))
       .catch(() => setDataReady(true))
   }, [setDataReady])
+
+  if (!storeHydrated) {
+    return (
+      <div
+        className="flex h-dvh items-center justify-center bg-nozomi-bg"
+        aria-busy="true"
+        aria-label="Loading"
+      />
+    )
+  }
 
   return (
     <ErrorBoundary>
@@ -41,7 +52,7 @@ export default function App() {
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/listen" element={<ListeningPage />} />
                   <Route path="/word" element={<WordPage />} />
-                  <Route path="/onboarding" element={<OnboardingPage />} />
+                  <Route path="/onboarding" element={<Navigate to="/" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

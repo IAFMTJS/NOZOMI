@@ -49,6 +49,7 @@ export type UiLabelKey =
   | 'voiceSpeed'
   | 'voicePitch'
   | 'voiceEnabled'
+  | 'suggestionVoiceEnabled'
   | 'speechInputLang'
   | 'speechLangAuto'
   | 'speechLangJa'
@@ -274,6 +275,11 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     jp: '声を再生',
     romaji: 'Koe wo saisei',
     en: 'Play Nozomi voice',
+  },
+  suggestionVoiceEnabled: {
+    jp: '提案を読み上げ',
+    romaji: 'Teian wo yomiage',
+    en: 'Read suggestions aloud',
   },
   speechInputLang: {
     jp: '音声入力の言語',

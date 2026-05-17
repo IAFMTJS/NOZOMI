@@ -10,10 +10,16 @@ import {
   speakJapanese,
   stopSpeaking,
 } from '@/systems/speech/speechService'
+import { prepareVoiceInput } from '@/systems/speech/prepareVoiceInput'
 import { formatUserMessageTextAsync } from '@/utils/formatUserInput'
 import type { ChatMessage, ScenarioCategory, StorySession } from '@/types/domain'
 
 type ConversationSurface = 'chat' | 'voice'
+
+type SendUserMessageOptions = {
+  /** Hint from a pinned voice suggestion (not shown as a user message) */
+  suggestionHint?: string
+}
 
 function msgId() {
   return `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -69,7 +75,9 @@ export function useConversation() {
       pushContext(surface, { role: 'nozomi', content: text.jp, topic })
       if (topic) setSessionTopic(surface, topic)
 
-      if (settings.voiceEnabled) {
+      const shouldSpeak =
+        surface === 'voice' ? true : settings.voiceEnabled
+      if (shouldSpeak) {
         setOrbState('speaking')
         speakJapanese(text.jp, {
           rate: settings.voiceRate,
@@ -121,17 +129,36 @@ export function useConversation() {
   )
 
   const sendUserMessage = useCallback(
-    async (raw: string, surface: ConversationSurface = 'chat') => {
+    async (
+      raw: string,
+      surface: ConversationSurface = 'chat',
+      opts?: SendUserMessageOptions,
+    ) => {
       const input = raw.trim()
       if (!input) return
+
+      const prepared =
+        surface === 'voice' ? prepareVoiceInput(input) : null
+      const displayInput = prepared?.display ?? input
+      const engineInput = prepared?.engine ?? input
+
+      const stateAtSend = useNozomiStore.getState()
+      const suggestionHint =
+        opts?.suggestionHint ??
+        (surface === 'voice'
+          ? stateAtSend.voicePinnedSuggestion?.jp
+          : undefined)
+      if (surface === 'voice' && suggestionHint) {
+        stateAtSend.setVoicePinnedSuggestion(null)
+      }
 
       stopSpeaking()
       setOrbState('thinking')
 
-      const userText = await formatUserMessageTextAsync(input).catch(() => ({
-        jp: input,
+      const userText = await formatUserMessageTextAsync(displayInput).catch(() => ({
+        jp: displayInput,
         romaji: '',
-        en: input,
+        en: displayInput,
       }))
       const userMessage: ChatMessage = {
         id: msgId(),
@@ -141,7 +168,7 @@ export function useConversation() {
       }
       if (surface === 'voice') addVoiceMessage(userMessage)
       else addChatMessage(userMessage)
-      pushContext(surface, { role: 'user', content: input })
+      pushContext(surface, { role: 'user', content: engineInput })
 
       const state = useNozomiStore.getState()
       const session = surface === 'voice' ? state.voiceSession : state.chatSession
@@ -160,10 +187,14 @@ export function useConversation() {
         }
 
         const response = await processUserMessage(
-          input,
+          engineInput,
           profile,
           contextBuffer,
           forcedTopic,
+          {
+            ...(suggestionHint ? { suggestionHint } : {}),
+            voice: surface === 'voice',
+          },
         )
         applyResponse(response, surface)
       } catch {
@@ -198,6 +229,15 @@ export function useConversation() {
     applyResponse(opening, 'chat')
   }, [applyResponse, profile, chatSession.topicStack])
 
+  const startVoiceConversation = useCallback(async () => {
+    const state = useNozomiStore.getState()
+    if (state.voiceMessages.length > 0) return
+    const topic = state.voiceSession.topicStack[0] ?? 'daily'
+    setOrbState('thinking')
+    const opening = await createOpeningTurn(profile, topic)
+    applyResponse(opening, 'voice')
+  }, [applyResponse, profile, setOrbState])
+
   const startScenarioConversation = useCallback(
     async (category: ScenarioCategory) => {
       setOrbState('thinking')
@@ -210,6 +250,7 @@ export function useConversation() {
   return {
     sendUserMessage,
     startConversation,
+    startVoiceConversation,
     startScenarioConversation,
     deliverNozomi,
   }

@@ -3,20 +3,31 @@ import { IconChatBubble } from '@/components/ui/Icons'
 import type { Suggestion } from '@/types/domain'
 import { UI_LABELS } from '@/data/ui-labels'
 
+export function suggestionKey(s: Suggestion, index: number): string {
+  return s.id ?? `${s.jp}-${index}`
+}
+
 interface Props {
   suggestions: Suggestion[]
   onSelect: (s: Suggestion) => void
   compact?: boolean
+  selectedKey?: string | null
 }
 
-export function SuggestionPills({ suggestions, onSelect, compact = false }: Props) {
+export function SuggestionPills({
+  suggestions,
+  onSelect,
+  compact = false,
+  selectedKey = null,
+}: Props) {
   if (!suggestions.length) return null
 
   const cards = suggestions.map((s, i) => (
     <SuggestionCard
-      key={s.id ?? `${s.jp}-${i}`}
+      key={suggestionKey(s, i)}
       suggestion={s}
       compact={compact}
+      selected={suggestionKey(s, i) === selectedKey}
       onSelect={onSelect}
     />
   ))
@@ -50,16 +61,20 @@ function SuggestionCard({
   suggestion,
   onSelect,
   compact = false,
+  selected = false,
 }: {
   suggestion: Suggestion
   onSelect: (s: Suggestion) => void
   compact?: boolean
+  selected?: boolean
 }) {
+  const base = compact ? 'suggestion-card-compact' : 'suggestion-card'
   return (
     <button
       type="button"
       onClick={() => onSelect(suggestion)}
-      className={`${compact ? 'suggestion-card-compact' : 'suggestion-card'} shrink-0 snap-start touch-manipulation active:scale-[0.98]`}
+      aria-pressed={selected}
+      className={`${base}${selected ? ' suggestion-card-selected' : ''} shrink-0 snap-start touch-manipulation active:scale-[0.98]`}
     >
       <span
         className={`flex shrink-0 items-center justify-center rounded-lg bg-purple-950/50 text-nozomi-purple ${

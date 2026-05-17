@@ -27,6 +27,8 @@ interface NozomiState {
   voiceContextBuffer: ConversationTurn[]
   chatSuggestions: import('@/types/domain').Suggestion[]
   voiceSuggestions: import('@/types/domain').Suggestion[]
+  /** Voice-mode hint only — not posted as a user chat message */
+  voicePinnedSuggestion: import('@/types/domain').Suggestion | null
   audioLevel: number
   liveTranscript: string
   dataReady: boolean
@@ -43,6 +45,9 @@ interface NozomiState {
   setSuggestions: (
     surface: 'chat' | 'voice',
     s: import('@/types/domain').Suggestion[],
+  ) => void
+  setVoicePinnedSuggestion: (
+    s: import('@/types/domain').Suggestion | null,
   ) => void
   pushContext: (surface: 'chat' | 'voice', t: ConversationTurn) => void
   clearSession: () => void
@@ -89,6 +94,7 @@ export const useNozomiStore = create<NozomiState>()(
       voiceContextBuffer: [],
       chatSuggestions: [],
       voiceSuggestions: [],
+      voicePinnedSuggestion: null,
       audioLevel: 0,
       liveTranscript: '',
       dataReady: false,
@@ -109,9 +115,11 @@ export const useNozomiStore = create<NozomiState>()(
       setSuggestions: (surface, suggestions) =>
         set(
           surface === 'voice'
-            ? { voiceSuggestions: suggestions }
+            ? { voiceSuggestions: suggestions, voicePinnedSuggestion: null }
             : { chatSuggestions: suggestions },
         ),
+      setVoicePinnedSuggestion: (voicePinnedSuggestion) =>
+        set({ voicePinnedSuggestion }),
       pushContext: (surface, t) =>
         set((s) => ({
           ...(surface === 'voice'
@@ -144,6 +152,7 @@ export const useNozomiStore = create<NozomiState>()(
           voiceContextBuffer: [],
           chatSuggestions: [],
           voiceSuggestions: [],
+          voicePinnedSuggestion: null,
           chatSession: defaultSession(),
           voiceSession: defaultSession(),
           orbState: 'idle',
@@ -240,11 +249,14 @@ export const useNozomiStore = create<NozomiState>()(
     }),
     {
       name: 'nozomi-storage',
-      version: 2,
+      version: 3,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Partial<NozomiState>
         if (fromVersion < 2 && state.settings?.speechInputLang === 'en-US') {
           state.settings = { ...state.settings, speechInputLang: 'auto' }
+        }
+        if (fromVersion < 3 && state.profile) {
+          state.profile = { ...state.profile, onboardingComplete: true }
         }
         return state as NozomiState
       },
@@ -276,12 +288,8 @@ export const useNozomiStore = create<NozomiState>()(
           ...p,
           profile: mergeProfile(current.profile, p.profile),
           settings: {
-            ...current.settings,
-            ...p.settings,
-            favoriteVocabIds:
-              p.settings?.favoriteVocabIds ?? current.settings.favoriteVocabIds,
-            speechInputLang:
-              p.settings?.speechInputLang ?? current.settings.speechInputLang,
+            ...DEFAULT_SETTINGS,
+            ...(p.settings ?? {}),
           },
           chatMessages: migratedChatMessages,
           voiceMessages: p.voiceMessages ?? current.voiceMessages,

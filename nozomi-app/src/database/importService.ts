@@ -170,7 +170,15 @@ export async function getSentencesByFilter(opts: {
     filtered = filtered.filter((s) => s.jlptLevel === opts.jlptLevel)
   }
   const limit = opts.limit ?? 50
-  return filtered.slice(0, limit)
+  const conversational = filtered.filter(
+    (s) => s.jp.length <= 52 && !/^(彼は|彼女は|彼ら)/.test(s.jp.trim()),
+  )
+  const source =
+    conversational.length >= Math.min(8, limit)
+      ? conversational
+      : filtered
+  const shuffled = [...source].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, limit)
 }
 
 export async function getRandomSentences(

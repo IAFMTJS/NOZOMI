@@ -99,6 +99,20 @@ export function IconSpeaker({ size = 20, className = '' }: IconProps) {
   )
 }
 
+export function IconRefresh({ size = 20, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M4 12a8 8 0 0113.66-5.66M20 12a8 8 0 01-13.66 5.66M16 6h4V2M8 18H4v4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function IconStop({ size = 22, className = '' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>

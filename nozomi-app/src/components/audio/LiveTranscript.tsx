@@ -24,7 +24,7 @@ export function LiveTranscript({ speechState }: Props) {
 
   return (
     <div
-      className="glass-panel mx-auto w-full max-w-xs shrink-0 space-y-1 px-2.5 py-2 text-center"
+      className="mx-auto w-full max-w-xs shrink-0 space-y-1 px-2 py-1 text-center opacity-80"
       aria-live="polite"
       data-testid="live-transcript"
     >

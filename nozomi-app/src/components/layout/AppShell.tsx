@@ -11,7 +11,7 @@ const NAV = [
   { to: '/settings', label: UI_LABELS.settings, icon: '⚙' },
 ] as const
 
-const FULL_BLEED = new Set(['/listen', '/onboarding'])
+const FULL_BLEED = new Set(['/listen'])
 
 interface Props {
   children: React.ReactNode

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickContextualSentence } from './replyMatcher'
+import { pickByResponseHints, pickContextualSentence } from './replyMatcher'
 import type { Sentence } from '@/types/domain'
 
 const pool: Sentence[] = [
@@ -124,6 +124,11 @@ describe('pickContextualSentence', () => {
       [],
       new Set(),
     )
+    expect(picked?.jp).toBe('お疲れさま。')
+  })
+
+  it('pickByResponseHints matches tired input to empathetic reply', () => {
+    const picked = pickByResponseHints(pool, "I'm tired today", [])
     expect(picked?.jp).toBe('お疲れさま。')
   })
 

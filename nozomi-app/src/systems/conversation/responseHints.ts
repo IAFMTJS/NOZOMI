@@ -100,4 +100,34 @@ export const RESPONSE_HINTS: ResponseHint[] = [
     jpHints: ['宿題', 'テスト', '授業', '先生', '勉強', '難'],
     enHints: ['homework', 'exam', 'class', 'teacher', 'study', 'hard'],
   },
+  {
+    re: /(genki|元気|調子|choushi|chooshi|how are you)/i,
+    jpHints: ['元気', '調子', 'どう', '今日'],
+    enHints: ['fine', 'well', 'how', 'today'],
+  },
+  {
+    re: /(konn?ichiwa|konbanwa|ohayou|hello|hey there)/i,
+    jpHints: ['こんにちは', '元気', '今日', 'どう'],
+    enHints: ['hello', 'hi', 'how', 'today'],
+  },
+  {
+    re: /(fine|good|great|okay|alright|not bad|pretty good|元気|よかった|まあまあ)/i,
+    jpHints: ['よかった', 'いい', '楽', '元気', 'そっか'],
+    enHints: ['good', 'glad', 'nice', 'great', 'fine'],
+  },
+  {
+    re: /(how was your day|今日はどう|kyou wa dou|about today)/i,
+    jpHints: ['今日', 'どう', '忙', '疲', '楽'],
+    enHints: ['day', 'today', 'how', 'was'],
+  },
+  {
+    re: /(nothing much|not much|別に|特に)/i,
+    jpHints: ['そっか', 'まあ', '何', '今日'],
+    enHints: ['nothing', 'much', 'really'],
+  },
+  {
+    re: /(love|like|好き|suki)/i,
+    jpHints: ['好き', 'いい', '楽', 'そう'],
+    enHints: ['like', 'love', 'favorite'],
+  },
 ]
