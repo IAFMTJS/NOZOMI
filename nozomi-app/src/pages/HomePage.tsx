@@ -14,6 +14,7 @@ import { useOrbSize } from '@/hooks/useVisualViewportHeight'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { useSpeechListen } from '@/contexts/SpeechListenContext'
+import { startMicCaptureFromGesture } from '@/systems/speech/speechService'
 import type { ScenarioCategory } from '@/types/domain'
 
 export function HomePage() {
@@ -40,6 +41,11 @@ export function HomePage() {
     navigate('/listen', { state: { storyStart: storyId } })
   }
 
+  const handleSpeak = () => {
+    startMicCaptureFromGesture()
+    void armAndGoToListen()
+  }
+
   return (
     <div className="presence-screen" data-testid="home-page">
       <AppHeader compact onSettings={() => navigate('/settings')} />
@@ -54,7 +60,7 @@ export function HomePage() {
         <section className="presence-stage">
           <button
             type="button"
-            onClick={() => void armAndGoToListen()}
+            onClick={handleSpeak}
             className="presence-orb-anchor touch-target touch-manipulation"
             aria-label={UI_LABELS.speak.en}
           >
@@ -93,7 +99,7 @@ export function HomePage() {
           id: 'mic',
           label: UI_LABELS.speak,
           icon: 'mic',
-          onClick: () => void armAndGoToListen(),
+          onClick: handleSpeak,
         }}
         right={{
           id: 'suggestions',

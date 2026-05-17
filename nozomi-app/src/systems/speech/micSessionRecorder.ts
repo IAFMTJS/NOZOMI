@@ -1,4 +1,5 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/systems/speech/audioLevel'
+import { consumeGestureMicStream } from '@/systems/speech/micGesture'
 import { voiceDebug, voiceDebugError } from '@/systems/speech/voiceDebug'
 
 type RecorderCallbacks = {
@@ -9,6 +10,18 @@ type RecorderCallbacks = {
 
 const MIC_OPEN_RETRIES = 3
 const MIC_RETRY_DELAY_MS = 180
+
+function pickRecorderMime(): string {
+  for (const mime of [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/aac',
+  ]) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime
+  }
+  return ''
+}
 
 async function openMicStream(): Promise<MediaStream> {
   const constraints: MediaStreamConstraints = {
@@ -102,19 +115,14 @@ export async function startMicSession(
   }
 
   try {
-    stream = await openMicStream()
+    stream = (await consumeGestureMicStream()) ?? (await openMicStream())
     if (sessionGen !== generation) {
       stream.getTracks().forEach((t) => t.stop())
       stream = null
       return false
     }
 
-    const mime =
-      MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : ''
+    const mime = pickRecorderMime()
 
     recorderMime = mime
     recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)

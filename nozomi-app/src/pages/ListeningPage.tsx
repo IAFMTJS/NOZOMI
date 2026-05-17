@@ -25,8 +25,11 @@ import { useSpeechOutputActive } from '@/hooks/useSpeechOutputActive'
 import {
   isListenSessionActive,
   micNeedsSecureContext,
+  releaseOfflineSttPipeline,
   speechSupported,
+  startMicCaptureFromGesture,
 } from '@/systems/speech/speechService'
+import { isMobileDevice } from '@/utils/device'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 import type { ScenarioCategory } from '@/types/domain'
@@ -93,8 +96,8 @@ export function ListeningPage() {
     voiceSuggestions.length > 0 &&
     (!isCapturing || voicePinnedSuggestion != null)
 
-  const orbPreferred = 340
-  const orbReserved = 260
+  const orbPreferred = isMobileDevice() ? 300 : 340
+  const orbReserved = isMobileDevice() ? 300 : 260
   const orbSize = useOrbSize(orbPreferred, orbReserved)
 
   const bootedRef = useRef(false)
@@ -182,6 +185,7 @@ export function ListeningPage() {
     return () => {
       listenMountedRef.current = false
       detachUi()
+      if (isMobileDevice()) releaseOfflineSttPipeline()
       leaveCancelTimerRef.current = setTimeout(() => {
         leaveCancelTimerRef.current = null
         if (
@@ -202,6 +206,7 @@ export function ListeningPage() {
   }
 
   const handleOrbPress = () => {
+    startMicCaptureFromGesture()
     if (isListening) {
       finishRecording()
       return
@@ -327,6 +332,7 @@ export function ListeningPage() {
                 speakJapanese(s.jp, {
                   rate: settings.voiceRate,
                   pitch: settings.voicePitch,
+                  voiceUri: settings.voiceUri,
                 })
               } else if (!dockBeginDisabled) {
                 beginListening()

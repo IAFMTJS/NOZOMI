@@ -2,7 +2,7 @@ import { IconMic } from '@/components/ui/Icons'
 import { UI_LABELS } from '@/data/ui-labels'
 import { BTN_ICON } from '@/utils/touch'
 import { useSpeechListen } from '@/contexts/SpeechListenContext'
-import { speechSupported } from '@/systems/speech/speechService'
+import { speechSupported, startMicCaptureFromGesture } from '@/systems/speech/speechService'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 interface Props {
@@ -20,6 +20,7 @@ export function MicButton({ size = 'md', className = '', onDenied }: Props) {
       onDenied?.()
       return
     }
+    startMicCaptureFromGesture()
     void armAndGoToListen()
   }
 

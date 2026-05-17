@@ -164,6 +164,8 @@ export interface AppSettings {
   suggestionVoiceEnabled: boolean
   voiceRate: number
   voicePitch: number
+  /** `auto` picks the best Japanese voice; otherwise a SpeechSynthesis voiceURI. */
+  voiceUri: string
   orbIntensity: number
   reducedMotion: boolean
   focusMode: boolean
@@ -180,8 +182,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   speechInputLang: 'auto',
   voiceEnabled: true,
   suggestionVoiceEnabled: false,
-  voiceRate: 1,
-  voicePitch: 1,
+  voiceRate: 0.94,
+  voicePitch: 1.05,
+  voiceUri: 'auto',
   orbIntensity: 1,
   reducedMotion: false,
   focusMode: false,

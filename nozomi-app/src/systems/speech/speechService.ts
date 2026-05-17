@@ -49,4 +49,26 @@ export {
   whenSttWorkIdle,
 } from '@/systems/speech/listenLifecycle'
 
-export { isOfflineSttReady, whenOfflineSttReady } from '@/systems/speech/offlineStt'
+export {
+  isOfflineSttReady,
+  whenOfflineSttReady,
+  releaseOfflineSttPipeline,
+} from '@/systems/speech/offlineStt'
+
+export {
+  startMicCaptureFromGesture,
+  releaseGestureMicStream,
+} from '@/systems/speech/micGesture'
+
+export {
+  browserSttViableForLang,
+  resolveSttEngineForLang,
+} from '@/systems/speech/sttEngine'
+
+export {
+  NOZOMI_VOICE_AUTO,
+  formatJapaneseVoiceLabel,
+  listRankedJapaneseVoices,
+  pickJapaneseVoice,
+  warmJapaneseVoices,
+} from '@/systems/speech/japaneseVoicePicker'

@@ -8,9 +8,7 @@ export function resolveSpeechRecognitionLang(
   if (pref === 'en-US') return 'en-US'
   if (pref === 'nl-NL') return 'nl-NL'
 
-  // Auto: Japanese-first — learners speak Japanese and romaji, not the phone UI language.
-  const nav = (navigator.language || '').toLowerCase()
-  if (nav.startsWith('nl')) return 'nl-NL'
+  // Japanese-first — learners practice Japanese regardless of OS/UI language.
   return 'ja-JP'
 }
 

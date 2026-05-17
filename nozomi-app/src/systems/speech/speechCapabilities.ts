@@ -1,3 +1,8 @@
+import {
+  consumeGestureMicStream,
+  releaseGestureMicStream,
+  startMicCaptureFromGesture,
+} from '@/systems/speech/micGesture'
 import type { SpeechError } from '@/systems/speech/types'
 
 let sharedMicStream: MediaStream | null = null
@@ -83,6 +88,12 @@ export function mapSpeechRecognitionError(code: string): SpeechError {
       }
     case 'aborted':
       return { code: 'busy', message: 'Speech recognition was interrupted' }
+    case 'language-not-supported':
+      return {
+        code: 'not-supported',
+        message:
+          'Browser speech recognition language does not match your system language — switch to On-device in Settings',
+      }
     default:
       return { code: 'unknown', message: `Recognition failed (${code})` }
   }
@@ -90,9 +101,22 @@ export function mapSpeechRecognitionError(code: string): SpeechError {
 
 export async function primeMicrophonePermission(): Promise<boolean> {
   if (!navigator.mediaDevices?.getUserMedia) return false
+  startMicCaptureFromGesture()
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    stream.getTracks().forEach((t) => t.stop())
+    const stream = await consumeGestureMicStream()
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop())
+      releaseGestureMicStream()
+      sharedMicStream = null
+      markMicPrimed()
+      return true
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const fallback = await navigator.mediaDevices.getUserMedia({ audio: true })
+    fallback.getTracks().forEach((t) => t.stop())
     sharedMicStream = null
     markMicPrimed()
     return true
@@ -109,6 +133,12 @@ export async function prepareMicrophone(): Promise<boolean> {
 export async function acquireSharedMicrophone(): Promise<MediaStream | null> {
   if (sharedMicStream?.active) return sharedMicStream
   if (!navigator.mediaDevices?.getUserMedia) return null
+  const gestureStream = await consumeGestureMicStream()
+  if (gestureStream) {
+    sharedMicStream = gestureStream
+    markMicPrimed()
+    return gestureStream
+  }
   if (!micAcquirePromise) {
     micAcquirePromise = navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -127,6 +157,7 @@ export async function acquireSharedMicrophone(): Promise<MediaStream | null> {
 export function releaseSharedMicrophone(): void {
   sharedMicStream?.getTracks().forEach((t) => t.stop())
   sharedMicStream = null
+  releaseGestureMicStream()
 }
 
 export function getSharedMicStream(): MediaStream | null {

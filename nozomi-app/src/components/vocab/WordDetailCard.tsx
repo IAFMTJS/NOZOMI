@@ -52,6 +52,7 @@ export function WordDetailCard({
       speakJapanese(jp, {
         rate: settings.voiceRate,
         pitch: settings.voicePitch,
+        voiceUri: settings.voiceUri,
       })
     }
   }

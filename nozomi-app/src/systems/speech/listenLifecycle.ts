@@ -28,7 +28,12 @@ import {
   releaseSharedMicrophone,
 } from '@/systems/speech/speechCapabilities'
 import { levelFromRms, rmsFromTimeDomain } from '@/systems/speech/audioLevel'
-import { clearSessionSttEngine, getSttEngine } from '@/systems/speech/sttEngine'
+import {
+  clearSessionSttEngine,
+  getSttEngine,
+  resolveSttEngineForLang,
+} from '@/systems/speech/sttEngine'
+import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
 import { voiceDebug, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 export {
@@ -60,7 +65,9 @@ export function startListening(
     return
   }
 
-  if (getSttEngine() === 'local') {
+  const lang = options.lang ?? resolveSpeechRecognitionLang('auto')
+  const engine = resolveSttEngineForLang(getSttEngine(), lang)
+  if (engine === 'local') {
     startRecordedListening(callbacks, options)
     return
   }

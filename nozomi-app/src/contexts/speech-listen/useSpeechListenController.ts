@@ -34,9 +34,11 @@ import {
   micCooldownAfterSpeechMs,
   micNeedsSecureContext,
   primeMicrophonePermission,
+  releaseGestureMicStream,
   releaseSharedMicrophone,
   speechSupported,
   startListening,
+  startMicCaptureFromGesture,
   stopSpeaking,
   syncCaptureFromDisplay,
   whenSttWorkIdle,
@@ -45,6 +47,8 @@ import {
   type SpeechError,
   type SpeechErrorCode,
 } from '@/systems/speech/speechService'
+import { isIos, isLowMemoryDevice, needsGestureLockedMic } from '@/utils/device'
+import { warmJapaneseVoices } from '@/systems/speech/japaneseVoicePicker'
 import { getSttEngine } from '@/systems/speech/sttEngine'
 import {
   installVoiceDebugConsole,
@@ -147,25 +151,30 @@ export function useSpeechListenController(): SpeechListenApi {
       return
     }
     setOfflineSttReady(false)
-    preloadOfflineStt(recognitionLang)
-    void whenOfflineSttReady(recognitionLang).then(() => {
-      if (!mountedRef.current) return
-      if (
-        resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang) !==
-        recognitionLang
-      ) {
-        return
-      }
-      setOfflineSttReady(true)
-    })
+    const preloadDelayMs = isLowMemoryDevice() ? 900 : 0
+    const preloadTimer = window.setTimeout(() => {
+      preloadOfflineStt(recognitionLang)
+      void whenOfflineSttReady(recognitionLang).then(() => {
+        if (!mountedRef.current) return
+        if (
+          resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang) !==
+          recognitionLang
+        ) {
+          return
+        }
+        setOfflineSttReady(true)
+      })
+    }, preloadDelayMs)
     if ('speechSynthesis' in window) {
-      const warmVoices = () => window.speechSynthesis.getVoices()
+      const warmVoices = () => warmJapaneseVoices()
       warmVoices()
       window.speechSynthesis.addEventListener('voiceschanged', warmVoices)
       return () => {
+        window.clearTimeout(preloadTimer)
         window.speechSynthesis.removeEventListener('voiceschanged', warmVoices)
       }
     }
+    return () => window.clearTimeout(preloadTimer)
   }, [recognitionLang, setLiveTranscript, setOrbState, setSpeechState])
 
   useEffect(() => {
@@ -417,6 +426,7 @@ export function useSpeechListenController(): SpeechListenApi {
     lastTranscriptRef.current = ''
     pendingInterimRef.current = ''
     stopSpeaking()
+    if (needsGestureLockedMic()) startMicCaptureFromGesture()
     setSpeechState('permission_pending')
     setOrbState('idle')
     markListenArmedFromGesture()
@@ -424,7 +434,8 @@ export function useSpeechListenController(): SpeechListenApi {
 
     const intent = ++listenIntentRef.current
     void (async () => {
-      await whenSpeechOutputIdle(SPEECH_OUTPUT_IDLE_MAX_MS)
+      const idleCap = isIos() ? 4_000 : SPEECH_OUTPUT_IDLE_MAX_MS
+      await whenSpeechOutputIdle(idleCap)
       await new Promise((r) => setTimeout(r, micCooldownAfterSpeechMs()))
       await whenSttWorkIdle()
       if (!mountedRef.current || intent !== listenIntentRef.current) return
@@ -462,10 +473,11 @@ export function useSpeechListenController(): SpeechListenApi {
     lastTranscriptRef.current = ''
     stopSpeaking()
     setOrbState('idle')
+    startMicCaptureFromGesture()
     markListenArmedFromGesture()
     voiceDebug('ui:armAndGoToListen', { lang: recognitionLang })
 
-    if (getSttEngine() === 'browser') {
+    if (getSttEngine() === 'browser' || needsGestureLockedMic()) {
       const granted = await primeMicrophonePermission()
       if (!granted) {
         setErrorCode('not-allowed')
@@ -505,6 +517,7 @@ export function useSpeechListenController(): SpeechListenApi {
     everHeardRef.current = false
     cancelListening()
     releaseSharedMicrophone()
+    releaseGestureMicStream()
     setAudioLevel(0)
     resetOrbAudioLevel()
     setLiveTranscript('')

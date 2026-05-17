@@ -3,6 +3,7 @@ import { OrbCanvas } from '@/components/orb/OrbCanvas'
 import { useOrbAudioLevel } from '@/hooks/useOrbAudioLevel'
 import { useUiStore } from '@/store/useUiStore'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { prefersLowPowerOrb } from '@/utils/device'
 
 interface Props {
   size?: number
@@ -14,9 +15,11 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
   const orbState = useUiStore((s) => s.orbState)
   const audioLevel = useOrbAudioLevel()
   const settings = useNozomiStore((s) => s.settings)
-  const reduced = settings.reducedMotion || settings.staticOrb
+  const lowPower = prefersLowPowerOrb()
+  const reduced = settings.reducedMotion || settings.staticOrb || lowPower
   const intensity = settings.orbIntensity
   const canvasSize = Math.floor(size * 1.15)
+  const showCanvas = !reduced && !lowPower
 
   return (
     <motion.div
@@ -45,12 +48,26 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
         }}
       />
 
-      <OrbCanvas
-        size={canvasSize}
-        state={orbState}
-        intensity={intensity}
-        reduced={reduced}
-      />
+      {showCanvas ? (
+        <OrbCanvas
+          size={canvasSize}
+          state={orbState}
+          intensity={intensity}
+          reduced={reduced}
+        />
+      ) : (
+        <motion.div
+          className="orb-pulse-field absolute rounded-full"
+          animate={{ opacity: 0.45 + audioLevel * 0.45 }}
+          transition={{ duration: 0.12 }}
+          style={{
+            width: size * 0.88,
+            height: size * 0.88,
+            background:
+              'radial-gradient(circle at 35% 32%, rgba(192,132,252,0.55), rgba(109,40,217,0.2) 55%, transparent 72%)',
+          }}
+        />
+      )}
 
       {!reduced && (
         <motion.div

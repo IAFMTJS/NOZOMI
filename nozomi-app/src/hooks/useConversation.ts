@@ -88,6 +88,7 @@ export function useConversation() {
         speakJapanese(text.jp, {
           rate: settings.voiceRate,
           pitch: settings.voicePitch,
+          voiceUri: settings.voiceUri,
           onEnd: () => setOrbState('idle'),
         })
       } else {
@@ -103,6 +104,7 @@ export function useConversation() {
       settings.voiceEnabled,
       settings.voiceRate,
       settings.voicePitch,
+      settings.voiceUri,
     ],
   )
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { LanguageText } from '@/components/language/LanguageText'
@@ -6,7 +6,12 @@ import { UI_LABELS } from '@/data/ui-labels'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { cancelListening, stopSpeaking } from '@/systems/speech/speechService'
-import { getSttEngine, setSttEngine, type SttEngine } from '@/systems/speech/sttEngine'
+import {
+  getSttEngine,
+  isBrowserSttSelectable,
+  setSttEngine,
+  type SttEngine,
+} from '@/systems/speech/sttEngine'
 import { SPEECH_LANG_OPTIONS } from '@/data/speech-lang-options'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
 import type {
@@ -15,6 +20,8 @@ import type {
   LanguageText as LT,
   PersonalityMode,
 } from '@/types/domain'
+import { NozomiVoicePicker } from '@/components/settings/NozomiVoicePicker'
+import { isIos } from '@/utils/device'
 import { BTN_ROW } from '@/utils/touch'
 
 const JLPT_LEVELS: JlptLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1']
@@ -47,6 +54,11 @@ export function SettingsPage() {
   const setProfile = useNozomiStore((s) => s.setProfile)
   const clearSession = useNozomiStore((s) => s.clearSession)
   const [sttEngine, setSttEngineState] = useState<SttEngine>(getSttEngine)
+  const recognitionLang = resolveSpeechRecognitionLang(settings.speechInputLang)
+  const browserSttAllowed = useMemo(
+    () => isBrowserSttSelectable(recognitionLang),
+    [recognitionLang],
+  )
   const activeSpeechLabel =
     SPEECH_LANG_OPTIONS.find((o) => o.key === settings.speechInputLang)?.label.en ??
     settings.speechInputLang
@@ -154,7 +166,9 @@ export function SettingsPage() {
         <section className="space-y-2">
           <LanguageText text={UI_LABELS.sttEngine} size="sm" />
           <div className="grid grid-cols-2 gap-2">
-            {STT_ENGINES.map(({ key, label }) => (
+            {STT_ENGINES.filter(
+              ({ key }) => key !== 'browser' || browserSttAllowed,
+            ).map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
@@ -176,6 +190,15 @@ export function SettingsPage() {
               </button>
             ))}
           </div>
+          {!browserSttAllowed && (
+            <p className="px-0.5 text-[10px] leading-snug text-nozomi-muted">
+              <LanguageText
+                text={isIos() ? UI_LABELS.sttEngineIosNote : UI_LABELS.sttEngineWindowsNote}
+                size="sm"
+                passive
+              />
+            </p>
+          )}
         </section>
 
         <section className="space-y-2">
@@ -221,6 +244,8 @@ export function SettingsPage() {
           checked={settings.staticOrb}
           onChange={(v) => setSettings({ staticOrb: v })}
         />
+
+        <NozomiVoicePicker />
 
         <div className="glass-panel space-y-2 p-4">
           <LanguageText text={UI_LABELS.voiceSpeed} size="sm" />

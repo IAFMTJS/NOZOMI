@@ -56,6 +56,12 @@ export type UiLabelKey =
   | 'showEnglish'
   | 'voiceSpeed'
   | 'voicePitch'
+  | 'nozomiVoice'
+  | 'voiceAuto'
+  | 'voicePreview'
+  | 'voiceLoading'
+  | 'voiceAutoHint'
+  | 'voiceQualityHint'
   | 'voiceEnabled'
   | 'suggestionVoiceEnabled'
   | 'speechInputLang'
@@ -66,6 +72,8 @@ export type UiLabelKey =
   | 'sttEngine'
   | 'sttEngineLocal'
   | 'sttEngineBrowser'
+  | 'sttEngineIosNote'
+  | 'sttEngineWindowsNote'
   | 'suggestionCount'
   | 'staticOrb'
   | 'orbIntensity'
@@ -328,6 +336,36 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     romaji: 'Koe no takasa',
     en: 'Voice pitch',
   },
+  nozomiVoice: {
+    jp: 'ノゾミの声',
+    romaji: 'Nozomi no koe',
+    en: 'Nozomi voice',
+  },
+  voiceAuto: {
+    jp: '自動（おすすめ）',
+    romaji: 'Jidou (osusume)',
+    en: 'Auto (recommended)',
+  },
+  voicePreview: {
+    jp: '試聴',
+    romaji: 'Shichou',
+    en: 'Preview',
+  },
+  voiceLoading: {
+    jp: '音声一覧を読み込み中…',
+    romaji: 'Onsei ichiran wo yomikomi chuu…',
+    en: 'Loading available voices…',
+  },
+  voiceAutoHint: {
+    jp: '現在: {name}',
+    romaji: 'Genzai: {name}',
+    en: 'Using: {name}',
+  },
+  voiceQualityHint: {
+    jp: 'iPhoneでは「設定 → 読み上げ → 声 → 日本語」で Kyoko（高品質）をダウンロードすると、より自然な声になります。',
+    romaji: 'iPhone de wa Kyoko (kouhinshitsu) wo daunroodo suru to yori shizen na koe ni narimasu.',
+    en: 'On iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese → download Kyoko (Enhanced) for the most natural voice.',
+  },
   voiceEnabled: {
     jp: '声を再生',
     romaji: 'Koe wo saisei',
@@ -369,14 +407,24 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     en: 'Speech recognition engine',
   },
   sttEngineLocal: {
-    jp: 'ローカル（PC向け）',
-    romaji: 'Rokaru (PC muke)',
-    en: 'Local (desktop)',
+    jp: 'オンデバイス（高精度）',
+    romaji: 'Ondebaisu (kouseido)',
+    en: 'On-device (accurate)',
   },
   sttEngineBrowser: {
     jp: 'ブラウザ標準（スマホ推奨）',
     romaji: 'Burauza hyoujun (sumaho suishou)',
     en: 'Browser built-in (mobile)',
+  },
+  sttEngineIosNote: {
+    jp: 'iPhoneではオンデバイス音声認識を使用します（初回のみモデル読み込みがあります）。',
+    romaji: 'iPhone de wa ondebaisu onsei ninshiki wo shiyou shimasu.',
+    en: 'On iPhone, on-device speech recognition is used (first use downloads the model).',
+  },
+  sttEngineWindowsNote: {
+    jp: 'Windowsの表示言語と違う言語ではブラウザ音声認識が使えません。オンデバイス（日本語）を使用します。',
+    romaji: 'Windows no hyouji gengo to chigau gengo de wa burauza onsei ninshiki ga tsukaemasen.',
+    en: 'On Windows, browser speech recognition only works when it matches your PC display language. Japanese uses on-device recognition instead.',
   },
   suggestionCount: {
     jp: '提案の数',

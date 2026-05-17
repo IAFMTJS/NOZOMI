@@ -20,9 +20,11 @@ import { FavoritesPage } from '@/pages/FavoritesPage'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { SpeechListenProvider } from '@/contexts/SpeechListenContext'
 import { DevConnectBanner } from '@/components/dev/DevConnectBanner'
+import { useInstallVisualViewportCss } from '@/hooks/useInstallVisualViewportCss'
 
 export default function App() {
   const setDataReady = useUiStore((s) => s.setDataReady)
+  useInstallVisualViewportCss()
 
   useEffect(() => {
     ensureDataLoaded()
@@ -37,7 +39,13 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <SpeechListenProvider>
-          <div className="flex h-dvh max-h-dvh flex-col overflow-hidden">
+          <div
+            className="flex min-h-0 flex-col overflow-hidden"
+            style={{
+              height: 'var(--app-vh, 100dvh)',
+              maxHeight: 'var(--app-vh, 100dvh)',
+            }}
+          >
             <DevConnectBanner />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <AppShell>
