@@ -1,5 +1,9 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import { consumeGestureMicStream } from '@/features/voice/logic/micGesture'
+import {
+  getWarmedRecorderMime,
+  recorderMimeCandidates,
+} from '@/features/voice/logic/micRecorderWarmup'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import { isIos, isMobileDevice } from '@/utils/device'
 
@@ -13,15 +17,9 @@ const MIC_OPEN_RETRIES = 3
 const MIC_RETRY_DELAY_MS = 180
 
 function pickRecorderMime(): string {
-  const candidates = isIos()
-    ? ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm']
-    : [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/aac',
-      ]
-  for (const mime of candidates) {
+  const prewarmed = getWarmedRecorderMime()
+  if (prewarmed !== null) return prewarmed
+  for (const mime of recorderMimeCandidates()) {
     if (MediaRecorder.isTypeSupported(mime)) return mime
   }
   return ''

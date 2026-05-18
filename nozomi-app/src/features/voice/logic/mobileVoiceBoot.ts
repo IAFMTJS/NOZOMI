@@ -13,6 +13,7 @@ import {
 import { resolveWhisperModelId } from '@/features/voice/logic/whisperModels'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
+import { warmMicRecorderCodecs } from '@/features/voice/logic/micRecorderWarmup'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
 import { touchOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecycle'
 import { useNozomiStore } from '@/store/useNozomiStore'
@@ -82,6 +83,7 @@ export async function runMobileVoiceBoot(
     writeMobileVoiceBootCache(key)
     touchOfflineSttPipeline()
     releaseOfflineSttPipeline({ force: true })
+    warmMicRecorderCodecs()
     return
   }
   if (bootInFlight && bootInFlightKey === key) {
@@ -118,6 +120,7 @@ export async function runMobileVoiceBoot(
       onProgress(100)
       // Park WASM so the first orb tap only opens the mic (avoids mic + Whisper OOM).
       releaseOfflineSttPipeline({ force: true })
+      warmMicRecorderCodecs()
       if ('speechSynthesis' in window) {
         window.setTimeout(() => warmJapaneseVoices(), 800)
       }

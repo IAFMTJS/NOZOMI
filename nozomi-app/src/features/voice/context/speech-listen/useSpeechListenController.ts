@@ -653,7 +653,7 @@ export function useSpeechListenController(): SpeechListenApi {
     markListenArmedFromGesture()
     voiceDebug('ui:armAndGoToListen', { lang: recognitionLang })
 
-    if (getSttEngine() === 'browser' || needsGestureLockedMic()) {
+    if (getSttEngine() === 'browser' || needsGestureLockedMic() || isMobileDevice()) {
       const granted = await primeMicrophonePermission()
       if (!granted) {
         setErrorCode('not-allowed')
