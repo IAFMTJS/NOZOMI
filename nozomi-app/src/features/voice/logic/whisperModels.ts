@@ -1,4 +1,4 @@
-import { effectiveWhisperTierForPlatform } from '@/features/voice/logic/offlineSttIos'
+import { effectiveWhisperTierForPlatform } from '@/features/voice/logic/iosMemoryBudget'
 import type { WhisperModelTier } from '@/types/domain'
 
 const TINY_EN = 'Xenova/whisper-tiny.en'

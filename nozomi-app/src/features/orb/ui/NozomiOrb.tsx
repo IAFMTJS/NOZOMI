@@ -4,6 +4,8 @@ import { OrbCanvas } from '@/features/orb/ui/OrbCanvas'
 import { StaticOrbVisual } from '@/features/orb/ui/StaticOrbVisual'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { getOrbCanvasConfig } from '@/features/orb/logic/orbVisualProfile'
+import { isIosVoiceHeavyUi } from '@/features/voice/logic/iosMemoryBudget'
+import { useUiStore } from '@/store/useUiStore'
 import { getOrbVisualTier } from '@/utils/device'
 
 interface Props {
@@ -18,13 +20,16 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
   const reducedMotion = useNozomiStore((s) => s.settings.reducedMotion)
   const staticOrb = useNozomiStore((s) => s.settings.staticOrb)
   const intensity = useNozomiStore((s) => s.settings.orbIntensity)
+  const speechState = useUiStore((s) => s.speechState)
   const visualTier = getOrbVisualTier()
   const canvasConfig = getOrbCanvasConfig(visualTier)
-  const forceStatic = staticOrb || visualTier === 'static'
+  const iosVoiceHeavy = isIosVoiceHeavyUi(orbState, speechState)
+  const forceStatic = staticOrb || visualTier === 'static' || iosVoiceHeavy
   const reduced =
     reducedMotion || forceStatic || !!reducedMotionPref || visualTier === 'lite'
   const canvasSize = Math.floor(size * 1.12)
-  const showCanvas = !forceStatic && !reducedMotion && !reducedMotionPref
+  const showCanvas =
+    !forceStatic && !reducedMotion && !reducedMotionPref && !iosVoiceHeavy
   const ringFast = orbState === 'listening' || orbState === 'thinking'
   const motionEnabled = showCanvas && !reducedMotion && !reducedMotionPref
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import { shouldSkipIdleWhisperPreload } from '@/features/voice/logic/iosMemoryBudget'
 import { preloadOfflineStt } from '@/features/voice/logic/offlineStt'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
@@ -18,6 +19,7 @@ export function useDeferredWhisperPreload(): void {
 
   useEffect(() => {
     if (!dataReady || !WHISPER_WARM_ROUTES.has(pathname)) return
+    if (shouldSkipIdleWhisperPreload()) return
     const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
     const engine = resolveSttEngineForLang(getSttEngine(), recognitionLang)
     if (engine !== 'local') return

@@ -40,8 +40,8 @@ describe('devicePerformance', () => {
     mockIosUa()
     mockScreen(430, 932)
     const tuning = getVoicePlatformTuning()
-    expect(tuning.whisperChunkSec).toBe(6)
-    expect(tuning.maxDecodeSamples16k).toBe(14 * 16_000)
+    expect(tuning.whisperChunkSec).toBe(4)
+    expect(tuning.maxDecodeSamples16k).toBe(12 * 16_000)
     expect(tuning.orbAmbienceFpsCap).toBe(48)
   })
 

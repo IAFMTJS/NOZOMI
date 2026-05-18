@@ -45,22 +45,21 @@ import {
   setSessionSttEngine,
 } from '@/features/voice/logic/sttEngine'
 import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
-import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
+import {
+  iosPrepareBeforeTranscribe,
+  iosPrepareForMicCapture,
+} from '@/features/voice/logic/iosMemoryBudget'
 import { isIos } from '@/utils/device'
 
 /** Let iOS release the mic stack before decode + WASM (reduces tab reloads). */
 async function yieldBeforeTranscribe(): Promise<void> {
+  if (isIos()) {
+    await iosPrepareBeforeTranscribe()
+    return
+  }
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
-  if (isIos()) {
-    await new Promise((r) => setTimeout(r, 300))
-    if (typeof requestIdleCallback === 'function') {
-      await new Promise<void>((resolve) => {
-        requestIdleCallback(() => resolve(), { timeout: 600 })
-      })
-    }
-  }
 }
 
 function unwindEmptyFinalize(generation: number): void {
@@ -352,7 +351,7 @@ function startRecordedListeningNow(
       const session = getListenSession()
       if (getListenGeneration() !== generation || !session || session.stopped) return
       if (isIos()) {
-        await yieldForIosMemoryPressure('before-mic')
+        await iosPrepareForMicCapture()
       }
       sttModelReady = true
       voiceDebug('offline-stt:preload-done', { generation, lang })

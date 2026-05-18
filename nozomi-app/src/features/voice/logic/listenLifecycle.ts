@@ -39,6 +39,7 @@ import {
   readStoredSttEngine,
   resolveSttEngineForLang,
 } from '@/features/voice/logic/sttEngine'
+import { iosTrackResource } from '@/features/voice/logic/iosMemoryBudget'
 import { isIos, isLowMemoryDevice } from '@/utils/device'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
@@ -185,7 +186,8 @@ export function createAudioLevelLoop(
   let ctx: AudioContext | null = null
   let analyser: AnalyserNode | null = null
   let ownedStream: MediaStream | null = null
-  const data = new Uint8Array(256)
+  const fftSize = isIos() ? 128 : 256
+  const data = new Uint8Array(fftSize)
 
   const tick = () => {
     if (!analyser) return
@@ -210,8 +212,9 @@ export function createAudioLevelLoop(
         if (ctx.state === 'suspended') await ctx.resume()
         const source = ctx.createMediaStreamSource(stream)
         analyser = ctx.createAnalyser()
-        analyser.fftSize = 256
+        analyser.fftSize = fftSize
         source.connect(analyser)
+        if (isIos()) iosTrackResource('browser-level', true)
         tick()
       } catch {
         onLevel(0)
@@ -219,9 +222,19 @@ export function createAudioLevelLoop(
     },
     stop: () => {
       cancelAnimationFrame(raf)
-      void ctx?.close()
+      const closing = ctx
       ctx = null
       analyser = null
+      iosTrackResource('browser-level', false)
+      void (async () => {
+        if (closing && closing.state !== 'closed') {
+          try {
+            await closing.close()
+          } catch {
+            /* ignore */
+          }
+        }
+      })()
       onLevel(0)
       if (ownedStream) {
         ownedStream.getTracks().forEach((t) => t.stop())

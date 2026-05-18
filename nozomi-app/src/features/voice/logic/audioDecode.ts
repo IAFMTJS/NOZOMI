@@ -1,4 +1,8 @@
-import { getVoicePlatformTuning, isLowMemoryDevice } from '@/utils/device'
+import {
+  iosMarkDecodeContextActive,
+  iosTrackResource,
+} from '@/features/voice/logic/iosMemoryBudget'
+import { getVoicePlatformTuning, isIos, isLowMemoryDevice } from '@/utils/device'
 
 const TARGET_RATE = 16_000
 
@@ -7,6 +11,7 @@ let sharedDecodeCtx: AudioContext | null = null
 async function getDecodeContext(): Promise<AudioContext> {
   if (!sharedDecodeCtx || sharedDecodeCtx.state === 'closed') {
     sharedDecodeCtx = new AudioContext()
+    iosMarkDecodeContextActive()
   }
   if (sharedDecodeCtx.state === 'suspended') {
     await sharedDecodeCtx.resume()
@@ -32,6 +37,7 @@ export function releaseDecodeContext(): void {
     /* ignore */
   }
   sharedDecodeCtx = null
+  iosTrackResource('decode-ctx', false)
 }
 
 /** RMS loudness of mono PCM in [0, ~1]. */
@@ -47,6 +53,9 @@ export function pcmRms(samples: Float32Array): number {
 
 /** Decode a recorded blob (webm/opus/mp4) to mono 16 kHz PCM for Whisper. */
 export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array> {
+  if (isIos()) {
+    releaseDecodeContext()
+  }
   const buffer = await blob.arrayBuffer()
   const ctx = await getDecodeContext()
   const copy = buffer.slice(0)

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { shouldSkipIdleWhisperPreload } from '@/features/voice/logic/iosMemoryBudget'
 import { preloadOfflineStt } from '@/features/voice/logic/offlineStt'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
@@ -10,6 +11,7 @@ export function useWhisperPreloadFromSettings(): void {
   const whisperModel = useNozomiStore((s) => s.settings.whisperModel)
 
   useEffect(() => {
+    if (shouldSkipIdleWhisperPreload()) return
     const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
     const engine = resolveSttEngineForLang(getSttEngine(), recognitionLang)
     if (engine !== 'local') return

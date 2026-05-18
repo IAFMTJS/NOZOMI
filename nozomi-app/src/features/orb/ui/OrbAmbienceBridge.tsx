@@ -7,7 +7,9 @@ import {
   getOrbPalette,
   lerpOrbPalette,
 } from '@/features/orb/logic/orbPalette'
+import { isIosVoiceHeavyUi } from '@/features/voice/logic/iosMemoryBudget'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { useUiStore } from '@/store/useUiStore'
 import { getVoicePlatformTuning } from '@/utils/device'
 import type { OrbState } from '@/types/domain'
 
@@ -19,7 +21,9 @@ function easeOutCubic(t: number): number {
 export function OrbAmbienceBridge() {
   const level = useOrbAudioLevel()
   const orbState = usePresenceOrbState()
+  const speechState = useUiStore((s) => s.speechState)
   const intensity = useNozomiStore((s) => s.settings.orbIntensity)
+  const pauseAmbience = isIosVoiceHeavyUi(orbState, speechState)
   const transitionRef = useRef<{ from: OrbState; to: OrbState; t: number }>({
     from: orbState,
     to: orbState,
@@ -39,7 +43,7 @@ export function OrbAmbienceBridge() {
     let lastAt = 0
     const minInterval = 1000 / getVoicePlatformTuning().orbAmbienceFpsCap
     const tick = (now: number) => {
-      if (!lastAt || now - lastAt >= minInterval) {
+      if (!pauseAmbience && (!lastAt || now - lastAt >= minInterval)) {
         lastAt = now
         const tr = transitionRef.current
         if (tr.t < 1) tr.t = Math.min(1, tr.t + 0.07)
@@ -58,7 +62,7 @@ export function OrbAmbienceBridge() {
       cancelAnimationFrame(raf)
       clearOrbPaletteFromRoot()
     }
-  }, [level, intensity, orbState])
+  }, [level, intensity, orbState, pauseAmbience])
 
   return null
 }

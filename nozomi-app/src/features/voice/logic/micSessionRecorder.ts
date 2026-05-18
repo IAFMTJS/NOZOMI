@@ -1,6 +1,10 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import { consumeGestureMicStream } from '@/features/voice/logic/micGesture'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import {
+  iosMarkMicAnalyserActive,
+  iosPrepareAfterMicStop,
+} from '@/features/voice/logic/iosMemoryBudget'
 import { isIos } from '@/utils/device'
 
 type RecorderCallbacks = {
@@ -63,38 +67,55 @@ let audioCtx: AudioContext | null = null
 let levelAnalyser: AnalyserNode | null = null
 let sessionGen = 0
 let stopInFlight: Promise<Blob | null> | null = null
+let pendingIosLevel: { stream: MediaStream; onLevel: (n: number) => void } | null = null
 
-function stopLevelLoop(): void {
+async function stopLevelLoop(): Promise<void> {
   cancelAnimationFrame(levelRaf)
   levelRaf = 0
   levelAnalyser = null
-  void audioCtx?.close()
+  pendingIosLevel = null
+  const ctx = audioCtx
   audioCtx = null
+  if (!ctx || ctx.state === 'closed') return
+  try {
+    await ctx.close()
+  } catch {
+    /* ignore */
+  }
 }
 
 function startLevelLoop(s: MediaStream, onLevel: (n: number) => void): void {
-  stopLevelLoop()
-  const data = new Uint8Array(256)
-  const tick = () => {
-    if (!levelAnalyser) return
-    levelAnalyser.getByteTimeDomainData(data)
-    onLevel(levelFromRms(rmsFromTimeDomain(data)))
-    levelRaf = requestAnimationFrame(tick)
-  }
-  void (async () => {
-    try {
-      audioCtx = new AudioContext()
-      if (audioCtx.state === 'suspended') await audioCtx.resume()
-      const source = audioCtx.createMediaStreamSource(s)
-      const analyser = audioCtx.createAnalyser()
-      analyser.fftSize = 256
-      source.connect(analyser)
-      levelAnalyser = analyser
-      tick()
-    } catch {
-      onLevel(0)
+  void stopLevelLoop().then(() => {
+    const data = new Uint8Array(isIos() ? 128 : 256)
+    const tick = () => {
+      if (!levelAnalyser) return
+      levelAnalyser.getByteTimeDomainData(data)
+      onLevel(levelFromRms(rmsFromTimeDomain(data)))
+      levelRaf = requestAnimationFrame(tick)
     }
-  })()
+    void (async () => {
+      try {
+        audioCtx = new AudioContext()
+        if (audioCtx.state === 'suspended') await audioCtx.resume()
+        const source = audioCtx.createMediaStreamSource(s)
+        const analyser = audioCtx.createAnalyser()
+        analyser.fftSize = isIos() ? 128 : 256
+        source.connect(analyser)
+        levelAnalyser = analyser
+        if (isIos()) iosMarkMicAnalyserActive()
+        tick()
+      } catch {
+        onLevel(0)
+      }
+    })()
+  })
+}
+
+function armLevelLoopIfNeeded(): void {
+  if (!pendingIosLevel) return
+  const { stream, onLevel } = pendingIosLevel
+  pendingIosLevel = null
+  startLevelLoop(stream, onLevel)
 }
 
 export function isMicRecorderActive(): boolean {
@@ -108,7 +129,8 @@ export async function startMicSession(
   sessionGen = generation
   chunks = []
   recordingActive = false
-  stopLevelLoop()
+  pendingIosLevel = null
+  void stopLevelLoop()
   stream?.getTracks().forEach((t) => t.stop())
   stream = null
   recorder = null
@@ -139,7 +161,13 @@ export async function startMicSession(
       callbacks.onError?.(new Error('Recording failed'))
     }
     voiceDebug('rec:mic-open', { generation, mime: recorder.mimeType })
-    if (callbacks.onLevel) startLevelLoop(stream, callbacks.onLevel)
+    if (callbacks.onLevel) {
+      if (isIos()) {
+        pendingIosLevel = { stream, onLevel: callbacks.onLevel }
+      } else {
+        startLevelLoop(stream, callbacks.onLevel)
+      }
+    }
     callbacks.onReady?.()
     return true
   } catch (err) {
@@ -160,6 +188,7 @@ export function beginMicRecording(generation: number): boolean {
   try {
     recorder.start(isIos() ? 400 : 250)
     recordingActive = true
+    if (isIos()) armLevelLoopIfNeeded()
     voiceDebug('rec:start', { generation, mime: recorder.mimeType || recorderMime })
     return true
   } catch (err) {
@@ -177,16 +206,19 @@ export function stopMicSession(): Promise<Blob | null> {
     return stopInFlight
   }
   const gen = sessionGen
-  stopLevelLoop()
 
   stopInFlight = new Promise((resolve) => {
-    const finish = (blob: Blob | null) => {
+    const finish = async (blob: Blob | null) => {
       recordingActive = false
       stream?.getTracks().forEach((t) => t.stop())
       stream = null
       recorder = null
       recorderMime = ''
       chunks = []
+      await stopLevelLoop()
+      if (isIos()) {
+        await iosPrepareAfterMicStop()
+      }
       stopInFlight = null
       resolve(blob)
     }
@@ -269,7 +301,8 @@ export function cancelMicSession(): void {
   stopInFlight = null
   sessionGen++
   recordingActive = false
-  stopLevelLoop()
+  pendingIosLevel = null
+  void stopLevelLoop()
   try {
     if (recorder && recorder.state !== 'inactive') recorder.stop()
   } catch {

@@ -23,7 +23,16 @@ import {
   touchOfflineSttPipeline,
 } from '@/features/voice/logic/offlineSttLifecycle'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
+import {
+  iosMarkWhisperInferActive,
+  iosMarkWhisperInferInactive,
+  iosMarkWhisperModelActive,
+  iosMarkWhisperModelInactive,
+  iosPrepareForAudioDecode,
+  iosPrepareForWhisperInfer,
+  iosPrepareForWhisperLoad,
+  shouldSkipIdleWhisperPreload,
+} from '@/features/voice/logic/iosMemoryBudget'
 import { getVoicePlatformTuning, isIos, isLowMemoryDevice } from '@/utils/device'
 
 const LOAD_TIMEOUT_MS = 180_000
@@ -232,7 +241,8 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
           pipelineActiveDtype = dtype
           pipelineReadyForLang = bcp47
           if (isIos()) {
-            await yieldForIosMemoryPressure('pipeline-ready')
+            await iosPrepareForWhisperLoad()
+            iosMarkWhisperModelActive()
           }
           voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
           loadProgressHint = 100
@@ -337,11 +347,19 @@ export function releaseOfflineSttPipeline(): void {
   downloadLogPct.clear()
   loadProgressHint = null
   notifyLoadProgress()
+  if (isIos()) {
+    iosMarkWhisperModelInactive()
+    iosMarkWhisperInferInactive()
+  }
   voiceDebug('offline-stt:pipeline-released')
 }
 
 export function preloadOfflineStt(lang = 'en-US', opts?: { force?: boolean }): void {
-  if (!opts?.force && isLowMemoryDevice()) {
+  if (!opts?.force && shouldSkipIdleWhisperPreload()) {
+    voiceDebug('offline-stt:preload-skipped', { reason: 'ios-idle' })
+    return
+  }
+  if (!opts?.force && isLowMemoryDevice() && !isIos()) {
     voiceDebug('offline-stt:preload-skipped', { reason: 'low-memory' })
     return
   }
@@ -382,6 +400,9 @@ export async function transcribeAudioBlob(
   voiceDebug('offline-stt:start', { bytes: blob.size, lang: bcp47 })
 
   try {
+    if (isIos()) {
+      await iosPrepareForAudioDecode()
+    }
     const audio = await withTimeout(
       decodeRecordingTo16kMono(blob),
       DECODE_TIMEOUT_MS,
@@ -412,6 +433,9 @@ export async function transcribeAudioBlob(
     }
 
     releaseDecodeContext()
+    if (isIos()) {
+      await iosPrepareForWhisperInfer()
+    }
 
     touchOfflineSttPipeline()
     cancelScheduledReleaseOfflineStt()
@@ -445,6 +469,7 @@ export async function transcribeAudioBlob(
           ? 2
           : 3
     let out: { text?: string }
+    if (isIos()) iosMarkWhisperInferActive()
     try {
       out = await withTimeout(
         transcriber(audio, {
@@ -458,6 +483,7 @@ export async function transcribeAudioBlob(
       )
     } finally {
       window.clearInterval(heartbeat)
+      if (isIos()) iosMarkWhisperInferInactive()
     }
     const text = (out?.text ?? '').trim()
     voiceDebug('offline-stt:done', {

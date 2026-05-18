@@ -15,7 +15,7 @@ import {
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
-import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
+import { iosMemoryBarrier } from '@/features/voice/logic/iosMemoryBudget'
 import { isIos } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
@@ -84,7 +84,7 @@ export function useOfflineSttPreload(
           return
         }
         if (isIos()) {
-          await yieldForIosMemoryPressure('ui-preload-ready')
+          await iosMemoryBarrier('ui-preload-ready')
         }
         setOfflineSttReady(true)
         if (isOfflineSttReady(recognitionLang)) {
