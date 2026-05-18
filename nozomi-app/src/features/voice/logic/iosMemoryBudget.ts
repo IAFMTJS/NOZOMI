@@ -22,6 +22,7 @@ export async function iosReleaseBeforeWhisperInfer(): Promise<void> {
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
+  await new Promise((r) => setTimeout(r, 120))
 }
 
 /** iOS cannot safely use whisper-small in-browser (tab reload). */

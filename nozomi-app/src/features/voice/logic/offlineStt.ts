@@ -5,6 +5,7 @@ import {
 import {
   decodeRecordingTo16kMono,
   pcmRms,
+  releaseDecodeContext,
 } from '@/features/voice/logic/audioDecode'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
@@ -364,8 +365,8 @@ export async function clearOfflineSttCache(opts?: {
 }
 
 /** Drop in-memory Whisper session (model files stay in Cache API). */
-export function releaseOfflineSttPipeline(): void {
-  if (isMobileDevice()) {
+export function releaseOfflineSttPipeline(opts?: { force?: boolean }): void {
+  if (isMobileDevice() && !opts?.force) {
     voiceDebug('offline-stt:pipeline-release-skipped', { reason: 'mobile-session' })
     return
   }
@@ -380,6 +381,25 @@ export function releaseOfflineSttPipeline(): void {
   stopSessionBuildProgress()
   notifyLoadProgress()
   voiceDebug('offline-stt:pipeline-released')
+}
+
+/**
+ * Free decode buffers and (on mobile) the WASM session after a turn's transcribe step
+ * so NLU/TTS do not run beside Whisper in the same tab (iOS OOM).
+ */
+export async function releaseWhisperSessionAfterTranscribe(): Promise<void> {
+  releaseDecodeContext()
+  if (!isMobileDevice()) return
+  releaseOfflineSttPipeline({ force: true })
+  const settleMs = isIos() ? 320 : 160
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.setTimeout(resolve, settleMs)
+      })
+    })
+  })
+  voiceDebug('offline-stt:post-transcribe-released')
 }
 
 export function preloadOfflineStt(lang = 'en-US', opts?: { force?: boolean }): void {
@@ -510,6 +530,7 @@ export async function transcribeAudioBlob(
       length: text.length,
       preview: text.slice(0, 120),
     })
+    releaseDecodeContext()
     return text
   } catch (err) {
     lastOfflineSttError = formatError(err)

@@ -7,6 +7,7 @@ import {
   getLastOfflineSttError,
   isOfflineSttReady,
   preloadOfflineStt,
+  releaseWhisperSessionAfterTranscribe,
   transcribeAudioBlob,
   whenOfflineSttReady,
 } from '@/features/voice/logic/offlineStt'
@@ -46,7 +47,7 @@ import {
 } from '@/features/voice/logic/sttEngine'
 import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
 import { releaseDecodeContext } from '@/features/voice/logic/audioDecode'
-import { isIos } from '@/utils/device'
+import { isIos, isMobileDevice } from '@/utils/device'
 
 /** Let the mic stack settle before decode + WASM (reduces tab reloads on iOS). */
 async function yieldBeforeTranscribe(): Promise<void> {
@@ -184,7 +185,10 @@ function runRecordedFinalize(generation: number): void {
             'rec:transcribe',
           ),
         )
-        scheduleReleaseOfflineSttPipeline()
+        await releaseWhisperSessionAfterTranscribe()
+        if (!isMobileDevice()) {
+          scheduleReleaseOfflineSttPipeline()
+        }
         if (
           getListenGeneration() !== generation ||
           !getListenSession() ||

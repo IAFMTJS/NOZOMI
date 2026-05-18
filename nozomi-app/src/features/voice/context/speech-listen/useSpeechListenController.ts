@@ -9,7 +9,7 @@ import {
   MIC_LEVEL_HEARD_THRESHOLD,
   VOICE_TURN_TIMEOUT_MS,
 } from '@/features/voice/context/speech-listen/constants'
-import { getVoicePlatformTuning } from '@/utils/device'
+import { getVoicePlatformTuning, isMobileDevice } from '@/utils/device'
 import type { SpeechListenApi } from '@/features/voice/context/speech-listen/types'
 import { useConversation } from '@/features/conversation'
 import {
@@ -295,6 +295,11 @@ export function useSpeechListenController(): SpeechListenApi {
 
       try {
         await waitForData()
+        if (isMobileDevice()) {
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          })
+        }
         await Promise.race([
           sendUserMessage(trimmed, 'voice', {
             shouldAbort,
