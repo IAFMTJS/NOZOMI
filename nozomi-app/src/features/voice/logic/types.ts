@@ -7,6 +7,7 @@ export type SpeechErrorCode =
   | 'network'
   | 'busy'
   | 'start-failed'
+  | 'transcribe-failed'
   | 'unknown'
 
 export type SpeechError = {

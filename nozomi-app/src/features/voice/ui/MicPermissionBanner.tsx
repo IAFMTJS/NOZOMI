@@ -20,6 +20,8 @@ function detailForError(code?: SpeechErrorCode): LT {
       return UI_LABELS.micNetwork
     case 'start-failed':
       return UI_LABELS.micModelFailed
+    case 'transcribe-failed':
+      return UI_LABELS.voiceTranscribeFailed
     case 'busy':
       return UI_LABELS.micBusy
     case 'no-device':
@@ -51,6 +53,12 @@ function titleForError(code?: SpeechErrorCode): LT | undefined {
         jp: 'マイクが見つかりません',
         romaji: 'Maiku ga mitsukarimasen',
         en: 'No microphone found',
+      }
+    case 'transcribe-failed':
+      return {
+        jp: '音声を処理できませんでした',
+        romaji: 'Onsei wo shori dekimasen deshita',
+        en: "Couldn't process that audio",
       }
   }
   return undefined

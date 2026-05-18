@@ -3,16 +3,27 @@ import {
   getVoiceTurnDeltas,
   getVoiceTurnSpans,
 } from '@/features/voice/logic/voiceTurnMetrics'
-import { isVoiceDebugEnabled } from '@/features/voice/logic/voiceDebug'
+import { isVoiceDebugEnabled, setVoiceDebugForced } from '@/features/voice/logic/voiceDebug'
+import { useUiStore } from '@/store/useUiStore'
 
 function showOverlay(): boolean {
   if (typeof window === 'undefined') return false
-  return new URLSearchParams(window.location.search).has('voiceDebug')
+  const params = new URLSearchParams(window.location.search)
+  return params.has('voiceDebug') || import.meta.env.DEV
 }
 
 export function VoiceDebugOverlay() {
   const [visible] = useState(showOverlay)
   const [, setTick] = useState(0)
+  const pipelineStep = useUiStore((s) => s.voicePipelineStep)
+  const speechState = useUiStore((s) => s.speechState)
+
+  useEffect(() => {
+    if (!visible) return
+    if (new URLSearchParams(window.location.search).has('voiceDebug')) {
+      setVoiceDebugForced(true)
+    }
+  }, [visible])
 
   useEffect(() => {
     if (!visible || !isVoiceDebugEnabled()) return
@@ -35,6 +46,8 @@ export function VoiceDebugOverlay() {
       data-testid="voice-debug-overlay"
     >
       <div>voice debug</div>
+      <div>step: {pipelineStep}</div>
+      <div>speech: {speechState}</div>
       {last ? <div>last: {last.span}</div> : null}
       <div>{parts.length ? parts.join(' ') : '—'}</div>
     </div>

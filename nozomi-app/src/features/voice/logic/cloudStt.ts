@@ -1,3 +1,4 @@
+import { CLOUD_STT_TIMEOUT_MS } from '@/features/voice/context/speech-listen/constants'
 import { voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 /**
@@ -9,6 +10,8 @@ export async function transcribeCloudAudio(
   lang: string,
 ): Promise<string | null> {
   if (!apiKey.trim()) return null
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), CLOUD_STT_TIMEOUT_MS)
   try {
     const res = await fetch(
       `https://api.deepgram.com/v1/listen?language=${encodeURIComponent(lang)}&model=nova-2`,
@@ -19,6 +22,7 @@ export async function transcribeCloudAudio(
           'Content-Type': pcmOrBlob.type || 'audio/webm',
         },
         body: pcmOrBlob,
+        signal: controller.signal,
       },
     )
     if (!res.ok) throw new Error(`cloud-stt-${res.status}`)
@@ -33,5 +37,7 @@ export async function transcribeCloudAudio(
       error: err instanceof Error ? err.message : String(err),
     })
     return null
+  } finally {
+    window.clearTimeout(timer)
   }
 }

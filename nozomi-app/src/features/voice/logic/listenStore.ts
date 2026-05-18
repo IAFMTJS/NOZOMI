@@ -1,3 +1,4 @@
+import { teardownRecordedListenTimers } from '@/features/voice/logic/recordedListenTimers'
 import { cancelMicSession } from '@/systems/speech/micSessionRecorder'
 import { getLastOfflineSttError, isOfflineSttReady } from '@/systems/speech/offlineStt'
 import type { SttEngine } from '@/systems/speech/sttEngine'
@@ -402,6 +403,7 @@ export function abortRecognitionSafe(): void {
 }
 
 export function resetListenSessionState(): void {
+  teardownRecordedListenTimers()
   finishRequested = false
   clearFinalizeTimers()
   if (listenSession) listenSession.stopped = true

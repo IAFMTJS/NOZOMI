@@ -3,6 +3,7 @@ import {
   speechLangDisplayName,
 } from '@/systems/speech/speechLocale'
 import { deriveListenPhase } from '@/features/voice/logic/listenPresence'
+import type { VoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { UI_LABELS } from '@/data/ui-labels'
@@ -34,6 +35,31 @@ function MiniWave({ active }: { active: boolean }) {
   )
 }
 
+function statusForPipelineStep(step: VoicePipelineStep): LanguageText | null {
+  switch (step) {
+    case 'preparing':
+      return UI_LABELS.statusPreparing
+    case 'listening':
+    case 'recording':
+      return UI_LABELS.listening
+    case 'stopping-recorder':
+    case 'transcribing':
+      return UI_LABELS.statusFinalizing
+    case 'understanding':
+      return UI_LABELS.processingSpeech
+    case 'generating':
+      return {
+        jp: '返事を考えています…',
+        romaji: 'Henji wo kangaete imasu…',
+        en: 'Generating response…',
+      }
+    case 'speaking':
+      return UI_LABELS.statusSpeaking
+    default:
+      return null
+  }
+}
+
 function statusForPhase(phase: ReturnType<typeof deriveListenPhase>): LanguageText | null {
   switch (phase) {
     case 'preparing':
@@ -46,19 +72,20 @@ function statusForPhase(phase: ReturnType<typeof deriveListenPhase>): LanguageTe
       return UI_LABELS.processingSpeech
     case 'speaking':
       return UI_LABELS.statusSpeaking
-    default:
-      return null
   }
+  return null
 }
 
 export function PresenceStatusRow({ speechState, orbState }: Props) {
   const speechPref = useNozomiStore((s) => s.settings.speechInputLang)
   const transcriptFinalizing = useUiStore((s) => s.transcriptFinalizing)
+  const pipelineStep = useUiStore((s) => s.voicePipelineStep)
   const phase = deriveListenPhase(speechState, orbState, transcriptFinalizing)
   const listeningAs = speechLangDisplayName(
     resolveSpeechRecognitionLang(speechPref),
   )
-  const statusText = statusForPhase(phase)
+  const statusText =
+    statusForPipelineStep(pipelineStep) ?? statusForPhase(phase)
 
   if (!statusText) {
     return <div className="min-h-[1.5rem] shrink-0" aria-hidden />
@@ -71,6 +98,7 @@ export function PresenceStatusRow({ speechState, orbState }: Props) {
         role="status"
         aria-live="polite"
         data-listen-phase={phase}
+        data-voice-pipeline={pipelineStep}
         aria-label={`${statusText.jp}. ${statusText.en}`}
       >
         <MiniWave active={phase === 'capturing'} />

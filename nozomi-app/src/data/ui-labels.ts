@@ -44,6 +44,7 @@ export type UiLabelKey =
   | 'micModelFailed'
   | 'micStartFailed'
   | 'micNetwork'
+  | 'voiceTranscribeFailed'
   | 'micNeedsHttps'
   | 'micRetry'
   | 'noSpeech'
@@ -298,6 +299,11 @@ export const UI_LABELS: Record<UiLabelKey, LanguageText> = {
     jp: '音声認識にはインターネット接続が必要です（ChromeまたはEdge）。',
     romaji: 'Onsei ninshiki ni wa intaanetto setsuzoku ga hitsuyou desu.',
     en: 'Speech recognition needs internet (use Chrome or Edge on desktop).',
+  },
+  voiceTranscribeFailed: {
+    jp: '音声をうまく処理できませんでした。もう一度話すか、設定で音声認識を切り替えてみてください。',
+    romaji: 'Onsei wo umaku shori dekimasen deshita.',
+    en: "Couldn't process that audio. Try again or switch speech recognition in Settings.",
   },
   micNeedsHttps: {
     jp: 'スマホでマイクを使うには HTTPS が必要です。PC では npm run dev を使い、https://あなたのIP:5173 を開いてください。',

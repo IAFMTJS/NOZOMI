@@ -96,8 +96,8 @@ export function ListeningPage() {
   )
 
   const needsHttps = micNeedsSecureContext()
-  const micBlocked =
-    needsHttps || !speechSupported().stt || speechState === 'error'
+  const micBlocked = needsHttps || !speechSupported().stt
+  const sessionError = Boolean(errorCode) && speechState === 'error'
   const listenPhase = useListenPhase()
   const isListening = listenPhase === 'capturing'
   const isPreparing = listenPhase === 'preparing'
@@ -258,6 +258,7 @@ export function ListeningPage() {
   }
 
   const handleRetry = () => {
+    clearError()
     cancelSession()
     beginListening()
   }
@@ -322,6 +323,17 @@ export function ListeningPage() {
         />
       )}
       <PresenceStatusRow speechState={speechState} orbState={orbState} />
+
+      {sessionError && (
+        <div className="mx-4 mb-2 shrink-0">
+          <MicPermissionBanner
+            showSecondary
+            errorCode={errorCode}
+            onRetry={handleRetry}
+            className="mx-auto w-full max-w-sm py-4"
+          />
+        </div>
+      )}
 
       <div className="relative flex min-h-0 flex-1 flex-col">
         <FloatingTurnBubbles

@@ -1,3 +1,4 @@
+import { STT_USER_TIMEOUT_MS } from '@/features/voice/context/speech-listen/constants'
 import { decodeRecordingTo16kMono, pcmRms } from '@/systems/speech/audioDecode'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 
@@ -19,7 +20,7 @@ import { isIos, isLowMemoryDevice } from '@/utils/device'
 
 const LOAD_TIMEOUT_MS = 180_000
 const READY_WAIT_MS = isIos() ? 90_000 : 120_000
-const INFER_TIMEOUT_MS = 90_000
+const INFER_TIMEOUT_MS = Math.min(90_000, STT_USER_TIMEOUT_MS - 4_000)
 const DECODE_TIMEOUT_MS = 20_000
 const SILENT_RMS = 0.003
 

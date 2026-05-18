@@ -29,6 +29,7 @@ import {
   resetListenSessionState,
   setActiveListenLang,
   setActiveSttEngine,
+  setFinishRequested,
   setListenSession,
   setRecognition,
   setSignalAudioStart,
@@ -45,8 +46,38 @@ import {
 import { releaseSharedMicrophone } from '@/systems/speech/speechCapabilities'
 import { isIos } from '@/utils/device'
 import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
+import {
+  MAX_RECORDING_BLOB_BYTES,
+  MAX_RECORDING_MS,
+  STT_USER_TIMEOUT_MS,
+} from '@/features/voice/context/speech-listen/constants'
+import { promiseWithTimeout } from '@/features/voice/logic/promiseTimeout'
+import {
+  clearRecordingCapTimer,
+  setRecordingCapTimer,
+} from '@/features/voice/logic/recordedListenTimers'
+import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 import { startBrowserListening } from '@/systems/speech/browserSttListen'
+
+function failRecordedFinalize(
+  generation: number,
+  reason: string,
+  code: 'transcribe-failed' | 'network' | 'unknown' = 'transcribe-failed',
+): void {
+  if (getListenGeneration() !== generation) return
+  const session = getListenSession()
+  if (!session || session.gotResult) return
+  session.stopped = true
+  releaseOfflineSttPipeline()
+  voiceDebugError('rec:finalize-failed', { generation, reason, code })
+  setVoicePipelineStep('error')
+  dispatch('onError', {
+    code,
+    message: reason,
+  })
+  dispatch('onStateChange', 'error')
+}
 
 function tryBrowserSttFallback(
   callbacks: SpeechCallbacks,
@@ -63,68 +94,110 @@ function tryBrowserSttFallback(
 }
 
 function runRecordedFinalize(generation: number): void {
-  void stopMicSession().then(async (blob) => {
-    const session = getListenSession()
-    if (getListenGeneration() !== generation) {
-      voiceDebugWarn('rec:finalize-gen-mismatch', {
-        expected: generation,
-        current: getListenGeneration(),
-      })
-      return
-    }
-    if (!session || session.gotResult) {
-      voiceDebugWarn('rec:finalize-no-session', {
-        hasSession: !!session,
-        gotResult: session?.gotResult,
-      })
-      return
-    }
-    dispatch('onStateChange', 'processing')
-    if (!blob || blob.size < 128) {
-      voiceDebugWarn('rec:blob-too-small', { size: blob?.size ?? 0 })
-      dispatch('onResult', '')
-      return
-    }
-    const { soundStart } = getListenSignals()
-    const lang = getActiveListenLang()
-    const text = await enqueueSttWork(async () => {
-      const settings = useNozomiStore.getState().settings
-      if (settings.sttCloudProvider === 'cloud' && settings.cloudSttApiKey.trim()) {
-        const cloud = await transcribeCloudAudio(
-          settings.cloudSttApiKey,
-          blob,
-          lang,
+  clearRecordingCapTimer()
+  setVoicePipelineStep('stopping-recorder')
+  void stopMicSession()
+    .then(async (blob) => {
+      try {
+        const session = getListenSession()
+        if (getListenGeneration() !== generation) {
+          voiceDebugWarn('rec:finalize-gen-mismatch', {
+            expected: generation,
+            current: getListenGeneration(),
+          })
+          return
+        }
+        if (!session || session.gotResult) {
+          voiceDebugWarn('rec:finalize-no-session', {
+            hasSession: !!session,
+            gotResult: session?.gotResult,
+          })
+          return
+        }
+        dispatch('onStateChange', 'processing')
+        if (!blob || blob.size < 128) {
+          voiceDebugWarn('rec:blob-too-small', { size: blob?.size ?? 0 })
+          dispatch('onResult', '')
+          return
+        }
+        if (blob.size > MAX_RECORDING_BLOB_BYTES) {
+          voiceDebugWarn('rec:blob-too-large', { size: blob.size })
+          failRecordedFinalize(
+            generation,
+            'Recording was too large to process. Try a shorter message.',
+          )
+          return
+        }
+
+        setVoicePipelineStep('transcribing')
+        const { soundStart } = getListenSignals()
+        const lang = getActiveListenLang()
+        const text = await enqueueSttWork(() =>
+          promiseWithTimeout(
+            (async () => {
+              const settings = useNozomiStore.getState().settings
+              if (
+                settings.sttCloudProvider === 'cloud' &&
+                settings.cloudSttApiKey.trim()
+              ) {
+                const cloud = await transcribeCloudAudio(
+                  settings.cloudSttApiKey,
+                  blob,
+                  lang,
+                )
+                if (cloud) return cloud
+              }
+              return transcribeAudioBlob(blob, lang, { hadSound: soundStart })
+            })(),
+            STT_USER_TIMEOUT_MS,
+            'rec:transcribe',
+          ),
         )
-        if (cloud) return cloud
+        releaseOfflineSttPipeline()
+        if (
+          getListenGeneration() !== generation ||
+          !getListenSession() ||
+          getListenSession()!.gotResult
+        ) {
+          return
+        }
+        if (text.trim()) {
+          setVoicePipelineStep('understanding')
+          commitTranscript(text, generation)
+        } else {
+          voiceDebugWarn('rec:transcribe-empty', {
+            offlineError: getLastOfflineSttError()?.slice(0, 200) ?? null,
+          })
+          if (
+            browserSttAvailable() &&
+            getSttEngine() === 'local' &&
+            /timed out|silent/i.test(getLastOfflineSttError() ?? '')
+          ) {
+            setSessionSttEngine('browser')
+            voiceDebugWarn('stt:next-turn-browser', { reason: 'local-transcribe-failed' })
+          }
+          dispatch('onResult', '')
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        const timedOut = /timed out/i.test(msg)
+        failRecordedFinalize(
+          generation,
+          timedOut
+            ? 'Transcription took too long. Check your connection and try again.'
+            : 'Could not process that audio. Please try again.',
+          timedOut ? 'network' : 'transcribe-failed',
+        )
       }
-      return transcribeAudioBlob(blob, lang, { hadSound: soundStart })
     })
-    // Free Whisper WASM before conversation work — keeps mobile tabs alive after stop.
-    releaseOfflineSttPipeline()
-    if (
-      getListenGeneration() !== generation ||
-      !getListenSession() ||
-      getListenSession()!.gotResult
-    ) {
-      return
-    }
-    if (text.trim()) {
-      commitTranscript(text, generation)
-    } else {
-      voiceDebugWarn('rec:transcribe-empty', {
-        offlineError: getLastOfflineSttError()?.slice(0, 200) ?? null,
-      })
-      if (
-        browserSttAvailable() &&
-        getSttEngine() === 'local' &&
-        /timed out|silent/i.test(getLastOfflineSttError() ?? '')
-      ) {
-        setSessionSttEngine('browser')
-        voiceDebugWarn('stt:next-turn-browser', { reason: 'local-transcribe-failed' })
-      }
-      dispatch('onResult', '')
-    }
-  })
+    .catch((err) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      failRecordedFinalize(
+        generation,
+        msg || 'Recording could not be finalized.',
+        'transcribe-failed',
+      )
+    })
 }
 
 export function runRecordedFinalizeForGeneration(generation: number): void {
@@ -176,6 +249,19 @@ function startRecordedListeningNow(
     }
     captureStarted = true
     setSignalAudioStart()
+    setVoicePipelineStep('recording')
+    clearRecordingCapTimer()
+    setRecordingCapTimer(
+      window.setTimeout(() => {
+        if (getListenGeneration() !== generation) return
+        const active = getListenSession()
+        if (!active || active.stopped || active.gotResult) return
+        voiceDebugWarn('rec:max-duration', { generation, maxMs: MAX_RECORDING_MS })
+        active.stopped = true
+        setFinishRequested(true)
+        runRecordedFinalize(generation)
+      }, MAX_RECORDING_MS),
+    )
     voiceDebug('rec:ready', {
       generation,
       sttModelReady,
@@ -233,6 +319,7 @@ function startRecordedListeningNow(
     })
 
   voiceDebug('rec:session-start', { generation, lang })
+  setVoicePipelineStep('preparing')
   dispatch('onStateChange', 'permission_pending')
 
   const micStartDelayMs = isMicRecentlyPrimed() ? 280 : 0
@@ -286,3 +373,4 @@ export function startRecordedListening(
     startRecordedListeningNow(callbacks, options)
   })
 }
+
