@@ -7,8 +7,8 @@ import {
   listRankedJapaneseVoices,
   NOZOMI_VOICE_AUTO,
   warmJapaneseVoices,
-} from '@/systems/speech/japaneseVoicePicker'
-import { speakJapanese, stopSpeaking } from '@/systems/speech/speechService'
+} from '@/features/voice/logic/japaneseVoicePicker'
+import { speakJapanese, stopSpeaking } from '@/features/voice/logic/speechService'
 const PREVIEW_JP = 'こんにちは。ノゾミです。一緒に練習しましょう。'
 
 export function NozomiVoicePicker() {

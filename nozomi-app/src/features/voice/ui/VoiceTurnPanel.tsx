@@ -1,4 +1,4 @@
-import { MessageBubble } from '@/components/chat/MessageBubble'
+import { MessageBubble } from '@/features/chat/ui/MessageBubble'
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import { useWordTap } from '@/hooks/useWordTap'

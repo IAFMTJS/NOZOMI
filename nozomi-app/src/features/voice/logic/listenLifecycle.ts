@@ -1,9 +1,9 @@
-import { runRecordedFinalizeForGeneration } from '@/systems/speech/recordedSttListen'
+import { runRecordedFinalizeForGeneration } from '@/features/voice/logic/recordedSttListen'
 import {
   startBrowserListening,
   stopBrowserAudioLevel,
-} from '@/systems/speech/browserSttListen'
-import { startRecordedListening } from '@/systems/speech/recordedSttListen'
+} from '@/features/voice/logic/browserSttListen'
+import { startRecordedListening } from '@/features/voice/logic/recordedSttListen'
 import {
   abortRecognitionSafe,
   bindListeningHandlers,
@@ -22,14 +22,14 @@ import {
   setFinalizeWatchdog,
   setFinishRequested,
   stopRecognitionSafe,
-} from '@/systems/speech/listenStore'
+} from '@/features/voice/logic/listenStore'
 import {
   acquireSharedMicrophone,
   clearSharedMicStreamIf,
   getSharedMicStream,
   releaseSharedMicrophone,
-} from '@/systems/speech/speechCapabilities'
-import { levelFromRms, rmsFromTimeDomain } from '@/systems/speech/audioLevel'
+} from '@/features/voice/logic/speechCapabilities'
+import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import {
   browserSttAvailable,
   browserSttViableForLang,
@@ -37,11 +37,11 @@ import {
   getSttEngine,
   readStoredSttEngine,
   resolveSttEngineForLang,
-} from '@/systems/speech/sttEngine'
+} from '@/features/voice/logic/sttEngine'
 import { isIos, isLowMemoryDevice } from '@/utils/device'
-import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
-import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
-import { voiceDebug, voiceDebugWarn } from '@/systems/speech/voiceDebug'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
+import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
+import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 export {
   attachListeningCallbacks,
   bindListeningHandlers,
@@ -56,7 +56,7 @@ export {
   consumeListenArmedFromGesture,
   syncCaptureFromDisplay,
   whenSttWorkIdle,
-} from '@/systems/speech/listenStore'
+} from '@/features/voice/logic/listenStore'
 
 export function startListening(
   callbacks: SpeechCallbacks,

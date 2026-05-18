@@ -1,7 +1,7 @@
 import { LanguageText } from '@/components/language/LanguageText'
 import { UI_LABELS } from '@/data/ui-labels'
 import type { LanguageText as LT } from '@/types/domain'
-import type { SpeechErrorCode } from '@/systems/speech/speechService'
+import type { SpeechErrorCode } from '@/features/voice/logic/speechService'
 import { BTN_ROW } from '@/utils/touch'
 
 interface Props {

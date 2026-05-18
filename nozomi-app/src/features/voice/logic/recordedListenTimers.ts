@@ -9,12 +9,16 @@ export function clearRecordingCapTimer(): void {
   }
 }
 
+export function clearRecordedCaptureTimers(): void {
+  clearRecordingCapTimer()
+}
+
 export function setRecordingCapTimer(timer: number): void {
   clearRecordingCapTimer()
   recordingCapTimer = timer
 }
 
 export function teardownRecordedListenTimers(): void {
-  clearRecordingCapTimer()
+  clearRecordedCaptureTimers()
   resetVoicePipelineStep()
 }

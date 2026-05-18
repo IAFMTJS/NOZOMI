@@ -7,7 +7,7 @@ export type {
   SpeechErrorCode,
   SpeechCallbacks,
   StartListeningOptions,
-} from '@/systems/speech/types'
+} from './types'
 
 export {
   micNeedsSecureContext,
@@ -18,7 +18,7 @@ export {
   prepareMicrophone,
   acquireSharedMicrophone,
   releaseSharedMicrophone,
-} from '@/systems/speech/speechCapabilities'
+} from './speechCapabilities'
 
 export {
   isSpeechOutputActive,
@@ -26,7 +26,7 @@ export {
   micCooldownAfterSpeechMs,
   speakJapanese,
   stopSpeaking,
-} from '@/systems/speech/speechTts'
+} from './speechTts'
 
 export {
   startListening,
@@ -47,36 +47,36 @@ export {
   consumeListenArmedFromGesture,
   syncCaptureFromDisplay,
   whenSttWorkIdle,
-} from '@/systems/speech/listenLifecycle'
+} from './listenLifecycle'
 
 export {
   getListenSession,
   getActiveSttEngine,
-} from '@/systems/speech/listenStore'
+} from './listenStore'
 
 export {
   isOfflineSttReady,
   whenOfflineSttReady,
   releaseOfflineSttPipeline,
-} from '@/systems/speech/offlineStt'
+} from './offlineStt'
 
 export {
   cancelScheduledReleaseOfflineStt,
   scheduleReleaseOfflineSttPipeline,
   touchOfflineSttPipeline,
-} from '@/features/voice/logic/offlineSttLifecycle'
+} from './offlineSttLifecycle'
 
 export {
   startMicCaptureFromGesture,
   releaseGestureMicStream,
-} from '@/systems/speech/micGesture'
+} from './micGesture'
 
-export { isMicRecorderActive } from '@/systems/speech/micSessionRecorder'
+export { isMicRecorderActive } from './micSessionRecorder'
 
 export {
   browserSttViableForLang,
   resolveSttEngineForLang,
-} from '@/systems/speech/sttEngine'
+} from './sttEngine'
 
 export {
   NOZOMI_VOICE_AUTO,
@@ -84,4 +84,4 @@ export {
   listRankedJapaneseVoices,
   pickJapaneseVoice,
   warmJapaneseVoices,
-} from '@/systems/speech/japaneseVoicePicker'
+} from './japaneseVoicePicker'

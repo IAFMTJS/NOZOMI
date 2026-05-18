@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { SimulatedConversation } from '../types'
-import { persistTuningArtifacts } from './writeTuningArtifacts'
+import { persistTuningArtifactsToDisk } from './persistTuningArtifacts.node'
 
 const exportPath = process.env.SIM_EXPORT_FILE
   ? resolve(process.env.SIM_EXPORT_FILE)
@@ -22,7 +22,7 @@ describe('apply simulation insights export', () => {
 
       expect(conversations.length).toBeGreaterThan(0)
 
-      const tuning = await persistTuningArtifacts(conversations)
+      const tuning = await persistTuningArtifactsToDisk(conversations)
       expect(tuning).not.toBeNull()
       expect(tuning!.avoidJpContains.length).toBeGreaterThan(0)
     },

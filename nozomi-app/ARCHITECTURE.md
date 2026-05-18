@@ -13,7 +13,7 @@ Module boundaries for maintenance. **Dependency direction:** UI → orchestratio
 | **Conversation** | `conversation/useConversation.ts` | `@/features/conversation` |
 | **Design** | `design/catalog`, `design/styles/sections` | `@/features/design` |
 
-Legacy paths (`@/systems/speech`, `@/components/audio`, `@/hooks/useConversation`, …) still resolve via `path-aliases.json` (tsconfig + Vite). Prefer `@/features/*` in new code.
+Import via `@/features/*` (or `@/systems/conversation`, `@/components/*`, `@/hooks/*` for shared layers). Legacy alias redirects were removed in Phase D.
 
 ## Visual & design (`features/design/`)
 
@@ -82,6 +82,43 @@ Integration bridges (avoid glitches between subsystems):
 - `startListenPipeline.ts` — shared wait after TTS before opening the mic.
 - `endListenSessionAfterTurn({ keepMic })` — continuous mode keeps the shared mic on `/listen`.
 
+#### Speech listen controller (`features/voice/context/speech-listen/`)
+
+`useSpeechListenController` orchestrates the UI layer. Sub-hooks (each owns one concern):
+
+| Hook | File | Role |
+|------|------|------|
+| `useOfflineSttPreload` | `hooks/useOfflineSttPreload.ts` | Whisper preload on `/listen` only; TTS voice warm-up |
+| `useVoiceFinishRecording` | `hooks/useVoiceFinishRecording.ts` | Stop tap → STT finalize → `handleFinalTranscript` |
+| `useVoiceSilenceEndpoint` | `hooks/useVoiceSilenceEndpoint.ts` | Auto-stop on silence when settings allow |
+| `useVoiceContinuousListen` | `hooks/useVoiceContinuousListen.ts` | Re-open mic after TTS in continuous mode |
+| `useVoicePipelineStuckRecovery` | `hooks/useVoicePipelineStuckRecovery.ts` | Recover hung finalize (not engine/TTS) |
+
+**Ref ownership** (all in `useSpeechListenController` unless noted):
+
+| Ref | Purpose |
+|-----|---------|
+| `mountedRef` | Ignore async work after unmount |
+| `processingRef` | Engine turn in flight |
+| `finishingRef` | STT finalize window (stop tap → result) |
+| `resultDeliveredRef` | Dedupe `onResult` / finish paths |
+| `everHeardRef` | Mic level crossed threshold (finish timeouts) |
+| `lastTranscriptRef` / `pendingInterimRef` | Transcript merge before commit |
+| `interimRafRef` | Throttle interim UI updates to rAF |
+| `finishFallbackTimer` | Poll for late STT after stop |
+| `voiceTurnGenRef` | Invalidate stale `sendUserMessage` |
+| `listenIntentRef` | Invalidate stale `beginListening` after barge-in |
+| `noSpeechFallbackDeliveredRef` | One no-speech apology per attempt |
+| `silenceEndpointRef` | Returned from `useVoiceSilenceEndpoint` |
+
+**E2E:** `e2e/voice-turn.spec.ts` mocks `SpeechRecognition` + `speechSynthesis`; set `nozomi.sttEngine=browser` in init script.
+
+#### Quality gates
+
+- **ESLint:** `npm run lint` — TypeScript + `react-hooks` + `jsx-a11y` on `src/`.
+- **Telemetry:** `utils/appTelemetry.ts` — `data_load_failed`, `data_load_retry_failed`, `data_load_recovered` (sessionStorage ring buffer + optional `registerTelemetrySink`).
+- **A11y e2e:** `npm run test:a11y` — axe WCAG 2a/2aa on `/chat` and `/listen`.
+
 ### Orb (`features/orb/`)
 
 Visual presence; reads `orbState` + audio level from store/hooks.  
@@ -134,6 +171,9 @@ Sentence exposure / repetition avoidance (used by engine).
 
 May import `systems/conversation`; **never** the reverse from production code paths.
 
+- **Browser:** `persistTuningArtifactsInMemory` in `writeTuningArtifacts.ts` (applies tuning to the running session).
+- **Node only:** `persistTuningArtifacts.node.ts` writes `public/data/simulation-tuning.json` — excluded from production build; used by Vitest export tests and CLI workflows.
+
 ## Surfaces: chat vs voice
 
 `useNozomiStore` keeps **parallel** sessions: `chatSession` / `voiceSession`, separate messages and suggestions.  
@@ -144,7 +184,7 @@ Any new feature must pass surface `'chat' | 'voice'` explicitly (see `useConvers
 | From → To | Allowed |
 |-----------|---------|
 | `components/*` → `systems/*` | Yes |
-| `systems/speech` → `systems/conversation` | Avoid (use hooks) |
+| `features/voice/logic` → `systems/conversation` | Avoid (use hooks) |
 | `systems/conversation` → `systems/speech` | No |
 | `systems/*` → `components/*` | **Never** |
 | `systems/conversation` → `simulation/*` | **Never** |

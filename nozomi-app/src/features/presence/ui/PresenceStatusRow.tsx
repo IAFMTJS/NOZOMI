@@ -1,7 +1,7 @@
 import {
   resolveSpeechRecognitionLang,
   speechLangDisplayName,
-} from '@/systems/speech/speechLocale'
+} from '@/features/voice/logic/speechLocale'
 import { deriveListenPhase } from '@/features/voice/logic/listenPresence'
 import type { VoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
 import { useNozomiStore } from '@/store/useNozomiStore'

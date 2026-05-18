@@ -23,16 +23,16 @@ import {
   setSignalSoundStart,
   setSignalSpeechStart,
   stopMicVisualizer,
-} from '@/systems/speech/listenStore'
-import { createAudioLevelLoop } from '@/systems/speech/listenLifecycle'
+} from '@/features/voice/logic/listenStore'
+import { createAudioLevelLoop } from '@/features/voice/logic/listenLifecycle'
 import {
   isMicRecentlyPrimed,
   mapSpeechRecognitionError,
-} from '@/systems/speech/speechCapabilities'
-import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
-import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
-import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
-import { resetListenSessionState } from '@/systems/speech/listenStore'
+} from '@/features/voice/logic/speechCapabilities'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
+import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
+import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import { resetListenSessionState } from '@/features/voice/logic/listenStore'
 
 let browserLevelLoop: ReturnType<typeof createAudioLevelLoop> | null = null
 

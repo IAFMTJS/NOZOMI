@@ -14,8 +14,8 @@ import {
   type SimulatedConversation,
   type SimulationRun,
   DEFAULT_SIM_CONFIG,
+  PERSONALITY_TEMPLATES,
 } from '@/simulation'
-import { PERSONALITY_TEMPLATES } from '@/simulation/config/personalityTemplates'
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100)

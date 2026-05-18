@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { MicButton } from '@/components/audio/MicButton'
-import { MicPermissionBanner } from '@/components/audio/MicPermissionBanner'
+import { MicButton } from '@/features/voice/ui/MicButton'
+import { MicPermissionBanner } from '@/features/voice/ui/MicPermissionBanner'
 import { IconSend } from '@/components/ui/Icons'
 import { UI_LABELS } from '@/data/ui-labels'
-import { speechSupported } from '@/systems/speech/speechService'
+import { speechSupported } from '@/features/voice/logic/speechService'
 import { BTN_ICON } from '@/utils/touch'
 
 interface Props {

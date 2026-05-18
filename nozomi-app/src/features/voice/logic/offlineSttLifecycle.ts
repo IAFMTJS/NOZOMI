@@ -5,7 +5,8 @@ import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
 let lastTouchAt = 0
 let releaseTimer: number | null = null
 
-const RELEASE_DELAY_MS = isIos() ? 90_000 : 45_000
+/** Keep Whisper warm between turns on /listen (files stay in Cache API). */
+const RELEASE_DELAY_MS = isIos() ? 90_000 : 120_000
 
 export function touchOfflineSttPipeline(): void {
   lastTouchAt = Date.now()

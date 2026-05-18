@@ -74,7 +74,7 @@ export function ChatPage() {
   }, [messages])
 
   return (
-    <div className="app-page">
+    <div className="app-page" data-testid="chat-page">
       <AppHeader showBack onSettings={() => navigate('/settings')} />
       {session.activeStoryId != null &&
         session.activeStoryBeat != null &&
@@ -86,7 +86,13 @@ export function ChatPage() {
             </span>
           </div>
         )}
-      <div className="app-page-scroll py-4 space-y-4">
+      <div
+        className="app-page-scroll py-4 space-y-4"
+        role="log"
+        aria-label="Chat messages"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {messages.length === 0 && (
           <div className="px-6 py-12 text-center space-y-3">
             <LanguageText text={UI_LABELS.saySomething} align="center" />

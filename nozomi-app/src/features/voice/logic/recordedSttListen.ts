@@ -2,23 +2,24 @@ import {
   beginMicRecording,
   startMicSession,
   stopMicSession,
-} from '@/systems/speech/micSessionRecorder'
+} from '@/features/voice/logic/micSessionRecorder'
 import {
   getLastOfflineSttError,
   isOfflineSttReady,
   preloadOfflineStt,
-  releaseOfflineSttPipeline,
   transcribeAudioBlob,
   whenOfflineSttReady,
-} from '@/systems/speech/offlineStt'
+} from '@/features/voice/logic/offlineStt'
+import { scheduleReleaseOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecycle'
 import { transcribeCloudAudio } from '@/features/voice/logic/cloudStt'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import {
   isMicRecentlyPrimed,
   micErrorFromUnknown,
-} from '@/systems/speech/speechCapabilities'
+} from '@/features/voice/logic/speechCapabilities'
 import {
   bumpListenGeneration,
+  commitEmptyTranscript,
   commitTranscript,
   dispatch,
   enqueueSttWork,
@@ -36,14 +37,14 @@ import {
   setSignalSoundStart,
   whenSttWorkIdle,
   bindListeningHandlers,
-} from '@/systems/speech/listenStore'
-import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
+} from '@/features/voice/logic/listenStore'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import {
   browserSttAvailable,
   getSttEngine,
   setSessionSttEngine,
-} from '@/systems/speech/sttEngine'
-import { releaseSharedMicrophone } from '@/systems/speech/speechCapabilities'
+} from '@/features/voice/logic/sttEngine'
+import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
 import { isIos } from '@/utils/device'
 
 /** Let iOS release the mic stack before decode + WASM (reduces tab reloads). */
@@ -62,28 +63,24 @@ async function yieldBeforeTranscribe(): Promise<void> {
 }
 
 function unwindEmptyFinalize(generation: number): void {
-  if (getListenGeneration() !== generation) return
-  const session = getListenSession()
-  if (!session || session.gotResult) return
-  session.gotResult = true
-  session.stopped = true
   voiceDebugWarn('rec:finalize-unwind-empty', { generation })
-  dispatch('onResult', '')
+  commitEmptyTranscript(generation)
 }
-import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
+import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
 import {
   MAX_RECORDING_BLOB_BYTES,
   MAX_RECORDING_MS,
+  MIC_SOUND_DETECT_THRESHOLD,
   STT_USER_TIMEOUT_MS,
 } from '@/features/voice/context/speech-listen/constants'
 import { promiseWithTimeout } from '@/features/voice/logic/promiseTimeout'
 import {
-  clearRecordingCapTimer,
+  clearRecordedCaptureTimers,
   setRecordingCapTimer,
 } from '@/features/voice/logic/recordedListenTimers'
 import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
-import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
-import { startBrowserListening } from '@/systems/speech/browserSttListen'
+import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import { startBrowserListening } from '@/features/voice/logic/browserSttListen'
 
 function failRecordedFinalize(
   generation: number,
@@ -95,7 +92,7 @@ function failRecordedFinalize(
   if (!session || session.gotResult) return
   session.stopped = true
   session.gotResult = true
-  releaseOfflineSttPipeline()
+  scheduleReleaseOfflineSttPipeline()
   voiceDebugError('rec:finalize-failed', { generation, reason, code })
   setVoicePipelineStep('error')
   dispatch('onFinalizeFailed', {
@@ -119,7 +116,7 @@ function tryBrowserSttFallback(
 }
 
 function runRecordedFinalize(generation: number): void {
-  clearRecordingCapTimer()
+  clearRecordedCaptureTimers()
   setVoicePipelineStep('stopping-recorder')
   void stopMicSession()
     .then(async (blob) => {
@@ -162,6 +159,13 @@ function runRecordedFinalize(generation: number): void {
         }
         const { soundStart } = getListenSignals()
         const lang = getActiveListenLang()
+        if (!isOfflineSttReady(lang)) {
+          voiceDebug('rec:await-offline-stt', { lang, generation })
+          await whenOfflineSttReady(lang)
+        }
+        if (getListenGeneration() !== generation || !getListenSession() || getListenSession()!.gotResult) {
+          return
+        }
         const text = await enqueueSttWork(() =>
           promiseWithTimeout(
             (async () => {
@@ -183,11 +187,7 @@ function runRecordedFinalize(generation: number): void {
             'rec:transcribe',
           ),
         )
-        if (isIos()) {
-          window.setTimeout(() => releaseOfflineSttPipeline(), 400)
-        } else {
-          releaseOfflineSttPipeline()
-        }
+        scheduleReleaseOfflineSttPipeline()
         if (
           getListenGeneration() !== generation ||
           !getListenSession() ||
@@ -280,6 +280,10 @@ function startRecordedListeningNow(
     const session = getListenSession()
     if (getListenGeneration() !== generation || !session || session.stopped) return
     if (!micRecorderReady || captureStarted) return
+    if (!sttModelReady) {
+      voiceDebug('rec:wait-model-before-capture', { generation })
+      return
+    }
     if (!beginMicRecording(generation)) {
       voiceDebugWarn('rec:begin-failed', { generation })
       session.stopped = true
@@ -293,7 +297,7 @@ function startRecordedListeningNow(
     captureStarted = true
     setSignalAudioStart()
     setVoicePipelineStep('recording')
-    clearRecordingCapTimer()
+    clearRecordedCaptureTimers()
     setRecordingCapTimer(
       window.setTimeout(() => {
         if (getListenGeneration() !== generation) return
@@ -376,7 +380,7 @@ function startRecordedListeningNow(
         tryStartCapture()
       },
       onLevel: (level) => {
-        if (level > 0.04) setSignalSoundStart()
+        if (level > MIC_SOUND_DETECT_THRESHOLD) setSignalSoundStart()
         dispatch('onLevel', level)
       },
       onError: (err) => {

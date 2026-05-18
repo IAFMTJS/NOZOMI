@@ -13,6 +13,7 @@ export function useDeferredPwaUpdate(): void {
 
   useEffect(() => {
     if (!needRefresh || updatingRef.current) return
+    if (typeof updateServiceWorker !== 'function') return
 
     const tryApply = () => {
       if (!needRefresh || updatingRef.current) return
@@ -21,7 +22,8 @@ export function useDeferredPwaUpdate(): void {
         return
       }
       updatingRef.current = true
-      void updateServiceWorker(true).finally(() => {
+      // Dev / no-SW: updateServiceWorker may return void instead of a Promise.
+      void Promise.resolve(updateServiceWorker(true)).finally(() => {
         updatingRef.current = false
       })
     }

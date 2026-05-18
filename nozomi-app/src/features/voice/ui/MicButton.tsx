@@ -1,8 +1,8 @@
 import { IconMic } from '@/components/ui/Icons'
 import { UI_LABELS } from '@/data/ui-labels'
 import { BTN_ICON } from '@/utils/touch'
-import { useSpeechListen } from '@/contexts/SpeechListenContext'
-import { speechSupported, startMicCaptureFromGesture } from '@/systems/speech/speechService'
+import { useSpeechListen } from '@/features/voice/context/SpeechListenContext'
+import { speechSupported, startMicCaptureFromGesture } from '@/features/voice/logic/speechService'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 interface Props {

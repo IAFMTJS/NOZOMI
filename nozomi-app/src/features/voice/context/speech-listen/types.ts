@@ -1,4 +1,4 @@
-import type { SpeechErrorCode } from '@/systems/speech/types'
+import type { SpeechErrorCode } from '@/features/voice/logic/types'
 
 export type SpeechListenApi = {
   armAndGoToListen: () => Promise<void>
@@ -10,4 +10,6 @@ export type SpeechListenApi = {
   errorCode: SpeechErrorCode | undefined
   clearError: () => void
   offlineSttReady: boolean
+  /** 0–100 while Whisper weights load on /listen; null when not downloading. */
+  offlineSttLoadPercent: number | null
 }

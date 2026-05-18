@@ -3,7 +3,7 @@ import { UI_LABELS } from '@/data/ui-labels'
 import {
   resolveSpeechRecognitionLang,
   speechLangDisplayName,
-} from '@/systems/speech/speechLocale'
+} from '@/features/voice/logic/speechLocale'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import type { SpeechState } from '@/types/domain'
 

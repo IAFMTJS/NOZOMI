@@ -1,6 +1,6 @@
-import { markMicPrimed } from '@/systems/speech/speechCapabilities'
+import { markMicPrimed } from '@/features/voice/logic/speechCapabilities'
 import { isIos } from '@/utils/device'
-import { voiceDebug, voiceDebugWarn } from '@/systems/speech/voiceDebug'
+import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 /** iOS needs time for TTS-idle wait + Whisper preload before mic session adopts the gesture stream. */
 const GESTURE_TTL_MS = isIos() ? 45_000 : 12_000

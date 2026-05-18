@@ -3,7 +3,7 @@ import { useNozomiStore } from '@/store/useNozomiStore'
 import {
   resolveSpeechRecognitionLang,
   speechLangDisplayName,
-} from '@/systems/speech/speechLocale'
+} from '@/features/voice/logic/speechLocale'
 import { BTN_TOUCH } from '@/utils/touch'
 
 interface Props {

@@ -7,6 +7,9 @@ export const STT_USER_TIMEOUT_MS = 28_000
 /** Hard cap on a single mic capture (mobile browsers OOM without this). */
 export const MAX_RECORDING_MS = 10_000
 
+/** Level from mic analyser that counts as "heard" for silence skip + auto-stop guards. */
+export const MIC_SOUND_DETECT_THRESHOLD = 0.028
+
 /** Reject oversized uploads before decode / cloud STT. */
 export const MAX_RECORDING_BLOB_BYTES = 2_500_000
 
@@ -26,6 +29,9 @@ export const FINISH_WAIT_HEARD_MS = 6_000
 export const FINISH_WAIT_DEFAULT_MS = 8_000
 
 export const MIC_LEVEL_HEARD_THRESHOLD = 0.04
+
+/** Longer clips use wider Whisper chunks so the full utterance is covered. */
+export const WHISPER_LONG_AUDIO_SEC = 7
 
 export const UI_AUDIO_LEVEL_THROTTLE_MS = 50
 

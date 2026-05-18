@@ -1,27 +1,97 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { HomePage } from '@/pages/HomePage'
 import { ChatPage } from '@/pages/ChatPage'
 import { ListeningPage } from '@/pages/ListeningPage'
-import { WordPage } from '@/pages/WordPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { OnboardingPage } from '@/pages/OnboardingPage'
-import { SimulationDashboardPage } from '@/pages/SimulationDashboardPage'
 import {
   ensureDataLoaded,
   ensureExtendedDataLoaded,
-  ensureLexiconLoaded,
 } from '@/database/importService'
 import { ensureConversationTuningLoaded } from '@/systems/conversation/matching'
 import { useUiStore } from '@/store/useUiStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { OnboardingGuard } from '@/components/layout/OnboardingGuard'
-import { FavoritesPage } from '@/pages/FavoritesPage'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { SpeechListenProvider } from '@/features/voice'
 import { DevConnectBanner } from '@/components/dev/DevConnectBanner'
+import { DataLoadBanner } from '@/components/ui/DataLoadBanner'
+import { BootScreen } from '@/components/ui/BootScreen'
 import { useInstallVisualViewportCss } from '@/hooks/useInstallVisualViewportCss'
 import { useDeferredPwaUpdate } from '@/hooks/useDeferredPwaUpdate'
+import { useDeferredLexiconLoad } from '@/hooks/useDeferredLexiconLoad'
+import { useDeferredWhisperPreload } from '@/hooks/useDeferredWhisperPreload'
+import { lazyPage } from '@/routing/lazyPage'
+import { trackAppEvent } from '@/utils/appTelemetry'
+
+const WordPage = lazyPage(() => import('@/pages/WordPage'), 'WordPage')
+const SettingsPage = lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage')
+const FavoritesPage = lazyPage(() => import('@/pages/FavoritesPage'), 'FavoritesPage')
+const OnboardingPage = lazyPage(
+  () => import('@/pages/OnboardingPage'),
+  'OnboardingPage',
+)
+const SimulationDashboardPage = lazyPage(
+  () => import('@/pages/SimulationDashboardPage'),
+  'SimulationDashboardPage',
+)
+
+function RouteFallback() {
+  return <BootScreen />
+}
+
+function AppRoutes() {
+  useDeferredLexiconLoad()
+  useDeferredWhisperPreload()
+
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/chat" element={<ChatPage />} />
+      <Route path="/listen" element={<ListeningPage />} />
+      <Route
+        path="/word"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <WordPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/favorites"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <FavoritesPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <OnboardingPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <SettingsPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/simulation"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <SimulationDashboardPage />
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
 
 export default function App() {
   const setDataReady = useUiStore((s) => s.setDataReady)
@@ -31,28 +101,17 @@ export default function App() {
 
   useEffect(() => {
     setDataLoadFailed(false)
-    let lexiconIdle: number | undefined
     ensureDataLoaded()
       .then(() => ensureExtendedDataLoaded())
       .then(() => ensureConversationTuningLoaded())
-      .then(() => {
-        setDataReady(true)
-        const loadLexicon = () => void ensureLexiconLoaded()
-        if (typeof requestIdleCallback === 'function') {
-          lexiconIdle = requestIdleCallback(loadLexicon, { timeout: 12_000 })
-        } else {
-          window.setTimeout(loadLexicon, 1500)
-        }
-      })
-      .catch(() => {
+      .then(() => setDataReady(true))
+      .catch((err) => {
+        const detail = err instanceof Error ? err.message : String(err)
+        console.error('Nozomi data load failed:', err)
+        trackAppEvent('data_load_failed', detail)
         setDataLoadFailed(true)
         setDataReady(true)
       })
-    return () => {
-      if (lexiconIdle !== undefined && typeof cancelIdleCallback === 'function') {
-        cancelIdleCallback(lexiconIdle)
-      }
-    }
   }, [setDataReady, setDataLoadFailed])
 
   return (
@@ -67,20 +126,11 @@ export default function App() {
             }}
           >
             <DevConnectBanner />
+            <DataLoadBanner />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <AppShell>
                 <OnboardingGuard>
-                  <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/chat" element={<ChatPage />} />
-                    <Route path="/listen" element={<ListeningPage />} />
-                    <Route path="/word" element={<WordPage />} />
-                    <Route path="/favorites" element={<FavoritesPage />} />
-                    <Route path="/onboarding" element={<OnboardingPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/simulation" element={<SimulationDashboardPage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
+                  <AppRoutes />
                 </OnboardingGuard>
               </AppShell>
             </div>

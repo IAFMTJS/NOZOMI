@@ -88,6 +88,7 @@ export function ListeningPage() {
     errorCode,
     clearError,
     offlineSttReady,
+    offlineSttLoadPercent,
   } = useSpeechListen()
   const [historyOpen, setHistoryOpen] = useState(false)
   const recognitionLang = resolveSpeechRecognitionLang(settings.speechInputLang)
@@ -125,6 +126,7 @@ export function ListeningPage() {
 
   const bootedRef = useRef(false)
   const listenBootKeyRef = useRef<string | null>(null)
+  const sessionArmHandledRef = useRef(false)
   const voiceOpenedRef = useRef(false)
   const listenMountedRef = useRef(false)
   const leaveCancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -186,26 +188,37 @@ export function ListeningPage() {
 
     const navState = location.state as ListenLocationState | null
     const shouldArm = Boolean(navState?.sessionArmed || navState?.autoStart)
-    const bootKey = `${location.key}:${shouldArm}`
-    if (listenBootKeyRef.current !== bootKey) {
-      listenBootKeyRef.current = bootKey
+
+    if (listenBootKeyRef.current !== location.key) {
+      listenBootKeyRef.current = location.key
+      sessionArmHandledRef.current = false
+    }
+
+    if (shouldArm && !sessionArmHandledRef.current) {
+      sessionArmHandledRef.current = true
       if (isListenSessionActive()) {
         attachToActiveSession()
-      } else if (shouldArm) {
+      } else {
         beginListening()
-      } else if (!bootedRef.current) {
-        attachToActiveSession()
       }
-      if (shouldArm) {
-        window.history.replaceState(
-          navState?.scenarioStart || navState?.storyStart != null
-            ? { ...navState, sessionArmed: undefined, autoStart: undefined }
-            : {},
-          document.title,
-        )
-      }
+      window.history.replaceState(
+        navState?.scenarioStart || navState?.storyStart != null
+          ? { ...navState, sessionArmed: undefined, autoStart: undefined }
+          : {},
+        document.title,
+      )
     } else if (isListenSessionActive()) {
       attachToActiveSession()
+    } else if (!bootedRef.current) {
+      attachToActiveSession()
+    } else {
+      const ui = useUiStore.getState()
+      if (
+        ui.speechState === 'permission_pending' &&
+        !isListenSessionActive()
+      ) {
+        cancelSession()
+      }
     }
     bootedRef.current = true
 
@@ -292,9 +305,15 @@ export function ListeningPage() {
             }
           : isPreparing && usesLocalStt && !offlineSttReady
           ? {
-              jp: '音声モデルを読み込み中…',
+              jp:
+                offlineSttLoadPercent != null
+                  ? `音声モデルを読み込み中… ${offlineSttLoadPercent}%`
+                  : '音声モデルを読み込み中…',
               romaji: 'Onsei moderu wo yomikomi chuu…',
-              en: 'Loading speech model…',
+              en:
+                offlineSttLoadPercent != null
+                  ? `Loading speech model… ${offlineSttLoadPercent}%`
+                  : 'Loading speech model…',
             }
           : isPreparing
             ? {
@@ -323,6 +342,7 @@ export function ListeningPage() {
 
   return (
     <div className="presence-screen" data-testid="listen-page">
+      <h1 className="sr-only">Listen</h1>
       <VoiceDebugOverlay />
       <OrbAmbienceBridge />
       <AppHeader compact onClose={handleLeave} onSettings={() => navigate('/settings')} />
@@ -355,11 +375,13 @@ export function ListeningPage() {
           className={`presence-stage${
             isFinalizing || isProcessing ? ' presence-dimmed' : ''
           }`}
+          aria-label="Voice input"
         >
           <PresenceOrbShell
             speechState={speechState}
             orbState={orbState}
             busy={orbBusy}
+            data-testid="listen-orb"
             onClick={handleOrbPress}
             aria-label={
               isListening

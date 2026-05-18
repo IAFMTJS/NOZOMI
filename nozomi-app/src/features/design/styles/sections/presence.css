@@ -161,10 +161,17 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: min(30vh, 8rem);
-  overflow: hidden;
+  max-height: min(42vh, 11.5rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 var(--nozomi-page-x);
   pointer-events: none;
+  scrollbar-width: none;
+}
+
+.presence-float-layer::-webkit-scrollbar {
+  display: none;
 }
 
 .presence-float-layer > * {
@@ -173,16 +180,21 @@
 
 .presence-float-user {
   align-self: flex-end;
-  max-width: min(88vw, 12.5rem);
+  min-width: 0;
+  max-width: min(100%, 12.5rem);
 }
 
 .presence-float-ai {
   align-self: flex-start;
-  max-width: min(88vw, 12.5rem);
+  min-width: 0;
+  max-width: min(100%, 12.5rem);
 }
 
 .float-bubble {
   position: relative;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding: 0.5rem 0.625rem;
   border-radius: var(--nozomi-radius-md);
   background: linear-gradient(
@@ -241,7 +253,8 @@
 .float-bubble .msg-jp {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
   overflow: hidden;
   font-size: 0.8125rem;
 }
@@ -268,19 +281,22 @@
   position: relative;
   z-index: 15;
   flex-shrink: 0;
+  align-self: center;
   width: 100%;
+  min-width: 0;
   max-width: min(100%, 26rem);
-  padding: 0.5rem var(--nozomi-page-x) 0;
+  padding: 0.5rem 0 0;
 }
 
 .presence-suggestion-scroll {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding-bottom: 0.35rem;
+  padding: 0 var(--nozomi-page-x) 0.35rem;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--nozomi-page-x);
   scrollbar-width: none;
 }
 
@@ -291,11 +307,11 @@
 .presence-suggestion-pill {
   display: flex;
   flex-shrink: 0;
-  scroll-snap-align: center;
+  scroll-snap-align: start;
   align-items: flex-start;
   gap: 0.375rem;
-  min-width: min(72vw, 12rem);
-  max-width: 14rem;
+  min-width: min(68vw, 11.5rem);
+  max-width: min(14rem, calc(100vw - 2 * var(--nozomi-page-x) - 1rem));
   min-height: var(--nozomi-touch);
   padding: 0.5rem 0.75rem;
   border-radius: var(--nozomi-radius-pill, 999px);

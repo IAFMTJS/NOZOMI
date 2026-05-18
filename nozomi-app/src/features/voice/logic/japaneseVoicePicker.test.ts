@@ -3,7 +3,7 @@ import {
   NOZOMI_VOICE_AUTO,
   pickJapaneseVoice,
   scoreJapaneseVoice,
-} from '@/systems/speech/japaneseVoicePicker'
+} from '@/features/voice/logic/japaneseVoicePicker'
 
 function mockVoice(
   partial: Partial<SpeechSynthesisVoice> & Pick<SpeechSynthesisVoice, 'name' | 'lang'>,

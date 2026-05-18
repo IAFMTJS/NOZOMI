@@ -55,7 +55,9 @@ function speakNextChunk(gen: number) {
   synthUtterance.onerror = () => speakNextChunk(gen)
 
   const voice = pickJapaneseVoice(preferredUri)
-  if (voice) synthUtterance.voice = voice
+  if (voice && typeof SpeechSynthesisVoice !== 'undefined' && voice instanceof SpeechSynthesisVoice) {
+    synthUtterance.voice = voice
+  }
   window.speechSynthesis.speak(synthUtterance)
 }
 

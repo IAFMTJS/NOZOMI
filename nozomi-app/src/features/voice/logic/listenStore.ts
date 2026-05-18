@@ -1,9 +1,9 @@
 import { teardownRecordedListenTimers } from '@/features/voice/logic/recordedListenTimers'
-import { cancelMicSession } from '@/systems/speech/micSessionRecorder'
-import { getLastOfflineSttError, isOfflineSttReady } from '@/systems/speech/offlineStt'
-import type { SttEngine } from '@/systems/speech/sttEngine'
-import type { SpeechCallbacks } from '@/systems/speech/types'
-import { voiceDebug, voiceDebugWarn } from '@/systems/speech/voiceDebug'
+import { cancelMicSession } from '@/features/voice/logic/micSessionRecorder'
+import { getLastOfflineSttError, isOfflineSttReady } from '@/features/voice/logic/offlineStt'
+import type { SttEngine } from '@/features/voice/logic/sttEngine'
+import type { SpeechCallbacks } from '@/features/voice/logic/types'
+import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 export type ListenSession = { stopped: boolean; gotResult: boolean }
 
@@ -33,15 +33,27 @@ const STT_WORK_IDLE_MAX_MS = 8_000
 
 export function whenSttWorkIdle(maxWaitMs = STT_WORK_IDLE_MAX_MS): Promise<void> {
   if (maxWaitMs <= 0) return sttWorkTail
-  return Promise.race([
-    sttWorkTail,
-    new Promise<void>((resolve) => {
-      window.setTimeout(() => {
+  return new Promise((resolve) => {
+    let settled = false
+    let timer: number | undefined
+    const finish = (timedOut: boolean) => {
+      if (settled) return
+      settled = true
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+      if (timedOut) {
         voiceDebugWarn('stt:work-idle-timeout', { maxWaitMs })
-        resolve()
-      }, maxWaitMs)
-    }),
-  ])
+      }
+      resolve()
+    }
+    timer = window.setTimeout(() => finish(true), maxWaitMs)
+    void sttWorkTail.then(
+      () => finish(false),
+      () => finish(false),
+    )
+  })
 }
 
 export function enqueueSttWork<T>(fn: () => Promise<T>): Promise<T> {
@@ -296,6 +308,28 @@ export function clearFinalizeTimers(): void {
 
 export function setFinalizeWatchdog(timer: ReturnType<typeof setTimeout> | null): void {
   finalizeWatchdogTimer = timer
+}
+
+/** Mark turn complete with no transcript (triggers no-speech UI path). */
+export function commitEmptyTranscript(sessionGen: number): void {
+  if (listenGeneration !== sessionGen || !listenSession || listenSession.gotResult) {
+    return
+  }
+  listenSession.gotResult = true
+  listenSession.stopped = true
+  clearFinalizeTimers()
+  voiceDebug('stt:commit-empty', { generation: sessionGen })
+  dispatch('onResult', '')
+  pendingTranscript = ''
+  lastDisplayTranscript = ''
+  sessionTranscript = ''
+  accumulatedFinal = ''
+  try {
+    recognition?.stop()
+  } catch {
+    /* ignore */
+  }
+  stopMicVisualizer()
 }
 
 export function commitTranscript(text: string, sessionGen: number): void {

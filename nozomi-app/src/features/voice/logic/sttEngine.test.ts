@@ -13,7 +13,7 @@ import {
   browserSttViableForLang,
   getDefaultSttEngine,
   resolveSttEngineForLang,
-} from '@/systems/speech/sttEngine'
+} from '@/features/voice/logic/sttEngine'
 
 describe('browserSttViableForLang', () => {
   beforeEach(() => {

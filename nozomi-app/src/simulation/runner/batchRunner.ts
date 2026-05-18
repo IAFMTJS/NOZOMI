@@ -14,7 +14,7 @@ import {
 } from '../storage/simulationDb'
 import { buildAnalyticsSnapshot } from '../analytics/aggregates'
 import { uid, mulberry32 } from '../utils/random'
-import { persistTuningArtifacts } from '../learning/writeTuningArtifacts'
+import { persistTuningArtifactsInMemory } from '../learning/writeTuningArtifacts'
 import { ensureSimulationReady } from '../setup/simulationHarness'
 
 export type BatchProgress = {
@@ -79,7 +79,7 @@ export async function runSimulationBatch(
 
   const analytics = buildAnalyticsSnapshot(runId, conversations)
   await saveAnalytics(analytics)
-  await persistTuningArtifacts(conversations)
+  persistTuningArtifactsInMemory(conversations)
 
   onProgress?.({
     runId,

@@ -51,6 +51,15 @@ export default defineConfig(({ command }) => ({
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
+          {
+            urlPattern: /\/data\/[^?]+\.json$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'nozomi-data-json',
+              expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
@@ -76,5 +85,31 @@ export default defineConfig(({ command }) => ({
     host: true,
     port: 4173,
     allowedHosts: true,
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vendor-react',
+              test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/,
+            },
+            {
+              name: 'vendor-motion',
+              test: /node_modules[\\/]framer-motion[\\/]/,
+            },
+            {
+              name: 'vendor-dexie',
+              test: /node_modules[\\/]dexie[\\/]/,
+            },
+            {
+              name: 'conversation',
+              test: /[\\/]src[\\/]systems[\\/]conversation[\\/]/,
+            },
+          ],
+        },
+      },
+    },
   },
 }))

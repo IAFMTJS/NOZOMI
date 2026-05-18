@@ -1,5 +1,5 @@
 import { useUiStore } from '@/store/useUiStore'
-import { isListenSessionActive } from '@/systems/speech/listenStore'
+import { isListenSessionActive } from '@/features/voice/logic/listenStore'
 
 /** True while mic, STT, or post-record finalize is in flight — defer SW reload / pipeline release. */
 export function isVoiceSessionBusy(): boolean {

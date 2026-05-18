@@ -2,8 +2,8 @@ import {
   consumeGestureMicStream,
   releaseGestureMicStream,
   startMicCaptureFromGesture,
-} from '@/systems/speech/micGesture'
-import type { SpeechError } from '@/systems/speech/types'
+} from '@/features/voice/logic/micGesture'
+import type { SpeechError } from '@/features/voice/logic/types'
 
 let sharedMicStream: MediaStream | null = null
 let micAcquirePromise: Promise<MediaStream | null> | null = null

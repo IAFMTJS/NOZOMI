@@ -1,7 +1,6 @@
+import { useEffect, useRef } from 'react'
 import { LanguageText } from '@/components/language/LanguageText'
-
 import { IconChatBubble } from '@/components/ui/Icons'
-
 import type { Suggestion } from '@/types/domain'
 
 
@@ -27,6 +26,15 @@ export function PresenceSuggestions({
   selectedKey = null,
 
 }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!selectedKey || !scrollRef.current) return
+    const selected = scrollRef.current.querySelector<HTMLElement>(
+      '[aria-pressed="true"]',
+    )
+    selected?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+  }, [selectedKey, suggestions])
 
   if (!suggestions.length) return null
 
@@ -36,7 +44,7 @@ export function PresenceSuggestions({
 
     <section className="presence-suggestions" aria-label="Suggestions">
 
-      <div className="presence-suggestion-scroll scrollbar-thin">
+      <div ref={scrollRef} className="presence-suggestion-scroll scrollbar-thin">
 
         {suggestions.map((s, i) => {
 

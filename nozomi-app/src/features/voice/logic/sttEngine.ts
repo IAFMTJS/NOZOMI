@@ -1,4 +1,4 @@
-import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { isIos, isWindows } from '@/utils/device'
 
 /** `local` = record mic + Whisper in-browser; `browser` = Web Speech API. */

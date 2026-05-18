@@ -13,6 +13,7 @@ export default defineConfig({
     baseURL,
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
+    permissions: ['microphone'],
   },
   projects: [
     {

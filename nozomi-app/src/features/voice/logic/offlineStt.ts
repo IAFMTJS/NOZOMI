@@ -1,10 +1,13 @@
-import { STT_USER_TIMEOUT_MS } from '@/features/voice/context/speech-listen/constants'
+import {
+  STT_USER_TIMEOUT_MS,
+  WHISPER_LONG_AUDIO_SEC,
+} from '@/features/voice/context/speech-listen/constants'
 import {
   decodeRecordingTo16kMono,
   pcmRms,
   releaseDecodeContext,
-} from '@/systems/speech/audioDecode'
-import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
+} from '@/features/voice/logic/audioDecode'
+import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 type WhisperLang = 'english' | 'japanese' | 'dutch'
 
@@ -61,6 +64,43 @@ let transformersEnvReady = false
 const downloadLogPct = new Map<string, number>()
 let preloadInFlight: Promise<Transcriber> | null = null
 let preloadInFlightModel: string | null = null
+let loadProgressHint: number | null = null
+
+type OfflineSttLoadProgressListener = (pct: number | null) => void
+const loadProgressListeners = new Set<OfflineSttLoadProgressListener>()
+
+function aggregateDownloadPct(): number | null {
+  const values = [...downloadLogPct.values()]
+  if (values.length === 0) return null
+  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length)
+}
+
+function notifyLoadProgress(): void {
+  const aggregate = aggregateDownloadPct()
+  const next = aggregate ?? loadProgressHint
+  if (next === loadProgressHint && aggregate === null) return
+  loadProgressHint = next
+  for (const listener of loadProgressListeners) {
+    listener(next)
+  }
+}
+
+/** 0–100 while weights download; null when idle; 100 when ready for lang. */
+export function getOfflineSttLoadProgress(lang?: string): number | null {
+  if (lang && isOfflineSttReady(lang)) return 100
+  const aggregate = aggregateDownloadPct()
+  if (aggregate !== null) return aggregate
+  if (pipelinePromise && !pipelineReadyForLang) return loadProgressHint ?? 0
+  return loadProgressHint
+}
+
+export function subscribeOfflineSttLoadProgress(
+  listener: OfflineSttLoadProgressListener,
+): () => void {
+  loadProgressListeners.add(listener)
+  listener(aggregateDownloadPct() ?? loadProgressHint)
+  return () => loadProgressListeners.delete(listener)
+}
 
 function whisperLang(bcp47: string): WhisperLang {
   return LANG_MAP[bcp47] ?? 'english'
@@ -133,6 +173,8 @@ async function loadPipelineWithDtype(
   dtype: WasmDtype,
 ): Promise<Transcriber> {
   voiceDebug('offline-stt:load-model', { model, device: 'wasm', dtype })
+  loadProgressHint = 0
+  notifyLoadProgress()
   await configureTransformersEnv()
   const { pipeline } = await import('@huggingface/transformers')
   return withTimeout(
@@ -151,10 +193,12 @@ async function loadPipelineWithDtype(
           if (bucket > prev) {
             downloadLogPct.set(key, bucket)
             voiceDebug('offline-stt:download', { file, progress: pct, dtype })
+            notifyLoadProgress()
           }
         } else if (info.status === 'done') {
           downloadLogPct.delete(`${dtype}:${file}`)
           voiceDebug('offline-stt:download-done', { file, dtype })
+          notifyLoadProgress()
         }
       },
     }) as Promise<Transcriber>,
@@ -187,6 +231,8 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
           pipelineActiveDtype = dtype
           pipelineReadyForLang = bcp47
           voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
+          loadProgressHint = 100
+          notifyLoadProgress()
         }
         return transcriber
       } catch (err) {
@@ -284,6 +330,9 @@ export function releaseOfflineSttPipeline(): void {
   pipelineActiveDtype = null
   preloadInFlight = null
   preloadInFlightModel = null
+  downloadLogPct.clear()
+  loadProgressHint = null
+  notifyLoadProgress()
   voiceDebug('offline-stt:pipeline-released')
 }
 
@@ -344,10 +393,17 @@ export async function transcribeAudioBlob(
     }
 
     const rms = pcmRms(audio)
-    voiceDebug('offline-stt:levels', { rms: +rms.toFixed(5) })
-    if (!options.hadSound && rms < SILENT_RMS) {
+    const durationSec = audio.length / 16_000
+    voiceDebug('offline-stt:levels', { rms: +rms.toFixed(5), durationSec: +durationSec.toFixed(2) })
+    // Skip infer only when the mic never saw energy (avoids 10s silent hangs without
+    // rejecting quiet speech that decoded with low RMS).
+    if (rms < SILENT_RMS && !options.hadSound) {
       lastOfflineSttError = 'offline-stt:silent'
-      voiceDebugWarn('offline-stt:silent', { rms })
+      voiceDebugWarn('offline-stt:silent', {
+        rms,
+        durationSec,
+        hadSound: false,
+      })
       return ''
     }
 
@@ -364,8 +420,25 @@ export async function transcribeAudioBlob(
       voiceDebug('offline-stt:infer-wait', { dtype: pipelineActiveDtype })
     }, 5000)
     const lowMem = isIos() || isLowMemoryDevice()
-    const chunkSec = isIos() ? 4 : lowMem ? 6 : 15
-    const strideSec = isIos() ? 1 : lowMem ? 2 : 3
+    const longClip = durationSec >= WHISPER_LONG_AUDIO_SEC
+    const chunkSec = longClip
+      ? isIos()
+        ? 8
+        : 30
+      : isIos()
+        ? 4
+        : lowMem
+          ? 6
+          : 15
+    const strideSec = longClip
+      ? isIos()
+        ? 2
+        : 5
+      : isIos()
+        ? 1
+        : lowMem
+          ? 2
+          : 3
     let out: { text?: string }
     try {
       out = await withTimeout(

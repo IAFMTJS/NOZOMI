@@ -1,18 +1,4 @@
 {
-  "comment": "Shared by tsconfig paths and vite resolve.alias (see vite.config.ts)",
-  "redirects": [
-    ["@/systems/speech", "src/features/voice/logic"],
-    ["@/systems/orb", "src/features/orb/logic"],
-    ["@/components/audio", "src/features/voice/ui"],
-    ["@/components/orb", "src/features/orb/ui"],
-    ["@/components/chat", "src/features/chat/ui"],
-    ["@/components/presence", "src/features/presence/ui"],
-    ["@/components/suggestions", "src/features/presence/ui/suggestions"],
-    ["@/contexts/SpeechListenContext", "src/features/voice/context/SpeechListenContext.tsx"],
-    ["@/contexts/speech-listen", "src/features/voice/context/speech-listen"],
-    ["@/hooks/useConversation", "src/features/conversation/useConversation.ts"],
-    ["@/hooks/useOrbAudioLevel", "src/features/orb/hooks/useOrbAudioLevel.ts"],
-    ["@/hooks/useSpeechOutputActive", "src/features/voice/hooks/useSpeechOutputActive.ts"],
-    ["@/components/settings/NozomiVoicePicker", "src/features/voice/ui/NozomiVoicePicker.tsx"]
-  ]
+  "comment": "Legacy redirects removed in Phase D. Use @/features/* and @/* only.",
+  "redirects": []
 }

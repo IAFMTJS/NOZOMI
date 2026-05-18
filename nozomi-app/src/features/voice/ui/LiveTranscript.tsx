@@ -2,7 +2,7 @@ import { UI_LABELS } from '@/data/ui-labels'
 import { useListenPhase } from '@/features/voice/hooks/useListenPhase'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
-import { getActiveSttEngine, isListenSessionActive } from '@/systems/speech/listenStore'
+import { getActiveSttEngine, isListenSessionActive } from '@/features/voice/logic/listenStore'
 import { useLanguageFallback } from '@/hooks/useLanguageFallback'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
@@ -44,7 +44,9 @@ export function LiveTranscript() {
   return (
     <div
       className="voice-live-transcript space-y-1 opacity-90"
+      role="status"
       aria-live="polite"
+      aria-atomic="true"
       data-listen-phase={phase}
       data-testid="live-transcript"
     >

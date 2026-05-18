@@ -27,6 +27,7 @@ import type {
 import { NozomiVoicePicker } from '@/features/voice'
 import { isIos } from '@/utils/device'
 import { formChipClass, formOptionClass } from '@/utils/touch'
+import { useWhisperPreloadFromSettings } from '@/hooks/useWhisperPreloadFromSettings'
 
 const JLPT_LEVELS: JlptLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1']
 
@@ -88,6 +89,8 @@ export function SettingsPage() {
   const activeSpeechLabel =
     SPEECH_LANG_OPTIONS.find((o) => o.key === settings.speechInputLang)?.label.en ??
     settings.speechInputLang
+
+  useWhisperPreloadFromSettings()
 
   return (
     <div className="app-page">

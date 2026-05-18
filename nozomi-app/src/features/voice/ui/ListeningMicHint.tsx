@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { LanguageText } from '@/components/language/LanguageText'
-import { getListenSignals } from '@/systems/speech/speechService'
+import { getListenSignals } from '@/features/voice/logic/speechService'
 import {
   resolveSpeechRecognitionLang,
   speechLangDisplayName,
-} from '@/systems/speech/speechLocale'
+} from '@/features/voice/logic/speechLocale'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 

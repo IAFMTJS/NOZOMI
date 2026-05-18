@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pcmRms } from '@/systems/speech/audioDecode'
+import { pcmRms } from '@/features/voice/logic/audioDecode'
 
 describe('pcmRms', () => {
   it('returns 0 for empty buffer', () => {
