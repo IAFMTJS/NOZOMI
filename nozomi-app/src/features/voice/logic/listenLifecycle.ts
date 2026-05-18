@@ -98,10 +98,11 @@ export function startListening(
 
 export function finalizeListening(): void {
   const session = getListenSession()
-  if (!session || session.gotResult) {
+  if (!session || session.gotResult || session.stopped) {
     voiceDebug('stt:finalize-skip', {
       hasSession: !!session,
       gotResult: session?.gotResult,
+      stopped: session?.stopped,
     })
     return
   }

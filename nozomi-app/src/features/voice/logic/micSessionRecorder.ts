@@ -62,6 +62,7 @@ let levelRaf = 0
 let audioCtx: AudioContext | null = null
 let levelAnalyser: AnalyserNode | null = null
 let sessionGen = 0
+let stopInFlight: Promise<Blob | null> | null = null
 
 function stopLevelLoop(): void {
   cancelAnimationFrame(levelRaf)
@@ -171,10 +172,14 @@ export function beginMicRecording(generation: number): boolean {
 }
 
 export function stopMicSession(): Promise<Blob | null> {
+  if (stopInFlight) {
+    voiceDebug('rec:stop-coalesced')
+    return stopInFlight
+  }
   const gen = sessionGen
   stopLevelLoop()
 
-  return new Promise((resolve) => {
+  stopInFlight = new Promise((resolve) => {
     const finish = (blob: Blob | null) => {
       recordingActive = false
       stream?.getTracks().forEach((t) => t.stop())
@@ -182,6 +187,7 @@ export function stopMicSession(): Promise<Blob | null> {
       recorder = null
       recorderMime = ''
       chunks = []
+      stopInFlight = null
       resolve(blob)
     }
 
@@ -256,9 +262,11 @@ export function stopMicSession(): Promise<Blob | null> {
       wrappedFinish(null)
     }
   })
+  return stopInFlight
 }
 
 export function cancelMicSession(): void {
+  stopInFlight = null
   sessionGen++
   recordingActive = false
   stopLevelLoop()

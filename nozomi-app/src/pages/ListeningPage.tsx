@@ -45,6 +45,7 @@ import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
 import { isMobileDevice } from '@/utils/device'
+import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 import type { ScenarioCategory } from '@/types/domain'
@@ -211,17 +212,26 @@ export function ListeningPage() {
     return () => {
       listenMountedRef.current = false
       detachUi()
-      if (usesLocalSttRef.current) scheduleReleaseOfflineSttPipeline()
+      const ui = useUiStore.getState()
+      const voiceBusy =
+        ui.transcriptFinalizing ||
+        ui.speechState === 'listening' ||
+        ui.speechState === 'permission_pending' ||
+        ui.speechState === 'processing'
+      if (usesLocalSttRef.current && !voiceBusy && !isListenSessionActive()) {
+        scheduleReleaseOfflineSttPipeline()
+      }
       leaveCancelTimerRef.current = setTimeout(() => {
         leaveCancelTimerRef.current = null
         if (
           !listenMountedRef.current &&
           window.location.pathname !== '/listen' &&
-          isListenSessionActive()
+          isListenSessionActive() &&
+          !isVoiceSessionBusy()
         ) {
           cancelSession()
         }
-      }, 280)
+      }, isMobileDevice() ? 800 : 280)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])

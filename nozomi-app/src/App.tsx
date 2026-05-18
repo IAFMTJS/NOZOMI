@@ -21,11 +21,13 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { SpeechListenProvider } from '@/features/voice'
 import { DevConnectBanner } from '@/components/dev/DevConnectBanner'
 import { useInstallVisualViewportCss } from '@/hooks/useInstallVisualViewportCss'
+import { useDeferredPwaUpdate } from '@/hooks/useDeferredPwaUpdate'
 
 export default function App() {
   const setDataReady = useUiStore((s) => s.setDataReady)
   const setDataLoadFailed = useUiStore((s) => s.setDataLoadFailed)
   useInstallVisualViewportCss()
+  useDeferredPwaUpdate()
 
   useEffect(() => {
     setDataLoadFailed(false)

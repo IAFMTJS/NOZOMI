@@ -22,7 +22,6 @@ import {
   getLastOfflineSttError,
   isOfflineSttReady,
   preloadOfflineStt,
-  releaseOfflineSttPipeline,
   whenOfflineSttReady,
 } from '@/systems/speech/offlineStt'
 import { resolveSpeechRecognitionLang } from '@/systems/speech/speechLocale'
@@ -96,6 +95,7 @@ import {
   resetVoicePipelineStep,
   setVoicePipelineStep,
 } from '@/features/voice/logic/voicePipelineStep'
+import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
 
 export function useSpeechListenController(): SpeechListenApi {
   const navigate = useNavigate()
@@ -348,9 +348,6 @@ export function useSpeechListenController(): SpeechListenApi {
 
       setTranscriptFinalizing(false)
       processingRef.current = true
-      if (getActiveSttEngine() === 'local') {
-        releaseOfflineSttPipeline()
-      }
       voiceDebug('ui:final-start', { incoming: trimmed.slice(0, 160), ...captureSnapshot() })
       markListenTurnHandled()
       setLiveTranscript(trimmed)
@@ -420,6 +417,27 @@ export function useSpeechListenController(): SpeechListenApi {
       syncPresenceAfterTurn,
       waitForData,
     ],
+  )
+
+  const handleFinalizeFailed = useCallback(
+    (err: SpeechError) => {
+      if (!mountedRef.current) return
+      voiceDebugError('ui:finalize-failed', { code: err.code, message: err.message })
+      clearFinishWaitTimer()
+      processingRef.current = false
+      finishingRef.current = false
+      resultDeliveredRef.current = true
+      clearTranscriptFinalizing()
+      setErrorCode(err.code)
+      setSpeechState('error')
+      setOrbState('idle')
+      setAudioLevel(0)
+      resetOrbAudioLevel()
+      setVoicePipelineStep('error')
+      markListenTurnHandled()
+      endListenSessionAfterTurn()
+    },
+    [clearFinishWaitTimer, setAudioLevel, setOrbState, setSpeechState],
   )
 
   const handleError = useCallback(
@@ -509,9 +527,17 @@ export function useSpeechListenController(): SpeechListenApi {
         void handleFinalTranscript(text)
       },
       onError: handleError,
+      onFinalizeFailed: handleFinalizeFailed,
       onLevel: pushMicLevel,
     }),
-    [handleError, handleFinalTranscript, handleStateChange, pushMicLevel, setLiveTranscript],
+    [
+      handleError,
+      handleFinalizeFailed,
+      handleFinalTranscript,
+      handleStateChange,
+      pushMicLevel,
+      setLiveTranscript,
+    ],
   )
 
   const listenOptions = useMemo(() => ({ lang: recognitionLang }), [recognitionLang])
@@ -845,17 +871,25 @@ export function useSpeechListenController(): SpeechListenApi {
 
   const transcriptFinalizing = useUiStore((s) => s.transcriptFinalizing)
 
+  /** Only recover when STT finalize hangs — not during normal conversation processing. */
   useEffect(() => {
-    if (!transcriptFinalizing && speechState !== 'processing') return
+    if (!transcriptFinalizing) return
     const startedAt = Date.now()
     const timer = window.setInterval(() => {
       if (!mountedRef.current) return
-      const ui = useUiStore.getState()
-      if (!ui.transcriptFinalizing && ui.speechState !== 'processing') {
+      if (!useUiStore.getState().transcriptFinalizing) {
         window.clearInterval(timer)
         return
       }
       if (Date.now() - startedAt < PIPELINE_STUCK_RECOVERY_MS) return
+      const step = useUiStore.getState().voicePipelineStep
+      if (step === 'generating' || step === 'understanding' || step === 'speaking') {
+        return
+      }
+      if (!isVoiceSessionBusy() && useUiStore.getState().speechState !== 'processing') {
+        window.clearInterval(timer)
+        return
+      }
       voiceDebugError('ui:pipeline-stuck-recovery', captureSnapshot())
       window.clearInterval(timer)
       clearFinishWaitTimer()
@@ -878,7 +912,6 @@ export function useSpeechListenController(): SpeechListenApi {
     return () => window.clearInterval(timer)
   }, [
     transcriptFinalizing,
-    speechState,
     captureSnapshot,
     clearFinishWaitTimer,
     cancelSession,

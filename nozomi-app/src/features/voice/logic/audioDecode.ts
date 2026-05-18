@@ -15,9 +15,23 @@ async function getDecodeContext(): Promise<AudioContext> {
 }
 
 function maxInferenceSamples(): number {
-  if (isIos()) return 20 * TARGET_RATE
-  if (isLowMemoryDevice()) return 25 * TARGET_RATE
+  // Match MAX_RECORDING_MS (10s) + headroom; shorter buffers reduce iOS tab kills.
+  if (isIos()) return 12 * TARGET_RATE
+  if (isLowMemoryDevice()) return 22 * TARGET_RATE
   return 30 * TARGET_RATE
+}
+
+/** Drop decode AudioContext before WASM infer (frees native decode buffers on iOS). */
+export function releaseDecodeContext(): void {
+  if (!sharedDecodeCtx) return
+  try {
+    if (sharedDecodeCtx.state !== 'closed') {
+      void sharedDecodeCtx.close()
+    }
+  } catch {
+    /* ignore */
+  }
+  sharedDecodeCtx = null
 }
 
 /** RMS loudness of mono PCM in [0, ~1]. */

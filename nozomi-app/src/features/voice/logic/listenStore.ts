@@ -255,6 +255,11 @@ export function bindListeningHandlers(callbacks: SpeechCallbacks): void {
     onError: (err) => {
       if (isHandlerLive(epoch)) callbacks.onError?.(err)
     },
+    onFinalizeFailed: callbacks.onFinalizeFailed
+      ? (err) => {
+          if (isHandlerLive(epoch)) callbacks.onFinalizeFailed?.(err)
+        }
+      : undefined,
     onLevel: callbacks.onLevel
       ? (level) => {
           if (isHandlerLive(epoch)) callbacks.onLevel?.(level)

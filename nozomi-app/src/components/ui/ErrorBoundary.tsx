@@ -35,7 +35,14 @@ export class ErrorBoundary extends Component<Props, State> {
             />
             <button
               type="button"
-              className="mt-4 w-full rounded-xl bg-nozomi-purple py-3"
+              className="mt-4 w-full rounded-xl border border-white/15 py-3"
+              onClick={() => this.setState({ hasError: false })}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              className="mt-2 w-full rounded-xl bg-nozomi-purple py-3"
               onClick={() => window.location.reload()}
             >
               Refresh

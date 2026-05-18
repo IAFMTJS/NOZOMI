@@ -1,5 +1,6 @@
 import { isIos } from '@/utils/device'
 import { releaseOfflineSttPipeline } from '@/features/voice/logic/offlineStt'
+import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
 
 let lastTouchAt = 0
 let releaseTimer: number | null = null
@@ -23,6 +24,10 @@ export function scheduleReleaseOfflineSttPipeline(
   releaseTimer = window.setTimeout(() => {
     releaseTimer = null
     if (Date.now() - lastTouchAt < delayMs - 500) return
+    if (isVoiceSessionBusy()) {
+      scheduleReleaseOfflineSttPipeline(delayMs)
+      return
+    }
     releaseOfflineSttPipeline()
   }, delayMs)
 }

@@ -1,5 +1,9 @@
 import { STT_USER_TIMEOUT_MS } from '@/features/voice/context/speech-listen/constants'
-import { decodeRecordingTo16kMono, pcmRms } from '@/systems/speech/audioDecode'
+import {
+  decodeRecordingTo16kMono,
+  pcmRms,
+  releaseDecodeContext,
+} from '@/systems/speech/audioDecode'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/systems/speech/voiceDebug'
 
 type WhisperLang = 'english' | 'japanese' | 'dutch'
@@ -24,9 +28,16 @@ const INFER_TIMEOUT_MS = Math.min(90_000, STT_USER_TIMEOUT_MS - 4_000)
 const DECODE_TIMEOUT_MS = 20_000
 const SILENT_RMS = 0.003
 
+type WasmDtype = 'q4' | 'fp32'
+
 /** q8 breaks on onnxruntime-web 1.26-dev (Missing required scale); try q4 then fp32. */
-const WASM_DTYPES = ['q4', 'fp32'] as const
-type WasmDtype = (typeof WASM_DTYPES)[number]
+const WASM_DTYPES_DESKTOP: WasmDtype[] = ['q4', 'fp32']
+/** fp32 doubles WASM RAM — skip on iPhone to avoid tab reload after transcribe. */
+const WASM_DTYPES_IOS: WasmDtype[] = ['q4']
+
+function wasmDtypesToTry(): WasmDtype[] {
+  return isIos() ? WASM_DTYPES_IOS : WASM_DTYPES_DESKTOP
+}
 
 type TranscriberOptions = {
   language?: WhisperLang
@@ -166,7 +177,7 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
 
   pipelinePromise = (async () => {
     let lastErr: unknown
-    for (const dtype of WASM_DTYPES) {
+    for (const dtype of wasmDtypesToTry()) {
       if (generation !== pipelineLoadGeneration) {
         throw new Error('offline-stt:load-superseded')
       }
@@ -340,6 +351,8 @@ export async function transcribeAudioBlob(
       return ''
     }
 
+    releaseDecodeContext()
+
     touchOfflineSttPipeline()
     cancelScheduledReleaseOfflineStt()
     const transcriber = await loadPipeline(bcp47)
@@ -351,8 +364,8 @@ export async function transcribeAudioBlob(
       voiceDebug('offline-stt:infer-wait', { dtype: pipelineActiveDtype })
     }, 5000)
     const lowMem = isIos() || isLowMemoryDevice()
-    const chunkSec = lowMem ? 6 : 15
-    const strideSec = lowMem ? 2 : 3
+    const chunkSec = isIos() ? 4 : lowMem ? 6 : 15
+    const strideSec = isIos() ? 1 : lowMem ? 2 : 3
     let out: { text?: string }
     try {
       out = await withTimeout(
@@ -384,6 +397,6 @@ export async function transcribeAudioBlob(
       pipelineReadyForLang = null
       pipelineActiveDtype = null
     }
-    return ''
+    throw err instanceof Error ? err : new Error(lastOfflineSttError)
   }
 }

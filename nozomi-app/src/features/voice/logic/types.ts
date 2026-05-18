@@ -21,6 +21,8 @@ export type SpeechCallbacks = {
   onStateChange: (state: SpeechState) => void
   onLevel?: (level: number) => void
   onError?: (error: SpeechError) => void
+  /** Post-record STT failure — must not tear down an in-flight WASM transcribe via cancelListening. */
+  onFinalizeFailed?: (error: SpeechError) => void
 }
 
 export type StartListeningOptions = {

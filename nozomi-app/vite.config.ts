@@ -17,7 +17,8 @@ export default defineConfig(({ command }) => ({
     tailwindcss(),
     VitePWA({
       devOptions: { enabled: false },
-      registerType: 'autoUpdate',
+      // Prompt + deferred apply in useDeferredPwaUpdate — autoUpdate reloads mid-transcribe on iOS.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Nozomi',

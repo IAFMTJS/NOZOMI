@@ -45,6 +45,31 @@ import {
 } from '@/systems/speech/sttEngine'
 import { releaseSharedMicrophone } from '@/systems/speech/speechCapabilities'
 import { isIos } from '@/utils/device'
+
+/** Let iOS release the mic stack before decode + WASM (reduces tab reloads). */
+async function yieldBeforeTranscribe(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
+  if (isIos()) {
+    await new Promise((r) => setTimeout(r, 300))
+    if (typeof requestIdleCallback === 'function') {
+      await new Promise<void>((resolve) => {
+        requestIdleCallback(() => resolve(), { timeout: 600 })
+      })
+    }
+  }
+}
+
+function unwindEmptyFinalize(generation: number): void {
+  if (getListenGeneration() !== generation) return
+  const session = getListenSession()
+  if (!session || session.gotResult) return
+  session.gotResult = true
+  session.stopped = true
+  voiceDebugWarn('rec:finalize-unwind-empty', { generation })
+  dispatch('onResult', '')
+}
 import type { SpeechCallbacks, StartListeningOptions } from '@/systems/speech/types'
 import {
   MAX_RECORDING_BLOB_BYTES,
@@ -69,14 +94,14 @@ function failRecordedFinalize(
   const session = getListenSession()
   if (!session || session.gotResult) return
   session.stopped = true
+  session.gotResult = true
   releaseOfflineSttPipeline()
   voiceDebugError('rec:finalize-failed', { generation, reason, code })
   setVoicePipelineStep('error')
-  dispatch('onError', {
+  dispatch('onFinalizeFailed', {
     code,
     message: reason,
   })
-  dispatch('onStateChange', 'error')
 }
 
 function tryBrowserSttFallback(
@@ -112,12 +137,13 @@ function runRecordedFinalize(generation: number): void {
             hasSession: !!session,
             gotResult: session?.gotResult,
           })
+          unwindEmptyFinalize(generation)
           return
         }
         dispatch('onStateChange', 'processing')
         if (!blob || blob.size < 128) {
           voiceDebugWarn('rec:blob-too-small', { size: blob?.size ?? 0 })
-          dispatch('onResult', '')
+          unwindEmptyFinalize(generation)
           return
         }
         if (blob.size > MAX_RECORDING_BLOB_BYTES) {
@@ -130,6 +156,10 @@ function runRecordedFinalize(generation: number): void {
         }
 
         setVoicePipelineStep('transcribing')
+        await yieldBeforeTranscribe()
+        if (getListenGeneration() !== generation || !getListenSession() || getListenSession()!.gotResult) {
+          return
+        }
         const { soundStart } = getListenSignals()
         const lang = getActiveListenLang()
         const text = await enqueueSttWork(() =>
@@ -153,7 +183,11 @@ function runRecordedFinalize(generation: number): void {
             'rec:transcribe',
           ),
         )
-        releaseOfflineSttPipeline()
+        if (isIos()) {
+          window.setTimeout(() => releaseOfflineSttPipeline(), 400)
+        } else {
+          releaseOfflineSttPipeline()
+        }
         if (
           getListenGeneration() !== generation ||
           !getListenSession() ||
@@ -165,13 +199,22 @@ function runRecordedFinalize(generation: number): void {
           setVoicePipelineStep('understanding')
           commitTranscript(text, generation)
         } else {
+          const offlineErr = getLastOfflineSttError()
           voiceDebugWarn('rec:transcribe-empty', {
-            offlineError: getLastOfflineSttError()?.slice(0, 200) ?? null,
+            offlineError: offlineErr?.slice(0, 200) ?? null,
           })
+          if (offlineErr && !/silent/i.test(offlineErr)) {
+            failRecordedFinalize(
+              generation,
+              'Could not process that audio. Please try again.',
+              /timed out/i.test(offlineErr) ? 'network' : 'transcribe-failed',
+            )
+            return
+          }
           if (
             browserSttAvailable() &&
             getSttEngine() === 'local' &&
-            /timed out|silent/i.test(getLastOfflineSttError() ?? '')
+            /timed out|silent/i.test(offlineErr ?? '')
           ) {
             setSessionSttEngine('browser')
             voiceDebugWarn('stt:next-turn-browser', { reason: 'local-transcribe-failed' })
