@@ -57,15 +57,20 @@ export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array
     releaseDecodeContext()
   }
   const buffer = await blob.arrayBuffer()
-  const ctx = await getDecodeContext()
-  const copy = buffer.slice(0)
+
+  async function decodeOnce(freshContext: boolean): Promise<AudioBuffer> {
+    if (freshContext) releaseDecodeContext()
+    const ctx = await getDecodeContext()
+    return ctx.decodeAudioData(buffer.slice(0))
+  }
+
   let decoded: AudioBuffer
   try {
-    decoded = await ctx.decodeAudioData(copy)
+    decoded = await decodeOnce(isIos())
   } catch {
-    // iOS Safari sometimes fails on first decode after recorder stop — one retry.
-    await new Promise((r) => setTimeout(r, 80))
-    decoded = await ctx.decodeAudioData(buffer.slice(0))
+    // Recorder stop + shared AudioContext can race — retry on a fresh context.
+    await new Promise((r) => setTimeout(r, isIos() ? 150 : 80))
+    decoded = await decodeOnce(true)
   }
   const mono = downmixToMono(decoded)
   const atTarget =

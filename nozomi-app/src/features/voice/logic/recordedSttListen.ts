@@ -333,7 +333,10 @@ function startRecordedListeningNow(
     dispatch('onStateChange', 'error')
   }, modelWaitMs)
 
+  let micCaptureBegun = false
   const beginMicCapture = () => {
+    if (micCaptureBegun) return
+    micCaptureBegun = true
     const micStartDelayMs = isMicRecentlyPrimed() ? 280 : 0
     const run = () => void startMic().then(afterMicStart)
     if (micStartDelayMs > 0) {
@@ -413,9 +416,9 @@ function startRecordedListeningNow(
     }
   }
 
-  if (modelReadyAtStart) {
-    beginMicCapture()
-  } else if (!isIos()) {
+  // When the model is already loaded, whenOfflineSttReady opens the mic once.
+  // On non-iOS only, open the mic in parallel while the model is still downloading.
+  if (!modelReadyAtStart && !isIos()) {
     beginMicCapture()
   }
 }

@@ -23,6 +23,7 @@ export function useMobileVoiceBoot(): void {
   const whisperModel = useNozomiStore((s) => s.settings.whisperModel)
   const sttCloudProvider = useNozomiStore((s) => s.settings.sttCloudProvider)
   const runGenRef = useRef(0)
+  const bootKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!dataReady) return
@@ -32,12 +33,17 @@ export function useMobileVoiceBoot(): void {
       setVoiceBootPhase('skipped')
       setVoiceBootProgress(null)
       setVoiceBootError(null)
+      bootKeyRef.current = null
       return
     }
 
     const bootKey = mobileVoiceBootStorageKey(recognitionLang)
+    const bootKeyChanged = bootKeyRef.current !== null && bootKeyRef.current !== bootKey
+    bootKeyRef.current = bootKey
     const gen = ++runGenRef.current
-    invalidateMobileVoiceBootFlight()
+    if (bootKeyChanged) {
+      invalidateMobileVoiceBootFlight()
+    }
 
     if (isMobileVoiceBootComplete(recognitionLang)) {
       setVoiceBootPhase('ready')
@@ -46,9 +52,9 @@ export function useMobileVoiceBoot(): void {
       return
     }
 
-    const hadCache = readMobileVoiceBootCache() === bootKey
+    const hadSessionMarker = readMobileVoiceBootCache() === bootKey
     setVoiceBootPhase('loading')
-    setVoiceBootProgress(hadCache ? 5 : 0)
+    setVoiceBootProgress(hadSessionMarker ? 72 : 0)
     setVoiceBootError(null)
 
     void runMobileVoiceBoot(recognitionLang, (pct) => {

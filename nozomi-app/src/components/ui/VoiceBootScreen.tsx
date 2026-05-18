@@ -1,7 +1,8 @@
 import { NozomiOrb } from '@/features/orb'
 import { LanguageText } from '@/components/language/LanguageText'
 import { useUiStore } from '@/store/useUiStore'
-import { runMobileVoiceBoot } from '@/features/voice/logic/mobileVoiceBoot'
+import { clearOfflineSttCache } from '@/features/voice/logic/offlineStt'
+import { clearMobileVoiceBootCache, runMobileVoiceBoot } from '@/features/voice/logic/mobileVoiceBoot'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { useNozomiStore } from '@/store/useNozomiStore'
 
@@ -19,7 +20,10 @@ export function VoiceBootScreen() {
     setVoiceBootPhase('loading')
     setVoiceBootProgress(0)
     setVoiceBootError(null)
-    void runMobileVoiceBoot(lang, setVoiceBootProgress)
+    clearMobileVoiceBootCache()
+    void clearOfflineSttCache({ purgeDisk: true }).then(() =>
+      runMobileVoiceBoot(lang, setVoiceBootProgress),
+    )
       .then(() => {
         setVoiceBootPhase('ready')
         setVoiceBootProgress(100)
@@ -68,14 +72,18 @@ export function VoiceBootScreen() {
         <LanguageText
           text={{
             jp:
-              pct != null
-                ? `音声を準備中… ${pct}%`
-                : '音声を準備中…',
+              pct != null && pct >= 70 && pct < 100
+                ? `音声エンジンを起動中… ${pct}%`
+                : pct != null
+                  ? `音声を準備中… ${pct}%`
+                  : '音声を準備中…',
             romaji: 'Onsei wo junbi chuu…',
             en:
-              pct != null
-                ? `Preparing voice… ${pct}%`
-                : 'Preparing voice…',
+              pct != null && pct >= 70 && pct < 100
+                ? `Starting speech engine… ${pct}%`
+                : pct != null
+                  ? `Preparing voice… ${pct}%`
+                  : 'Preparing voice…',
           }}
           size="sm"
           align="center"

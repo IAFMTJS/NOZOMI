@@ -18,9 +18,15 @@ const LANG_MAP: Record<string, WhisperLang> = {
 
 import { resolveWhisperModelId } from '@/features/voice/logic/whisperModels'
 import {
+  clearWhisperBrowserCaches,
+  hasCachedWhisperWeights,
+} from '@/features/voice/logic/offlineSttCache'
+import {
   cancelScheduledReleaseOfflineStt,
   touchOfflineSttPipeline,
 } from '@/features/voice/logic/offlineSttLifecycle'
+
+export { hasCachedWhisperWeights } from '@/features/voice/logic/offlineSttCache'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { iosReleaseBeforeWhisperInfer } from '@/features/voice/logic/iosMemoryBudget'
 import { getVoicePlatformTuning, isIos, isLowMemoryDevice, isMobileDevice } from '@/utils/device'
@@ -65,8 +71,28 @@ const downloadLogPct = new Map<string, number>()
 let preloadInFlight: Promise<Transcriber> | null = null
 let preloadInFlightModel: string | null = null
 let loadProgressHint: number | null = null
+let sessionBuildTimer: ReturnType<typeof setInterval> | null = null
 
 type OfflineSttLoadProgressListener = (pct: number | null) => void
+
+function startSessionBuildProgress(floor: number): void {
+  if (sessionBuildTimer) clearInterval(sessionBuildTimer)
+  loadProgressHint = Math.max(loadProgressHint ?? 0, floor)
+  notifyLoadProgress()
+  sessionBuildTimer = setInterval(() => {
+    if (pipelineReadyForLang) return
+    if (aggregateDownloadPct() !== null) return
+    loadProgressHint = Math.min(94, (loadProgressHint ?? floor) + 2)
+    notifyLoadProgress()
+  }, 700)
+}
+
+function stopSessionBuildProgress(): void {
+  if (sessionBuildTimer) {
+    clearInterval(sessionBuildTimer)
+    sessionBuildTimer = null
+  }
+}
 const loadProgressListeners = new Set<OfflineSttLoadProgressListener>()
 
 function aggregateDownloadPct(): number | null {
@@ -151,7 +177,7 @@ async function configureTransformersEnv(): Promise<void> {
   const { env } = await import('@huggingface/transformers')
   env.allowLocalModels = false
   env.useBrowserCache = true
-  env.useWasmCache = false
+  env.useWasmCache = true
   const wasm = env.backends?.onnx?.wasm
   if (wasm) {
     wasm.numThreads = 1
@@ -171,9 +197,10 @@ async function configureTransformersEnv(): Promise<void> {
 async function loadPipelineWithDtype(
   model: string,
   dtype: WasmDtype,
+  progressFloor = 0,
 ): Promise<Transcriber> {
   voiceDebug('offline-stt:load-model', { model, device: 'wasm', dtype })
-  loadProgressHint = 0
+  loadProgressHint = Math.max(loadProgressHint ?? 0, progressFloor)
   notifyLoadProgress()
   await configureTransformersEnv()
   const { pipeline } = await import('@huggingface/transformers')
@@ -220,34 +247,47 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
   lastOfflineSttError = null
 
   pipelinePromise = (async () => {
+    const weightsCached = await hasCachedWhisperWeights(model)
+    const progressFloor = weightsCached ? 72 : 8
+    startSessionBuildProgress(progressFloor)
     let lastErr: unknown
-    for (const dtype of wasmDtypesToTry()) {
-      if (generation !== pipelineLoadGeneration) {
-        throw new Error('offline-stt:load-superseded')
-      }
-      try {
-        const transcriber = await loadPipelineWithDtype(model, dtype)
-        if (generation === pipelineLoadGeneration) {
-          pipelineActiveDtype = dtype
-          pipelineReadyForLang = bcp47
-          voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
-          loadProgressHint = 100
-          notifyLoadProgress()
+    let purgedDiskForRetry = false
+    try {
+      for (const dtype of wasmDtypesToTry()) {
+        if (generation !== pipelineLoadGeneration) {
+          throw new Error('offline-stt:load-superseded')
         }
-        return transcriber
-      } catch (err) {
-        lastErr = err
-        voiceDebugWarn('offline-stt:dtype-failed', {
-          dtype,
-          error: formatError(err).slice(0, 400),
-        })
-        if (generation !== pipelineLoadGeneration) throw err
-        if (isOrtSessionLoadError(err)) {
-          await clearOfflineSttCache()
+        try {
+          const transcriber = await loadPipelineWithDtype(model, dtype, progressFloor)
+          if (generation === pipelineLoadGeneration) {
+            pipelineActiveDtype = dtype
+            pipelineReadyForLang = bcp47
+            voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype, weightsCached })
+            loadProgressHint = 100
+            notifyLoadProgress()
+          }
+          return transcriber
+        } catch (err) {
+          lastErr = err
+          voiceDebugWarn('offline-stt:dtype-failed', {
+            dtype,
+            error: formatError(err).slice(0, 400),
+          })
+          if (generation !== pipelineLoadGeneration) throw err
+          if (isOrtSessionLoadError(err)) {
+            const dtypes = wasmDtypesToTry()
+            const isLastDtype = dtype === dtypes[dtypes.length - 1]
+            const purgeDisk =
+              !isMobileDevice() || (isLastDtype && !purgedDiskForRetry)
+            if (purgeDisk) purgedDiskForRetry = true
+            await clearOfflineSttCache({ purgeDisk })
+          }
         }
       }
+      throw lastErr ?? new Error('offline-stt:all-dtypes-failed')
+    } finally {
+      stopSessionBuildProgress()
     }
-    throw lastErr ?? new Error('offline-stt:all-dtypes-failed')
   })()
 
   try {
@@ -306,24 +346,29 @@ export function getLastOfflineSttError(): string | null {
   return lastOfflineSttError
 }
 
-export async function clearOfflineSttCache(): Promise<void> {
-  if (typeof caches !== 'undefined') {
-    const keys = await caches.keys()
-    await Promise.all(
-      keys
-        .filter((k) => /transformers|onnx|whisper/i.test(k))
-        .map((k) => caches.delete(k)),
-    )
+export async function clearOfflineSttCache(opts?: {
+  purgeDisk?: boolean
+}): Promise<void> {
+  const purgeDisk = opts?.purgeDisk ?? !isMobileDevice()
+  if (purgeDisk) {
+    const removed = await clearWhisperBrowserCaches()
+    voiceDebug('offline-stt:cache-cleared', { caches: removed })
+  } else {
+    voiceDebug('offline-stt:session-reset', { purgeDisk: false })
   }
   pipelinePromise = null
   pipelineModelId = null
   pipelineReadyForLang = null
   pipelineActiveDtype = null
-  voiceDebug('offline-stt:cache-cleared')
+  stopSessionBuildProgress()
 }
 
 /** Drop in-memory Whisper session (model files stay in Cache API). */
 export function releaseOfflineSttPipeline(): void {
+  if (isMobileDevice()) {
+    voiceDebug('offline-stt:pipeline-release-skipped', { reason: 'mobile-session' })
+    return
+  }
   pipelinePromise = null
   pipelineModelId = null
   pipelineReadyForLang = null
@@ -332,6 +377,7 @@ export function releaseOfflineSttPipeline(): void {
   preloadInFlightModel = null
   downloadLogPct.clear()
   loadProgressHint = null
+  stopSessionBuildProgress()
   notifyLoadProgress()
   voiceDebug('offline-stt:pipeline-released')
 }
@@ -469,7 +515,7 @@ export async function transcribeAudioBlob(
     lastOfflineSttError = formatError(err)
     voiceDebugError('offline-stt:failed', { error: lastOfflineSttError })
     if (isOrtSessionLoadError(err)) {
-      void clearOfflineSttCache()
+      void clearOfflineSttCache({ purgeDisk: !isMobileDevice() })
       pipelinePromise = null
       pipelineModelId = null
       pipelineReadyForLang = null

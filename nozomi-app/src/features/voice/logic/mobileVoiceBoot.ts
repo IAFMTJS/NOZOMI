@@ -3,6 +3,7 @@
  * Model weights stay in the browser Cache API; this step builds the in-memory WASM session.
  */
 import {
+  hasCachedWhisperWeights,
   isOfflineSttReady,
   preloadOfflineStt,
   subscribeOfflineSttLoadProgress,
@@ -93,6 +94,13 @@ export async function runMobileVoiceBoot(
 
   bootInFlightKey = key
   bootInFlight = (async () => {
+    const modelId = resolveWhisperModelId(
+      lang,
+      useNozomiStore.getState().settings.whisperModel ?? 'tiny',
+    )
+    const weightsCached = await hasCachedWhisperWeights(modelId)
+    onProgress(weightsCached ? 72 : 0)
+
     const unsub = subscribeOfflineSttLoadProgress((pct) => {
       onProgress(isOfflineSttReady(lang) ? 100 : pct)
     })

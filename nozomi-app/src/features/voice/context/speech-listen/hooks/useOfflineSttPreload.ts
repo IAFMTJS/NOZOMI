@@ -16,6 +16,7 @@ import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocal
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
 import { isMobileVoiceBootComplete } from '@/features/voice/logic/mobileVoiceBoot'
+import { touchOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecycle'
 import { isMobileDevice } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
@@ -70,6 +71,7 @@ export function useOfflineSttPreload(
     if (isMobileVoiceBootComplete(recognitionLang)) {
       setOfflineSttReady(true)
       setOfflineSttLoadPercent(100)
+      touchOfflineSttPipeline()
       return () => window.clearInterval(readyPoll)
     }
 
