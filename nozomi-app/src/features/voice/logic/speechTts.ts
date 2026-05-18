@@ -5,7 +5,6 @@ import {
   stopTtsProvider,
 } from '@/features/voice/logic/ttsProvider'
 import { stopCloudTts } from '@/features/voice/logic/ttsCloud'
-import { iosPrepareForTts } from '@/features/voice/logic/iosMemoryBudget'
 import type { TtsSpeakOptions } from '@/features/voice/logic/ttsProvider'
 
 export function isSpeechOutputActive(): boolean {
@@ -42,9 +41,7 @@ export function speakJapanese(
   } = {},
 ): void {
   const settings = useNozomiStore.getState().settings
-  void iosPrepareForTts().then(() => {
-    speakWithProvider(text, settings, opts as TtsSpeakOptions)
-  })
+  speakWithProvider(text, settings, opts as TtsSpeakOptions)
 }
 
 export function stopSpeaking(): void {

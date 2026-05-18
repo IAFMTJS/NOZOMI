@@ -1,10 +1,6 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import { consumeGestureMicStream } from '@/features/voice/logic/micGesture'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
-import {
-  iosMarkMicAnalyserActive,
-  iosPrepareAfterMicStop,
-} from '@/features/voice/logic/iosMemoryBudget'
 import { isIos } from '@/utils/device'
 
 type RecorderCallbacks = {
@@ -102,7 +98,6 @@ function startLevelLoop(s: MediaStream, onLevel: (n: number) => void): void {
         analyser.fftSize = isIos() ? 128 : 256
         source.connect(analyser)
         levelAnalyser = analyser
-        if (isIos()) iosMarkMicAnalyserActive()
         tick()
       } catch {
         onLevel(0)
@@ -216,9 +211,6 @@ export function stopMicSession(): Promise<Blob | null> {
       recorderMime = ''
       chunks = []
       await stopLevelLoop()
-      if (isIos()) {
-        await iosPrepareAfterMicStop()
-      }
       stopInFlight = null
       resolve(blob)
     }

@@ -45,21 +45,18 @@ import {
   setSessionSttEngine,
 } from '@/features/voice/logic/sttEngine'
 import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
-import {
-  iosPrepareBeforeTranscribe,
-  iosPrepareForMicCapture,
-} from '@/features/voice/logic/iosMemoryBudget'
+import { releaseDecodeContext } from '@/features/voice/logic/audioDecode'
 import { isIos } from '@/utils/device'
 
-/** Let iOS release the mic stack before decode + WASM (reduces tab reloads). */
+/** Let the mic stack settle before decode + WASM (reduces tab reloads on iOS). */
 async function yieldBeforeTranscribe(): Promise<void> {
-  if (isIos()) {
-    await iosPrepareBeforeTranscribe()
-    return
-  }
+  releaseDecodeContext()
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
+  if (isIos()) {
+    await new Promise((r) => setTimeout(r, 150))
+  }
 }
 
 function unwindEmptyFinalize(generation: number): void {
@@ -274,7 +271,8 @@ function startRecordedListeningNow(
 
   let micRecorderReady = false
   let captureStarted = false
-  let sttModelReady = isOfflineSttReady(lang)
+  const modelReadyAtStart = isOfflineSttReady(lang)
+  let sttModelReady = modelReadyAtStart
 
   const tryStartCapture = () => {
     const session = getListenSession()
@@ -346,18 +344,13 @@ function startRecordedListeningNow(
   }
 
   void whenOfflineSttReady(lang)
-    .then(async () => {
+    .then(() => {
       window.clearTimeout(modelWaitTimer)
       const session = getListenSession()
       if (getListenGeneration() !== generation || !session || session.stopped) return
-      if (isIos()) {
-        await iosPrepareForMicCapture()
-      }
       sttModelReady = true
       voiceDebug('offline-stt:preload-done', { generation, lang })
-      if (isIos()) {
-        beginMicCapture()
-      }
+      if (!micRecorderReady) beginMicCapture()
       tryStartCapture()
     })
     .catch((err) => {
@@ -420,7 +413,9 @@ function startRecordedListeningNow(
     }
   }
 
-  if (!isIos()) {
+  if (modelReadyAtStart) {
+    beginMicCapture()
+  } else if (!isIos()) {
     beginMicCapture()
   }
 }

@@ -15,8 +15,8 @@ import {
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
-import { iosMemoryBarrier } from '@/features/voice/logic/iosMemoryBudget'
-import { isIos } from '@/utils/device'
+import { isMobileVoiceBootComplete } from '@/features/voice/logic/mobileVoiceBoot'
+import { isMobileDevice } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 type ResetTurnFlags = () => void
@@ -63,7 +63,13 @@ export function useOfflineSttPreload(
     const readyPoll = window.setInterval(syncReady, 400)
 
     if (!onListenPage) {
-      preloadOfflineStt(recognitionLang)
+      if (!isMobileDevice()) preloadOfflineStt(recognitionLang)
+      return () => window.clearInterval(readyPoll)
+    }
+
+    if (isMobileVoiceBootComplete(recognitionLang)) {
+      setOfflineSttReady(true)
+      setOfflineSttLoadPercent(100)
       return () => window.clearInterval(readyPoll)
     }
 
@@ -76,15 +82,12 @@ export function useOfflineSttPreload(
     preloadOfflineStt(recognitionLang, { force: true })
 
     void whenOfflineSttReady(recognitionLang)
-      .then(async () => {
+      .then(() => {
         if (
           resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang) !==
           recognitionLang
         ) {
           return
-        }
-        if (isIos()) {
-          await iosMemoryBarrier('ui-preload-ready')
         }
         setOfflineSttReady(true)
         if (isOfflineSttReady(recognitionLang)) {
@@ -100,19 +103,13 @@ export function useOfflineSttPreload(
         window.clearInterval(readyPoll)
       })
 
-    let warmVoicesTimer: number | null = null
     if ('speechSynthesis' in window) {
       const warmVoices = () => warmJapaneseVoices()
-      if (isIos() && onListenPage) {
-        warmVoicesTimer = window.setTimeout(warmVoices, 3_500)
-      } else {
-        warmVoices()
-        window.speechSynthesis.addEventListener('voiceschanged', warmVoices)
-      }
+      warmVoices()
+      window.speechSynthesis.addEventListener('voiceschanged', warmVoices)
       return () => {
         window.clearInterval(readyPoll)
         unsubProgress()
-        if (warmVoicesTimer) clearTimeout(warmVoicesTimer)
         window.speechSynthesis.removeEventListener('voiceschanged', warmVoices)
       }
     }

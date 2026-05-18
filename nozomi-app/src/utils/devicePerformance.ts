@@ -108,6 +108,6 @@ export function getVoicePlatformTuning(): VoicePlatformTuning {
     sttWorkIdleMs: legacy ? 4_000 : 5_000,
     speechOutputIdleCapMs: 4_000,
     micCooldownMs: 220,
-    offlineReleaseDelayMs: 90_000,
+    offlineReleaseDelayMs: 600_000,
   }
 }

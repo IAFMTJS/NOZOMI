@@ -10,6 +10,7 @@ import {
 import { ensureConversationTuningLoaded } from '@/systems/conversation/matching'
 import { useUiStore } from '@/store/useUiStore'
 import { AppShell } from '@/components/layout/AppShell'
+import { MobileVoiceBootGate } from '@/components/layout/MobileVoiceBootGate'
 import { OnboardingGuard } from '@/components/layout/OnboardingGuard'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { SpeechListenProvider } from '@/features/voice'
@@ -130,7 +131,9 @@ export default function App() {
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <AppShell>
                 <OnboardingGuard>
-                  <AppRoutes />
+                  <MobileVoiceBootGate>
+                    <AppRoutes />
+                  </MobileVoiceBootGate>
                 </OnboardingGuard>
               </AppShell>
             </div>

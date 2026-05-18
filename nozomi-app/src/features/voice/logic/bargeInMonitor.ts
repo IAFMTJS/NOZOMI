@@ -2,7 +2,6 @@ import { createAudioLevelLoop } from '@/features/voice/logic/listenLifecycle'
 import { markVoiceSpan } from '@/features/voice/logic/voiceTurnMetrics'
 import { voiceDebug } from '@/features/voice/logic/voiceDebug'
 import { isBargeInArmed } from '@/features/voice/logic/voiceTurnBridge'
-import { isIos } from '@/utils/device'
 
 /** Higher than listen threshold — reduces false triggers from speaker bleed. */
 const BARGE_LEVEL_THRESHOLD = 0.14
@@ -45,10 +44,6 @@ function onLevel(level: number): void {
 
 export function startBargeInMonitor(opts: BargeInMonitorOptions): void {
   stopBargeInMonitor()
-  if (isIos()) {
-    voiceDebug('barge-in:skipped-ios', { reason: 'memory' })
-    return
-  }
   options = opts
   speechAboveSince = null
   loop = createAudioLevelLoop(onLevel)
