@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { getOrbPalette, lerpOrbPalette } from '@/features/orb/logic/orbPalette'
-import { getOrbAudioLevel } from '@/features/orb/logic/orbAudioLevel'
-import { isMobileDevice } from '@/utils/device'
+import {
+  getOrbCanvasConfig,
+  type OrbCanvasConfig,
+} from '@/features/orb/logic/orbVisualProfile'
+import { getOrbAudioLevel, sampleOrbAudioEnvelope } from '@/features/orb/logic/orbAudioLevel'
 import type { OrbState } from '@/types/domain'
 
 interface Props {
   size: number
   state: OrbState
   intensity: number
-  reduced: boolean
+  config?: OrbCanvasConfig
 }
 
 type Particle = {
@@ -22,8 +25,6 @@ type Particle = {
 }
 
 const IDLE_AUDIO_THRESHOLD = 0.02
-const TARGET_FPS_ACTIVE = 60
-const TARGET_FPS_IDLE = 28
 
 function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3
@@ -54,19 +55,20 @@ function resolvePalette(
   return { h1, h2, h3 }
 }
 
-export function OrbCanvas({ size, state, intensity, reduced }: Props) {
+export function OrbCanvas({ size, state, intensity, config: configProp }: Props) {
+  const config = configProp ?? getOrbCanvasConfig()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const timeRef = useRef(0)
   const smoothAudioRef = useRef(0)
   const stateRef = useRef(state)
   const intensityRef = useRef(intensity)
-  const reducedRef = useRef(reduced)
+  const configRef = useRef(config)
   const transitionRef = useRef({ from: state, to: state, t: 1 })
 
   stateRef.current = state
   intensityRef.current = intensity
-  reducedRef.current = reduced
+  configRef.current = config
 
   useEffect(() => {
     const tr = transitionRef.current
@@ -78,8 +80,7 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
   }, [state])
 
   useEffect(() => {
-    const mobile = isMobileDevice()
-    const n = reduced ? (mobile ? 22 : 30) : mobile ? 40 : 64
+    const n = config.particleCount
     particlesRef.current = Array.from({ length: n }, (_, i) => ({
       angle: (i / n) * Math.PI * 2 + (i % 3) * 0.2,
       dist: 0.32 + (i % 6) * 0.07,
@@ -89,7 +90,7 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       layer: i % 4,
       twinkle: (i % 11) * 0.6,
     }))
-  }, [reduced])
+  }, [config.particleCount, config.tier])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -97,7 +98,7 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
     const ctx = canvas.getContext('2d', { alpha: true })
     if (!ctx) return
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const dpr = Math.min(window.devicePixelRatio || 1, config.maxDpr)
     const px = Math.floor(size * dpr)
     canvas.width = px
     canvas.height = px
@@ -122,17 +123,16 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
         return
       }
 
+      const cfg = configRef.current
       const stateNow = stateRef.current
-      const rawAudio = getOrbAudioLevel()
+      const rawAudio = Math.max(getOrbAudioLevel(), sampleOrbAudioEnvelope())
       const smooth = smoothAudioRef.current
-      const attack = rawAudio > smooth ? 0.38 : 0.14
+      const attack = rawAudio > smooth ? 0.45 : 0.12
       smoothAudioRef.current += (rawAudio - smooth) * attack
       const audio = smoothAudioRef.current
 
-      const reducedNow = reducedRef.current
-      const intensityNow = intensityRef.current
       const idle = stateNow === 'idle' && audio < IDLE_AUDIO_THRESHOLD
-      const targetInterval = 1000 / (idle ? TARGET_FPS_IDLE : TARGET_FPS_ACTIVE)
+      const targetInterval = 1000 / (idle ? cfg.fpsIdle : cfg.fpsActive)
 
       if (lastFrameAt && now - lastFrameAt < targetInterval) {
         raf = requestAnimationFrame(draw)
@@ -144,7 +144,8 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       if (tr.t < 1) tr.t = Math.min(1, tr.t + 0.08)
       if (tr.t >= 1) tr.from = tr.to
 
-      const timeStep = reducedNow ? 0.007 : idle ? 0.009 : 0.016
+      const lite = cfg.tier === 'lite'
+      const timeStep = lite ? 0.008 : idle ? 0.009 : 0.016
       timeRef.current += timeStep
       const t = timeRef.current
 
@@ -160,12 +161,11 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
             ? 1 + Math.sin(t * 2.2) * 0.04
             : 1
       const baseR = w * 0.21 * breathe
-      const pulse = 1 + audio * 0.28 * intensityNow
+      const pulse = 1 + audio * 0.28 * intensityRef.current
       const R = baseR * pulse
 
       ctx.clearRect(0, 0, w, h)
 
-      // Outer halo
       const haloG = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 2.2)
       haloG.addColorStop(0, `hsla(${h1}, 90%, 55%, ${0.06 + audio * 0.06})`)
       haloG.addColorStop(0.45, `hsla(${h2}, 85%, 45%, 0.03)`)
@@ -175,8 +175,7 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       ctx.arc(cx, cy, R * 2.2, 0, Math.PI * 2)
       ctx.fill()
 
-      // Aurora blobs
-      const blobCount = reducedNow ? 3 : 5
+      const blobCount = cfg.tier === 'lite' ? cfg.blobCount : cfg.blobCount
       ctx.globalCompositeOperation = 'screen'
       for (let b = 0; b < blobCount; b++) {
         const phase = t * (0.32 + b * 0.06) + b * 1.9
@@ -194,13 +193,13 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      // Segmented orbital rings
-      const ringCount = reducedNow ? 2 : stateNow === 'thinking' ? 6 : 4
+      const ringCount =
+        stateNow === 'thinking' ? Math.min(cfg.ringCount + 2, 6) : cfg.ringCount
       for (let r = 0; r < ringCount; r++) {
         const wobble = Math.sin(t * 1.8 + r * 0.9) * 2.5 * dpr
         const ringR = R * (1.08 + r * 0.13) + wobble
         const rot = t * (0.22 + r * 0.07) * (r % 2 === 0 ? 1 : -1)
-        const segments = reducedNow ? 5 : 7 + r
+        const segments = lite ? 5 : 7 + r
         const gap = 0.28 + r * 0.04
         ctx.lineWidth = (1.2 + r * 0.35) * dpr
         ctx.lineCap = 'round'
@@ -215,7 +214,6 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
         }
       }
 
-      // Orbiting particles
       const speedMult =
         stateNow === 'listening'
           ? 2
@@ -244,7 +242,6 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       }
       ctx.globalCompositeOperation = 'source-over'
 
-      // Glass core
       const coreG = ctx.createRadialGradient(
         cx,
         cy - R * 0.18,
@@ -263,7 +260,6 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       ctx.arc(cx, cy, R * 1.04, 0, Math.PI * 2)
       ctx.fill()
 
-      // Specular highlight
       const hi = ctx.createRadialGradient(
         cx - R * 0.38,
         cy - R * 0.42,
@@ -281,7 +277,6 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
       ctx.fill()
 
-      // Rim
       const rimG = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R)
       rimG.addColorStop(0, `hsla(${h2}, 100%, 82%, 0.55)`)
       rimG.addColorStop(0.5, `hsla(${h1}, 100%, 92%, 0.7)`)
@@ -292,57 +287,56 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       ctx.arc(cx, cy, R * 0.99, 0, Math.PI * 2)
       ctx.stroke()
 
-      if (!reducedNow) {
-        if (stateNow === 'listening') {
-          const bars = 24
-          const innerR = R * 1.12
-          const outerR = R * 1.12 + (10 + audio * 28) * dpr
-          for (let i = 0; i < bars; i++) {
-            const a = (i / bars) * Math.PI * 2 - Math.PI / 2
-            const wiggle = Math.sin(t * 9 + i * 0.55) * 4 * dpr
-            const r0 = innerR + wiggle
-            const r1 = outerR + wiggle + Math.sin(t * 7 + i) * 3 * dpr
-            const x0 = cx + Math.cos(a) * r0
-            const y0 = cy + Math.sin(a) * r0 * 0.94
-            const x1 = cx + Math.cos(a) * r1
-            const y1 = cy + Math.sin(a) * r1 * 0.94
-            ctx.strokeStyle = `hsla(${h3 + (i % 5) * 4}, 100%, 78%, ${0.55 + audio * 0.35})`
-            ctx.lineWidth = 2 * dpr
-            ctx.lineCap = 'round'
-            ctx.beginPath()
-            ctx.moveTo(x0, y0)
-            ctx.lineTo(x1, y1)
-            ctx.stroke()
-          }
+      if (cfg.listeningBars > 0 && stateNow === 'listening') {
+        const bars = cfg.listeningBars
+        const innerR = R * 1.1
+        const outerBase = R * 1.1 + (12 + audio * 34) * dpr
+        for (let i = 0; i < bars; i++) {
+          const a = (i / bars) * Math.PI * 2 - Math.PI / 2
+          const bin = Math.sin(t * 11 + i * 0.72) * 0.5 + 0.5
+          const wiggle = Math.sin(t * 9 + i * 0.55) * 5 * dpr
+          const r0 = innerR + wiggle
+          const r1 = outerBase * (0.72 + bin * 0.38 + audio * 0.25) + wiggle
+          const x0 = cx + Math.cos(a) * r0
+          const y0 = cy + Math.sin(a) * r0 * 0.94
+          const x1 = cx + Math.cos(a) * r1
+          const y1 = cy + Math.sin(a) * r1 * 0.94
+          ctx.strokeStyle = `hsla(${h3 + (i % 5) * 4}, 100%, 78%, ${0.55 + audio * 0.35})`
+          ctx.lineWidth = 2 * dpr
+          ctx.lineCap = 'round'
+          ctx.beginPath()
+          ctx.moveTo(x0, y0)
+          ctx.lineTo(x1, y1)
+          ctx.stroke()
         }
+      }
 
-        if (stateNow === 'speaking') {
-          for (let rip = 0; rip < 3; rip++) {
-            const phase = (t * 1.35 + rip * 0.28) % 1
-            const ripR = R * (1.02 + phase * 1.05)
-            ctx.strokeStyle = `hsla(${h1}, 100%, 78%, ${(1 - phase) * 0.38})`
-            ctx.lineWidth = (2 - rip * 0.3) * dpr
-            ctx.beginPath()
-            ctx.arc(cx, cy, ripR, 0, Math.PI * 2)
-            ctx.stroke()
-          }
+      if (stateNow === 'speaking') {
+        for (let rip = 0; rip < (lite ? 2 : 3); rip++) {
+          const phase = (t * 1.35 + rip * 0.28) % 1
+          const ripR = R * (1.02 + phase * 1.05)
+          ctx.strokeStyle = `hsla(${h1}, 100%, 78%, ${(1 - phase) * 0.38})`
+          ctx.lineWidth = (2 - rip * 0.3) * dpr
+          ctx.beginPath()
+          ctx.arc(cx, cy, ripR, 0, Math.PI * 2)
+          ctx.stroke()
         }
+      }
 
-        if (stateNow === 'thinking') {
-          for (let i = 0; i < 3; i++) {
-            const a = t * 2.8 + (i * Math.PI * 2) / 3
-            const orbitR = R * 0.58
-            const x = cx + Math.cos(a) * orbitR
-            const y = cy + Math.sin(a) * orbitR * 0.94
-            const dotR = (3.5 + Math.sin(t * 4 + i) * 0.8) * dpr
-            const dg = ctx.createRadialGradient(x, y, 0, x, y, dotR * 2)
-            dg.addColorStop(0, `hsla(${h3 + i * 18}, 100%, 88%, 1)`)
-            dg.addColorStop(1, 'transparent')
-            ctx.fillStyle = dg
-            ctx.beginPath()
-            ctx.arc(x, y, dotR * 2, 0, Math.PI * 2)
-            ctx.fill()
-          }
+      if (stateNow === 'thinking') {
+        for (let i = 0; i < 3; i++) {
+          const a = t * 2.8 + (i * Math.PI * 2) / 3
+          const orbitR = R * 0.58
+          const x = cx + Math.cos(a) * orbitR
+          const y = cy + Math.sin(a) * orbitR * 0.94
+          const dotR = (3.5 + Math.sin(t * 4 + i) * 0.8) * dpr
+          const dg = ctx.createRadialGradient(x, y, 0, x, y, dotR * 2)
+          dg.addColorStop(0, `hsla(${h3 + i * 18}, 100%, 88%, 1)`)
+          dg.addColorStop(1, 'transparent')
+          ctx.fillStyle = dg
+          ctx.beginPath()
+          ctx.arc(x, y, dotR * 2, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
 
@@ -355,7 +349,13 @@ export function OrbCanvas({ size, state, intensity, reduced }: Props) {
       document.removeEventListener('visibilitychange', onVisibility)
       cancelAnimationFrame(raf)
     }
-  }, [size, reduced])
+  }, [size, config])
 
-  return <canvas ref={canvasRef} className="relative z-10 block" aria-hidden />
+  return (
+    <canvas
+      ref={canvasRef}
+      className="orb-canvas relative z-10 block"
+      aria-hidden
+    />
+  )
 }

@@ -1,52 +1,84 @@
-/* Ambient backdrop — depth grid + vignette */
+/* Shibuya Signal ambient backdrop */
 .futuristic-backdrop {
   overflow: hidden;
   isolation: isolate;
 }
 
-.futuristic-grid {
+.signal-speedlines {
   position: absolute;
-  inset: -55%;
-  background-image:
-    linear-gradient(rgba(167, 139, 250, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(167, 139, 250, 0.07) 1px, transparent 1px),
-    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px, 40px 40px, 80px 80px;
-  mask-image: radial-gradient(ellipse 75% 65% at 50% 38%, black 15%, transparent 78%);
-  animation: grid-drift 72s linear infinite;
-  opacity: 0.95;
+  inset: -30%;
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    -14deg,
+    transparent 0,
+    transparent 56px,
+    rgba(230, 57, 70, 0.045) 56px,
+    rgba(230, 57, 70, 0.045) 58px
+  );
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 35%, black 10%, transparent 72%);
+  animation: speedline-drift 48s linear infinite;
 }
 
-@keyframes grid-drift {
+@keyframes speedline-drift {
   from {
-    transform: translate(0, 0) perspective(520px) rotateX(62deg) scale(1.25);
+    transform: translate(0, 0);
   }
   to {
-    transform: translate(40px, 40px) perspective(520px) rotateX(62deg) scale(1.25);
+    transform: translate(58px, 28px);
   }
+}
+
+.signal-slash {
+  position: absolute;
+  width: 140%;
+  height: 2px;
+  left: -20%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(230, 57, 70, 0.35) 42%,
+    rgba(255, 230, 0, 0.2) 58%,
+    transparent 100%
+  );
+  transform: rotate(-8deg);
+  opacity: 0.12;
+}
+
+.signal-slash--a {
+  top: 22%;
+}
+
+.signal-slash--b {
+  top: 68%;
+  transform: rotate(-5deg);
+  opacity: 0.08;
+}
+
+.futuristic-grid {
+  display: none;
 }
 
 .futuristic-vignette {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    ellipse 85% 75% at 50% 42%,
-    transparent 22%,
-    rgba(2, 1, 8, 0.75) 72%,
-    rgba(1, 1, 4, 0.95) 100%
+    ellipse 88% 78% at 50% 40%,
+    transparent 18%,
+    rgba(8, 8, 12, 0.65) 68%,
+    rgba(8, 8, 12, 0.98) 100%
   );
 }
 
 .futuristic-scanlines {
   position: absolute;
   inset: 0;
-  opacity: 0.028;
+  opacity: 0.018;
   background: repeating-linear-gradient(
     0deg,
     transparent,
-    transparent 2px,
-    rgba(255, 255, 255, 0.04) 2px,
-    rgba(255, 255, 255, 0.04) 4px
+    transparent 3px,
+    rgba(255, 255, 255, 0.05) 3px,
+    rgba(255, 255, 255, 0.05) 4px
   );
   pointer-events: none;
   mix-blend-mode: overlay;

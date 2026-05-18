@@ -50,7 +50,7 @@ export function ChatInput({ onSend }: Props) {
         <button
           type="submit"
           disabled={!value.trim()}
-          className={`${BTN_ICON} h-11 w-11 shrink-0 rounded-full bg-gradient-to-br from-nozomi-purple to-nozomi-indigo text-white glow-purple-sm disabled:opacity-40`}
+          className={`${BTN_ICON} h-11 w-11 shrink-0 rounded-sm bg-nozomi-signal text-[#08080c] shadow-[0_3px_0_0_#9d0208] glow-purple-sm disabled:opacity-40`}
           aria-label={UI_LABELS.send.en}
         >
           <IconSend />

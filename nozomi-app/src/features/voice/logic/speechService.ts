@@ -32,6 +32,7 @@ export {
   startListening,
   finalizeListening,
   cancelListening,
+  clearStaleListenSession,
   markListenTurnHandled,
   endListenSessionAfterTurn,
   stopListening,

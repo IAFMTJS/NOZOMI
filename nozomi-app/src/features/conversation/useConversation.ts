@@ -17,6 +17,7 @@ import {
 import { prepareVoiceInput } from '@/features/voice/logic/prepareVoiceInput'
 import { requestCloudLlmReply } from '@/features/voice/logic/labs/cloudLlm'
 import { markVoiceSpan } from '@/features/voice/logic/voiceTurnMetrics'
+import { enterVoiceUnderstanding } from '@/features/voice/logic/voiceTurnCoordinator'
 import { trimForVoiceReply } from '@/systems/conversation/voiceReplyTrim'
 import { formatUserMessageTextAsync } from '@/utils/formatUserInput'
 import type { ChatMessage, ScenarioCategory, StorySession } from '@/types/domain'
@@ -183,7 +184,7 @@ export function useConversation() {
       }
 
       stopSpeaking()
-      if (surface === 'voice') setOrbState('thinking')
+      if (surface === 'voice') enterVoiceUnderstanding()
 
       clearSuggestionTimer()
       const chatTurnId =

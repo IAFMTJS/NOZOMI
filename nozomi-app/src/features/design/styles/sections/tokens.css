@@ -1,27 +1,30 @@
 @theme {
-  --color-nozomi-bg: #030308;
-  --color-nozomi-bg-elevated: #0a0a14;
-  --color-nozomi-surface: rgba(12, 14, 28, 0.78);
-  --color-nozomi-surface-soft: rgba(10, 12, 30, 0.62);
-  --color-nozomi-border: rgba(167, 139, 250, 0.22);
-  --color-nozomi-border-strong: rgba(94, 234, 212, 0.42);
-  --color-nozomi-accent: #b794f6;
-  --color-nozomi-accent-soft: #ddd6fe;
-  --color-nozomi-accent-glow: rgba(167, 139, 250, 0.42);
-  --color-nozomi-live: #5eead4;
-  --color-nozomi-live-dim: rgba(94, 234, 212, 0.65);
-  --color-nozomi-warm: #fbbf24;
-  --color-nozomi-purple: #a78bfa;
-  --color-nozomi-purple-deep: #6d28d9;
-  --color-nozomi-blue: #60a5fa;
-  --color-nozomi-cyan: #22d3ee;
-  --color-nozomi-indigo: #818cf8;
-  --color-nozomi-text: #f8fafc;
-  --color-nozomi-text-secondary: rgba(248, 250, 252, 0.68);
-  --color-nozomi-muted: rgba(248, 250, 252, 0.42);
-  --color-nozomi-user-bubble: rgba(255, 255, 255, 0.07);
-  --font-sans: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
-  --font-display: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  /* Shibuya Signal — rich black, vermillion shock, electric yellow live */
+  --color-nozomi-bg: #08080c;
+  --color-nozomi-bg-elevated: #121218;
+  --color-nozomi-surface: #16161f;
+  --color-nozomi-surface-soft: rgba(22, 22, 31, 0.94);
+  --color-nozomi-border: rgba(255, 255, 255, 0.14);
+  --color-nozomi-border-strong: #e63946;
+  --color-nozomi-signal: #e63946;
+  --color-nozomi-signal-deep: #c1121f;
+  --color-nozomi-accent: #e63946;
+  --color-nozomi-accent-soft: #ff6b6b;
+  --color-nozomi-accent-glow: rgba(230, 57, 70, 0.45);
+  --color-nozomi-live: #ffe600;
+  --color-nozomi-live-dim: rgba(255, 230, 0, 0.72);
+  --color-nozomi-warm: #ffe600;
+  --color-nozomi-purple: #e63946;
+  --color-nozomi-purple-deep: #9d0208;
+  --color-nozomi-blue: #f5f5f5;
+  --color-nozomi-cyan: #f0f0f0;
+  --color-nozomi-indigo: #d4d4d8;
+  --color-nozomi-text: #fafafa;
+  --color-nozomi-text-secondary: rgba(250, 250, 250, 0.72);
+  --color-nozomi-muted: rgba(250, 250, 250, 0.42);
+  --color-nozomi-user-bubble: rgba(255, 255, 255, 0.1);
+  --font-sans: 'M PLUS 1p', 'Noto Sans JP', system-ui, sans-serif;
+  --font-display: 'Dela Gothic One', 'M PLUS 1p', 'Noto Sans JP', sans-serif;
   --font-jp: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
 }
 
@@ -29,37 +32,32 @@
 :root {
   --nozomi-page-x: clamp(1rem, 4.5vw, 1.5rem);
   --nozomi-touch: 48px;
-  --nozomi-radius-sm: 0.75rem;
-  --nozomi-radius-md: 1rem;
-  --nozomi-radius-lg: 1.25rem;
-  --nozomi-radius-xl: 1.75rem;
-  --nozomi-radius-2xl: 2rem;
-  --nozomi-radius-pill: 9999px;
-  --nozomi-blur-glass: 28px;
-  --nozomi-blur-heavy: 40px;
+  --nozomi-radius-sm: 2px;
+  --nozomi-radius-md: 4px;
+  --nozomi-radius-lg: 6px;
+  --nozomi-radius-xl: 8px;
+  --nozomi-radius-2xl: 10px;
+  --nozomi-radius-pill: 2px;
+  --nozomi-blur-glass: 12px;
+  --nozomi-blur-heavy: 20px;
   --nozomi-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --nozomi-ease-spring: cubic-bezier(0.34, 1.25, 0.64, 1);
-  --nozomi-glow-purple: 0 0 48px rgba(167, 139, 250, 0.35);
-  --nozomi-glow-cyan: 0 0 40px rgba(34, 211, 238, 0.28);
-  --nozomi-glow-ring: 0 0 0 1px rgba(167, 139, 250, 0.25);
-  --nozomi-gradient-panel: linear-gradient(
-    155deg,
-    rgba(22, 18, 48, 0.82) 0%,
-    rgba(8, 10, 26, 0.92) 48%,
-    rgba(4, 6, 18, 0.96) 100%
-  );
+  --nozomi-ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --nozomi-glow-purple: 0 4px 0 0 #e63946;
+  --nozomi-glow-cyan: 0 0 24px rgba(255, 230, 0, 0.22);
+  --nozomi-glow-ring: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  --nozomi-gradient-panel: #121218;
   --nozomi-gradient-holo-border: linear-gradient(
-    135deg,
-    rgba(216, 180, 254, 0.55) 0%,
-    rgba(34, 211, 238, 0.22) 38%,
-    rgba(129, 140, 248, 0.45) 68%,
-    rgba(167, 139, 250, 0.28) 100%
+    90deg,
+    #e63946 0%,
+    #e63946 100%
   );
-  --nozomi-gradient-mic: linear-gradient(
-    145deg,
-    #f0abfc 0%,
-    #c084fc 28%,
-    #6366f1 62%,
-    #3730a3 100%
+  --nozomi-gradient-mic: linear-gradient(145deg, #e63946 0%, #9d0208 100%);
+  --nozomi-signal-cut: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%
   );
 }

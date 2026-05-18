@@ -9,6 +9,17 @@ export {
 export { useListenPhase } from './hooks/useListenPhase'
 export { syncSpeechOutputPresence } from './logic/speechPresenceSync'
 export {
+  deriveVoiceTurnPhase,
+  enterVoiceCapturing,
+  enterVoiceFinalizing,
+  enterVoiceGenerating,
+  enterVoiceListenPrepare,
+  enterVoiceUnderstanding,
+  forceRecoverVoiceUi,
+  syncIdleAfterVoiceTurn,
+  type VoiceTurnPhase,
+} from './logic/voiceTurnCoordinator'
+export {
   SpeechListenProvider,
   useSpeechListen,
   type SpeechListenApi,

@@ -8,6 +8,7 @@ import {
   lerpOrbPalette,
 } from '@/features/orb/logic/orbPalette'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { getVoicePlatformTuning } from '@/utils/device'
 import type { OrbState } from '@/types/domain'
 
 function easeOutCubic(t: number): number {
@@ -35,19 +36,24 @@ export function OrbAmbienceBridge() {
 
   useEffect(() => {
     let raf = 0
-    const tick = () => {
-      const tr = transitionRef.current
-      if (tr.t < 1) tr.t = Math.min(1, tr.t + 0.07)
-      const palette = lerpOrbPalette(
-        getOrbPalette(tr.from),
-        getOrbPalette(tr.to),
-        easeOutCubic(tr.t),
-      )
-      if (tr.t >= 1) tr.from = tr.to
-      applyOrbPaletteToRoot(palette, level, intensity, orbState)
+    let lastAt = 0
+    const minInterval = 1000 / getVoicePlatformTuning().orbAmbienceFpsCap
+    const tick = (now: number) => {
+      if (!lastAt || now - lastAt >= minInterval) {
+        lastAt = now
+        const tr = transitionRef.current
+        if (tr.t < 1) tr.t = Math.min(1, tr.t + 0.07)
+        const palette = lerpOrbPalette(
+          getOrbPalette(tr.from),
+          getOrbPalette(tr.to),
+          easeOutCubic(tr.t),
+        )
+        if (tr.t >= 1) tr.from = tr.to
+        applyOrbPaletteToRoot(palette, level, intensity, orbState)
+      }
       raf = requestAnimationFrame(tick)
     }
-    tick()
+    raf = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(raf)
       clearOrbPaletteFromRoot()

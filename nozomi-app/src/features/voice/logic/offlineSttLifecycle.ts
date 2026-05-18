@@ -1,4 +1,4 @@
-import { isIos } from '@/utils/device'
+import { getVoicePlatformTuning } from '@/utils/device'
 import { releaseOfflineSttPipeline } from '@/features/voice/logic/offlineStt'
 import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
 
@@ -6,7 +6,9 @@ let lastTouchAt = 0
 let releaseTimer: number | null = null
 
 /** Keep Whisper warm between turns on /listen (files stay in Cache API). */
-const RELEASE_DELAY_MS = isIos() ? 90_000 : 120_000
+function releaseDelayMs(): number {
+  return getVoicePlatformTuning().offlineReleaseDelayMs
+}
 
 export function touchOfflineSttPipeline(): void {
   lastTouchAt = Date.now()
@@ -18,7 +20,7 @@ export function touchOfflineSttPipeline(): void {
 
 /** Avoid dropping Whisper on React StrictMode remount or brief route flicker (iOS). */
 export function scheduleReleaseOfflineSttPipeline(
-  delayMs = RELEASE_DELAY_MS,
+  delayMs = releaseDelayMs(),
 ): void {
   touchOfflineSttPipeline()
   if (releaseTimer) clearTimeout(releaseTimer)

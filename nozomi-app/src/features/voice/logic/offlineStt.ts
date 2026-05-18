@@ -23,7 +23,7 @@ import {
   touchOfflineSttPipeline,
 } from '@/features/voice/logic/offlineSttLifecycle'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { isIos, isLowMemoryDevice } from '@/utils/device'
+import { getVoicePlatformTuning, isIos, isLowMemoryDevice } from '@/utils/device'
 
 const LOAD_TIMEOUT_MS = 180_000
 const READY_WAIT_MS = isIos() ? 90_000 : 120_000
@@ -419,23 +419,24 @@ export async function transcribeAudioBlob(
     const heartbeat = window.setInterval(() => {
       voiceDebug('offline-stt:infer-wait', { dtype: pipelineActiveDtype })
     }, 5000)
+    const tuning = getVoicePlatformTuning()
     const lowMem = isIos() || isLowMemoryDevice()
     const longClip = durationSec >= WHISPER_LONG_AUDIO_SEC
     const chunkSec = longClip
       ? isIos()
-        ? 8
+        ? tuning.whisperLongChunkSec
         : 30
       : isIos()
-        ? 4
+        ? tuning.whisperChunkSec
         : lowMem
           ? 6
           : 15
     const strideSec = longClip
       ? isIos()
-        ? 2
+        ? tuning.whisperLongStrideSec
         : 5
       : isIos()
-        ? 1
+        ? tuning.whisperStrideSec
         : lowMem
           ? 2
           : 3

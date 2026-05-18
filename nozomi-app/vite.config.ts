@@ -24,8 +24,8 @@ export default defineConfig(({ command }) => ({
         name: 'Nozomi',
         short_name: 'Nozomi',
         description: 'Futuristic Japanese learning companion',
-        theme_color: '#05070a',
-        background_color: '#05070a',
+        theme_color: '#08080c',
+        background_color: '#08080c',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

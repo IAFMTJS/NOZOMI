@@ -34,7 +34,7 @@ label,
 input[type='checkbox'],
 input[type='range'] {
   touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(192, 132, 252, 0.2);
+  -webkit-tap-highlight-color: rgba(230, 57, 70, 0.25);
 }
 
 .touch-target {

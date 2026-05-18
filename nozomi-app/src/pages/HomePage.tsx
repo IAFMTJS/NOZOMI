@@ -61,8 +61,6 @@ export function HomePage() {
 
         <section className="presence-stage">
           <PresenceOrbShell
-            speechState={speechState}
-            orbState={orbState}
             onClick={handleSpeak}
             aria-label={UI_LABELS.speak.en}
           >

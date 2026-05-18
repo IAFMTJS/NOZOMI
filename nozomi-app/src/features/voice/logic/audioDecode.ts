@@ -1,4 +1,4 @@
-import { isIos, isLowMemoryDevice } from '@/utils/device'
+import { getVoicePlatformTuning, isLowMemoryDevice } from '@/utils/device'
 
 const TARGET_RATE = 16_000
 
@@ -15,8 +15,8 @@ async function getDecodeContext(): Promise<AudioContext> {
 }
 
 function maxInferenceSamples(): number {
-  // Match MAX_RECORDING_MS (10s) + headroom; shorter buffers reduce iOS tab kills.
-  if (isIos()) return 12 * TARGET_RATE
+  const tuned = getVoicePlatformTuning().maxDecodeSamples16k
+  if (tuned > 0) return tuned
   if (isLowMemoryDevice()) return 22 * TARGET_RATE
   return 30 * TARGET_RATE
 }

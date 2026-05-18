@@ -28,12 +28,15 @@ export function isStandalonePwa(): boolean {
   )
 }
 
-/** Coarse pointer or mobile — use CSS orb, no canvas loop, lighter STT. */
-export function prefersLowPowerOrb(): boolean {
-  if (typeof window === 'undefined') return false
-  if (isMobileDevice()) return true
-  return window.matchMedia('(pointer: coarse)').matches
-}
+export {
+  getIosDeviceTier,
+  getOrbVisualTier,
+  getVoicePlatformTuning,
+  prefersLowPowerOrb,
+  type IosDeviceTier,
+  type OrbVisualTier,
+  type VoicePlatformTuning,
+} from '@/utils/devicePerformance'
 
 export function isLowMemoryDevice(): boolean {
   const dm = (navigator as Navigator & { deviceMemory?: number }).deviceMemory

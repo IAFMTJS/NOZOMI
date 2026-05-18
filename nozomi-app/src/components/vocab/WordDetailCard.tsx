@@ -82,7 +82,7 @@ export function WordDetailCard({
           <button
             type="button"
             onClick={() => speak(word.jp)}
-            className={`${BTN_ICON} h-11 w-11 rounded-lg text-nozomi-purple hover:bg-purple-950/40`}
+            className={`${BTN_ICON} h-11 w-11 rounded-lg text-nozomi-purple hover:bg-nozomi-signal/15`}
             aria-label="Play pronunciation"
           >
             <IconSpeaker size={18} />
@@ -147,7 +147,7 @@ export function WordDetailCard({
         <button
           type="button"
           onClick={onPractice}
-          className={`${BTN_ROW} mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-nozomi-purple via-nozomi-indigo to-indigo-600 glow-purple-sm`}
+          className={`${BTN_ROW} mt-6 flex w-full items-center justify-center gap-2 rounded-sm bg-nozomi-signal text-[#08080c] font-bold uppercase tracking-wider shadow-[0_4px_0_0_#9d0208] glow-purple-sm`}
         >
           <IconPractice className="pointer-events-none text-white" />
           <LanguageText text={UI_LABELS.practiceWord} align="center" size="sm" passive />

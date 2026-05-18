@@ -33,6 +33,10 @@ const WHOLE_LINE_ALIASES: { re: RegExp; jp: string }[] = [
   { re: /^goodbye[.!?]*$/i, jp: 'さようなら' },
   { re: /^excuse me[.!?]*$/i, jp: 'すみません' },
   { re: /^sorry[.!?]*$/i, jp: 'ごめん' },
+  { re: /^what did you say[.!?]*$/i, jp: '何て言った' },
+  { re: /^can you repeat that[.!?]*$/i, jp: 'もう一度言って' },
+  { re: /^i don'?t understand[.!?]*$/i, jp: 'わからない' },
+  { re: /^let'?s (talk|chat|practice)[.!?]*$/i, jp: '話そう' },
 ]
 
 const PHRASE_ALIASES: { re: RegExp; jp: string }[] = [

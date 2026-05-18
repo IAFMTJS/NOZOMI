@@ -48,5 +48,17 @@ test.describe('Voice listen turn', () => {
         { timeout: 15_000 },
       )
       .toBe(true)
+
+    await expect(orb).toHaveAttribute('data-listen-phase', 'idle', { timeout: 20_000 })
+
+    await orb.click()
+    await expect(orb).toHaveAttribute('data-listen-phase', 'capturing', {
+      timeout: 15_000,
+    })
+    await orb.click()
+
+    await expect(page.locator('.presence-float-user')).toHaveCount(2, {
+      timeout: 25_000,
+    })
   })
 })

@@ -79,7 +79,7 @@ export function ChatPage() {
       {session.activeStoryId != null &&
         session.activeStoryBeat != null &&
         session.activeStoryTotalBeats != null && (
-          <div className="mx-4 mb-1 flex shrink-0 items-center justify-between gap-2 rounded-full border border-nozomi-purple/30 bg-purple-950/30 px-3 py-1.5 text-xs text-nozomi-muted">
+          <div className="mx-4 mb-1 flex shrink-0 items-center justify-between gap-2 rounded-full border border-nozomi-signal/40 bg-nozomi-signal/10 px-3 py-1.5 text-xs text-nozomi-muted">
             <LanguageText text={UI_LABELS.storyProgress} size="sm" />
             <span>
               {session.activeStoryBeat} / {session.activeStoryTotalBeats}

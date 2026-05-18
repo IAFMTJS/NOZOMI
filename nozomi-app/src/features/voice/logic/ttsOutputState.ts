@@ -29,6 +29,20 @@ export function isAnyTtsOutputActive(): boolean {
   return false
 }
 
+/** Clear stuck browser synth flags (Chrome keeps `speaking` true after cancel). */
+export function reconcileStuckBrowserSynth(): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+  const synth = window.speechSynthesis
+  if (!synth.speaking && !synth.pending) return
+  try {
+    synth.cancel()
+    synth.pause()
+    synth.resume()
+  } catch {
+    /* ignore */
+  }
+}
+
 export function subscribeTtsOutput(onChange: () => void): () => void {
   listeners.add(onChange)
   return () => listeners.delete(onChange)

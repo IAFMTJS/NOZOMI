@@ -1,9 +1,16 @@
 /* ─── Nozomi orb system ─── */
 
 .orb-holo {
+  contain: layout style paint;
+  transform: translateZ(0);
   filter: drop-shadow(0 0 64px rgba(var(--orb-glow-rgb, 168, 85, 247), 0.45))
     drop-shadow(0 0 120px rgba(var(--orb-glow-rgb, 168, 85, 247), 0.15));
   transition: filter 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.orb-canvas {
+  contain: strict;
+  transform: translateZ(0);
 }
 
 .orb-holo[data-orb-state='listening'] {
@@ -198,6 +205,8 @@
   border: 0;
   background: transparent;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition: transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
@@ -285,6 +294,51 @@
 
 .presence-orb-anchor[data-listen-phase='processing'] .presence-orb-ring {
   animation: presence-think-ring 1.8s ease-in-out infinite;
+}
+
+.presence-orb-shimmer {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.14) 40deg,
+    transparent 80deg
+  );
+  animation: presence-shimmer-spin 8s linear infinite;
+}
+
+.presence-orb-anchor[data-orb-state='listening'] .presence-orb-shimmer,
+.presence-orb-anchor[data-listen-phase='capturing'] .presence-orb-shimmer {
+  opacity: 0.75;
+}
+
+.presence-orb-anchor[data-listen-phase='error'] .presence-orb-glow {
+  background: radial-gradient(
+    circle,
+    rgba(230, 57, 70, 0.35) 0%,
+    transparent 70%
+  );
+  animation: presence-error-flash 1.2s ease-in-out infinite;
+}
+
+@keyframes presence-shimmer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes presence-error-flash {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .presence-stage[data-listen-phase] .orb-waveform {

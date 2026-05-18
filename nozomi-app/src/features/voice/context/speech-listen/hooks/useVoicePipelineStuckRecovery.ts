@@ -3,6 +3,7 @@ import { PIPELINE_STUCK_RECOVERY_MS } from '@/features/voice/context/speech-list
 import type { VoiceCaptureSnapshot } from '@/features/voice/logic/voiceDebug'
 import { voiceDebugError } from '@/features/voice/logic/voiceDebug'
 import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
+import { forceRecoverVoiceUi } from '@/features/voice/logic/voiceTurnCoordinator'
 import { useUiStore } from '@/store/useUiStore'
 import type { LanguageText } from '@/types/domain'
 
@@ -53,6 +54,7 @@ export function useVoicePipelineStuckRecovery(
       processingRef.current = false
       setTranscriptFinalizing(false)
       cancelSession()
+      forceRecoverVoiceUi('pipeline-stuck-recovery')
       deliverNozomi(
         {
           jp: '音声の処理が途中で止まりました。もう一度話してみて。',

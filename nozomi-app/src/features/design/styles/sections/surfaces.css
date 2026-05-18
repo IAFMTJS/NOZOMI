@@ -1,70 +1,53 @@
-/* Glass / holo surfaces */
+/* Shibuya Signal — flat panels, accent stripe, angular cut */
 .glass-panel,
 .holo-panel {
   position: relative;
   overflow: hidden;
-  background: var(--nozomi-gradient-panel);
-  border: 1px solid transparent;
-  border-radius: var(--nozomi-radius-lg);
-  backdrop-filter: blur(var(--nozomi-blur-glass)) saturate(1.55);
-  -webkit-backdrop-filter: blur(var(--nozomi-blur-glass)) saturate(1.55);
+  background: var(--color-nozomi-bg-elevated);
+  border: 2px solid var(--color-nozomi-border);
+  border-radius: var(--nozomi-radius-md);
+  clip-path: var(--nozomi-signal-cut);
   box-shadow:
-    var(--nozomi-glow-ring),
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    0 8px 0 0 rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .glass-panel::before,
 .holo-panel::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: var(--nozomi-gradient-holo-border);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-nozomi-signal);
   pointer-events: none;
 }
 
 .glass-panel-soft {
   position: relative;
-  background: rgba(8, 10, 26, 0.72);
-  border: 1px solid rgba(167, 139, 250, 0.16);
-  backdrop-filter: blur(20px) saturate(1.35);
-  -webkit-backdrop-filter: blur(20px) saturate(1.35);
-  border-radius: var(--nozomi-radius-md);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--color-nozomi-surface);
+  border: 2px solid var(--color-nozomi-border);
+  border-radius: var(--nozomi-radius-sm);
+  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.4);
 }
 
 .glow-purple {
   box-shadow:
-    0 0 48px rgba(192, 132, 252, 0.55),
-    0 0 96px rgba(99, 102, 241, 0.28),
-    0 0 140px rgba(34, 211, 238, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 0 0 2px var(--color-nozomi-signal),
+    0 8px 0 0 rgba(230, 57, 70, 0.35);
 }
 
 .glow-purple-sm {
   box-shadow:
-    0 0 28px rgba(192, 132, 252, 0.45),
-    0 0 56px rgba(59, 130, 246, 0.18);
+    0 0 0 2px rgba(255, 255, 255, 0.15),
+    0 4px 0 0 var(--color-nozomi-signal);
 }
 
 .glow-ring {
   box-shadow:
-    0 0 0 1px rgba(192, 132, 252, 0.45),
-    0 0 40px rgba(168, 85, 247, 0.38),
-    0 0 80px rgba(34, 211, 238, 0.08);
+    0 0 0 2px var(--color-nozomi-signal),
+    0 6px 0 0 rgba(230, 57, 70, 0.25);
 }
 
 .orb-stage {

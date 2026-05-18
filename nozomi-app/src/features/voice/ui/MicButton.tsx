@@ -30,7 +30,7 @@ export function MicButton({ size = 'md', className = '', onDenied }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className={`${BTN_ICON} shrink-0 rounded-full border border-nozomi-border/50 text-nozomi-purple hover:border-nozomi-purple/70 hover:bg-purple-950/30 disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`${BTN_ICON} shrink-0 rounded-full border border-nozomi-border/50 text-nozomi-purple hover:border-nozomi-purple/70 hover:bg-nozomi-signal/15 disabled:cursor-not-allowed disabled:opacity-40 ${
         isLg ? 'h-14 w-14' : 'h-11 w-11'
       } ${className}`}
       disabled={!stt}

@@ -15,7 +15,10 @@ import { getSttEngine } from '@/features/voice/logic/sttEngine'
 import type { VoiceCaptureSnapshot } from '@/features/voice/logic/voiceDebug'
 import { voiceDebug, voiceDebugCapture, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import { markVoiceSpan } from '@/features/voice/logic/voiceTurnMetrics'
-import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
+import {
+  enterVoiceFinalizing,
+  forceRecoverVoiceUi,
+} from '@/features/voice/logic/voiceTurnCoordinator'
 import { useUiStore } from '@/store/useUiStore'
 
 export type FinishRecordingDeps = {
@@ -53,14 +56,10 @@ export function useVoiceFinishRecording(deps: FinishRecordingDeps): () => void {
     deps.finishingRef.current = true
     deps.resultDeliveredRef.current = false
     markVoiceSpan('listen_finish')
-    setTranscriptFinalizing(true)
-    setVoicePipelineStep('stopping-recorder')
+    enterVoiceFinalizing()
     voiceDebugCapture('ui:finish', deps.captureSnapshot())
     deps.stopSilenceEndpoint()
     deps.clearFinishWaitTimer()
-    setSpeechState('processing')
-    setOrbState('thinking')
-
     if (deps.interimRafRef.current) {
       cancelAnimationFrame(deps.interimRafRef.current)
       deps.interimRafRef.current = null
@@ -76,9 +75,7 @@ export function useVoiceFinishRecording(deps: FinishRecordingDeps): () => void {
     } else {
       voiceDebugWarn('ui:finish-no-session', deps.captureSnapshot())
       deps.finishingRef.current = false
-      setTranscriptFinalizing(false)
-      setSpeechState('idle')
-      setOrbState('idle')
+      forceRecoverVoiceUi('finish-no-session')
       return
     }
 
@@ -97,13 +94,21 @@ export function useVoiceFinishRecording(deps: FinishRecordingDeps): () => void {
     })
 
     const waitForTranscript = () => {
-      if (deps.processingRef.current || deps.resultDeliveredRef.current) return
+      if (deps.processingRef.current || deps.resultDeliveredRef.current) {
+        deps.finishingRef.current = false
+        if (deps.processingRef.current || getListenSession()?.gotResult) {
+          setTranscriptFinalizing(false)
+        }
+        return
+      }
       if (useUiStore.getState().speechState === 'error') {
         deps.finishingRef.current = false
+        setTranscriptFinalizing(false)
         return
       }
       if (getListenSession()?.gotResult) {
         deps.finishingRef.current = false
+        setTranscriptFinalizing(false)
         return
       }
       const heard = deps.resolveHeardText()

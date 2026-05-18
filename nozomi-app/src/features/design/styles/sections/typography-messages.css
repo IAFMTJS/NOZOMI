@@ -1,20 +1,20 @@
 .msg-jp {
-  color: #f0f4ff;
-  font-weight: 600;
+  color: #fafafa;
+  font-weight: 700;
   line-height: 1.4;
-  text-shadow: 0 0 20px rgba(167, 139, 250, 0.08);
 }
 
 .msg-romaji {
   font-style: italic;
   opacity: 0.75;
-  color: rgba(199, 210, 254, 0.78);
+  color: rgba(250, 250, 250, 0.65);
   line-height: 1.35;
 }
 
 .msg-en {
   font-size: 0.75em;
-  color: rgba(167, 139, 250, 0.58);
+  color: rgba(250, 250, 250, 0.48);
   line-height: 1.45;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }

@@ -25,7 +25,7 @@ export function GrammarHint({ grammarTags, onClose }: Props) {
 
   return (
     <div
-      className="mt-2 rounded-xl border border-nozomi-purple/40 bg-purple-950/50 px-3 py-2 text-left"
+      className="mt-2 rounded-xl border border-nozomi-signal/50 bg-nozomi-signal/10 px-3 py-2 text-left"
       role="dialog"
       aria-label="Grammar hint"
     >

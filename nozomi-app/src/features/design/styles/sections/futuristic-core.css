@@ -1,12 +1,8 @@
-/* Shared futuristic utilities — mobile-first */
+/* Shibuya Signal — global shell utilities */
 
 body {
   background-color: var(--color-nozomi-bg);
-  background-image:
-    radial-gradient(ellipse 130% 90% at 50% -25%, rgba(109, 40, 217, 0.22), transparent 52%),
-    radial-gradient(ellipse 70% 55% at 100% 30%, rgba(34, 211, 238, 0.1), transparent 50%),
-    radial-gradient(ellipse 60% 50% at 0% 70%, rgba(99, 102, 241, 0.08), transparent 48%),
-    linear-gradient(180deg, #030308 0%, #050510 40%, #030308 100%);
+  background-image: linear-gradient(180deg, #0a0a0e 0%, #08080c 45%, #060608 100%);
   text-rendering: optimizeLegibility;
 }
 
@@ -17,9 +13,9 @@ body {
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(
-    ellipse 90% 55% at 50% 38%,
-    rgba(124, 58, 237, 0.09) 0%,
-    transparent 62%
+    ellipse 70% 50% at 50% 40%,
+    rgba(230, 57, 70, 0.06) 0%,
+    transparent 58%
   );
 }
 
@@ -28,33 +24,15 @@ body {
   z-index: 1;
 }
 
-/* Holo scan shimmer on glass panels */
-.glass-panel::after,
-.holo-panel::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 42%,
-    transparent 58%
-  );
-  pointer-events: none;
-  opacity: 0.8;
-}
-
 .holo-edge {
-  box-shadow: var(--nozomi-glow-ring), var(--nozomi-glow-purple);
+  box-shadow: var(--nozomi-glow-ring);
 }
 
-/* Mobile-first: larger tap feedback */
 @media (hover: none) and (pointer: coarse) {
   .presence-suggestion-pill:active,
   .presence-dock-action:active,
   .glass-panel-soft:active {
-    transform: scale(0.98);
+    transform: translate(1px, 1px);
   }
 
   .presence-orb-anchor:active {
@@ -78,11 +56,11 @@ body {
 
 .app-header-btn:hover {
   color: var(--color-nozomi-text);
-  background: rgba(167, 139, 250, 0.1);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .app-header-btn-accent:hover {
-  color: var(--color-nozomi-purple);
+  color: var(--color-nozomi-signal);
 }
 
 .presence-header .app-header-btn {
@@ -91,11 +69,10 @@ body {
 }
 
 .app-header-btn:active {
-  background: rgba(167, 139, 250, 0.14);
-  box-shadow: 0 0 16px rgba(167, 139, 250, 0.15);
+  background: rgba(230, 57, 70, 0.15);
+  box-shadow: inset 0 0 0 2px var(--color-nozomi-signal);
 }
 
-/* Tablet+ — constrain presence content width */
 @media (min-width: 640px) {
   .presence-stage {
     max-width: 26rem;

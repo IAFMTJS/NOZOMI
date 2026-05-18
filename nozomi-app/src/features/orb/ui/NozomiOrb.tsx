@@ -3,7 +3,8 @@ import { usePresenceOrbState } from '@/features/orb/hooks/usePresenceOrbState'
 import { OrbCanvas } from '@/features/orb/ui/OrbCanvas'
 import { StaticOrbVisual } from '@/features/orb/ui/StaticOrbVisual'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { prefersLowPowerOrb } from '@/utils/device'
+import { getOrbCanvasConfig } from '@/features/orb/logic/orbVisualProfile'
+import { getOrbVisualTier } from '@/utils/device'
 
 interface Props {
   size?: number
@@ -17,20 +18,25 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
   const reducedMotion = useNozomiStore((s) => s.settings.reducedMotion)
   const staticOrb = useNozomiStore((s) => s.settings.staticOrb)
   const intensity = useNozomiStore((s) => s.settings.orbIntensity)
-  const lowPower = prefersLowPowerOrb()
-  const reduced = reducedMotion || staticOrb || lowPower || !!reducedMotionPref
+  const visualTier = getOrbVisualTier()
+  const canvasConfig = getOrbCanvasConfig(visualTier)
+  const forceStatic = staticOrb || visualTier === 'static'
+  const reduced =
+    reducedMotion || forceStatic || !!reducedMotionPref || visualTier === 'lite'
   const canvasSize = Math.floor(size * 1.12)
-  const showCanvas = !reduced && !lowPower
+  const showCanvas = !forceStatic && !reducedMotion && !reducedMotionPref
   const ringFast = orbState === 'listening' || orbState === 'thinking'
+  const motionEnabled = showCanvas && !reducedMotion && !reducedMotionPref
 
   return (
     <motion.div
       className={`orb-holo relative flex items-center justify-center ${className}`}
       data-orb-state={orbState}
+      data-orb-tier={visualTier}
       style={{ width: size, height: size * 0.95 }}
       aria-hidden
       animate={
-        reduced
+        !motionEnabled
           ? undefined
           : {
               scale:
@@ -42,14 +48,15 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
             }
       }
       transition={{
-        duration: orbState === 'listening' ? 2.2 : 4.5,
+        duration:
+          orbState === 'listening' ? 1.8 : orbState === 'thinking' ? 2.4 : 4.2,
         repeat: Infinity,
         ease: 'easeInOut',
       }}
     >
-      {!reduced && (
+      {showCanvas && canvasConfig.enableAuroraRing && (
         <>
-          <div className="orb-aura" style={{ width: size * 1.15, height: size * 1.15 }} />
+          <motion.div className="orb-aura" style={{ width: size * 1.15, height: size * 1.15 }} />
           <motion.div
             className={`orb-holo-ring absolute inset-0 rounded-full${
               ringFast ? ' orb-holo-ring--fast' : ''
@@ -70,7 +77,7 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
           size={canvasSize}
           state={orbState}
           intensity={intensity}
-          reduced={reduced}
+          config={canvasConfig}
         />
       ) : (
         <>
@@ -90,7 +97,7 @@ export function NozomiOrb({ size = 220, className = '', showPlatform = false }: 
         </>
       )}
 
-      {showCanvas && !reduced && (
+      {showCanvas && canvasConfig.lensFlare && (
         <motion.div
           className="orb-lens-flare pointer-events-none absolute rounded-full"
           style={{ width: size * 0.28, height: size * 0.09, top: '16%', left: '20%' }}

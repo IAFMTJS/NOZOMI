@@ -7,9 +7,9 @@ import { useVoiceSilenceEndpoint } from '@/features/voice/context/speech-listen/
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   MIC_LEVEL_HEARD_THRESHOLD,
-  UI_AUDIO_LEVEL_THROTTLE_MS,
   VOICE_TURN_TIMEOUT_MS,
 } from '@/features/voice/context/speech-listen/constants'
+import { getVoicePlatformTuning } from '@/utils/device'
 import type { SpeechListenApi } from '@/features/voice/context/speech-listen/types'
 import { useConversation } from '@/features/conversation'
 import {
@@ -28,10 +28,10 @@ import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocal
 import {
   attachListeningCallbacks,
   cancelListening,
+  clearStaleListenSession,
   endListenSessionAfterTurn,
   finalizeListening,
   getCapturedTranscript,
-  getListenSession,
   getListenSignals,
   getSttDebugState,
   isListenSessionActive,
@@ -50,6 +50,15 @@ import {
 } from '@/features/voice/logic/speechService'
 import { needsGestureLockedMic } from '@/utils/device'
 import { clearTranscriptFinalizing } from '@/features/voice/logic/speechPresenceSync'
+import {
+  deriveVoiceTurnPhase,
+  enterVoiceCapturing,
+  enterVoiceError,
+  enterVoiceGenerating,
+  enterVoiceListenPrepare,
+  forceRecoverVoiceUi,
+  syncIdleAfterVoiceTurn,
+} from '@/features/voice/logic/voiceTurnCoordinator'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import {
   installVoiceDebugConsole,
@@ -75,10 +84,7 @@ import {
   startWakeWordMonitor,
   stopWakeWordMonitor,
 } from '@/features/voice/logic/labs/wakeWordMonitor'
-import {
-  resetVoicePipelineStep,
-  setVoicePipelineStep,
-} from '@/features/voice/logic/voicePipelineStep'
+import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
 export function useSpeechListenController(): SpeechListenApi {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -122,19 +128,8 @@ export function useSpeechListenController(): SpeechListenApi {
 
   const syncPresenceAfterTurn = useCallback(() => {
     if (!mountedRef.current) return
-    const orb = useUiStore.getState().orbState
-    setSpeechState('idle')
-    clearTranscriptFinalizing()
-    resetVoicePipelineStep()
-    window.setTimeout(() => {
-      if (mountedRef.current && useUiStore.getState().speechState === 'idle') {
-        setLiveTranscript('')
-      }
-    }, 400)
-    if (!isAnyTtsOutputActive() && orb !== 'speaking') {
-      setOrbState('idle')
-    }
-  }, [setLiveTranscript, setOrbState, setSpeechState])
+    syncIdleAfterVoiceTurn()
+  }, [])
 
   const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
 
@@ -151,7 +146,9 @@ export function useSpeechListenController(): SpeechListenApi {
       if (level > MIC_LEVEL_HEARD_THRESHOLD) everHeardRef.current = true
       setOrbAudioLevel(level)
       const now = performance.now()
-      if (now - lastLevelStoreAtRef.current < UI_AUDIO_LEVEL_THROTTLE_MS) return
+      if (now - lastLevelStoreAtRef.current < getVoicePlatformTuning().uiAudioLevelThrottleMs) {
+        return
+      }
       lastLevelStoreAtRef.current = now
       setAudioLevel(level)
     },
@@ -190,6 +187,7 @@ export function useSpeechListenController(): SpeechListenApi {
   useEffect(() => {
     installVoiceDebugConsole(() => ({
       ui: captureSnapshot(),
+      turnPhase: deriveVoiceTurnPhase(),
       speechState: useUiStore.getState().speechState,
       orbState: useUiStore.getState().orbState,
       speechInputLang,
@@ -269,6 +267,8 @@ export function useSpeechListenController(): SpeechListenApi {
       const trimmed = (text.trim() || resolveHeardText()).trim()
       if (isUiTranscriptPlaceholder(trimmed)) {
         voiceDebugWarn('ui:final-placeholder-skipped', { text: trimmed.slice(0, 80) })
+        finishingRef.current = false
+        forceRecoverVoiceUi('placeholder-transcript')
         return
       }
       markVoiceSpan('stt_done', { length: trimmed.length })
@@ -283,14 +283,11 @@ export function useSpeechListenController(): SpeechListenApi {
       }
       resultDeliveredRef.current = true
 
-      setTranscriptFinalizing(false)
       processingRef.current = true
       voiceDebug('ui:final-start', { incoming: trimmed.slice(0, 160), ...captureSnapshot() })
       markListenTurnHandled()
       setLiveTranscript(trimmed)
-      setSpeechState('processing')
-      setOrbState('thinking')
-      setVoicePipelineStep('generating')
+      enterVoiceGenerating()
 
       const turnId = ++voiceTurnGenRef.current
       const shouldAbort = () => voiceTurnGenRef.current !== turnId
@@ -366,15 +363,13 @@ export function useSpeechListenController(): SpeechListenApi {
       resultDeliveredRef.current = true
       clearTranscriptFinalizing()
       setErrorCode(err.code)
-      setSpeechState('error')
-      setOrbState('idle')
+      enterVoiceError()
       setAudioLevel(0)
       resetOrbAudioLevel()
-      setVoicePipelineStep('error')
       markListenTurnHandled()
       endListenSessionAfterTurn()
     },
-    [clearFinishWaitTimer, setAudioLevel, setOrbState, setSpeechState],
+    [clearFinishWaitTimer, setAudioLevel],
   )
 
   const handleError = useCallback(
@@ -386,15 +381,12 @@ export function useSpeechListenController(): SpeechListenApi {
       finishingRef.current = false
       cancelListening()
       releaseSharedMicrophone()
-      setOrbState('idle')
-      setSpeechState('error')
+      enterVoiceError()
       setErrorCode(err.code)
       setAudioLevel(0)
       resetOrbAudioLevel()
-      clearTranscriptFinalizing()
-      setVoicePipelineStep('error')
     },
-    [clearFinishWaitTimer, setAudioLevel, setOrbState, setSpeechState],
+    [clearFinishWaitTimer, setAudioLevel],
   )
 
   const handleStateChange = useCallback(
@@ -413,11 +405,10 @@ export function useSpeechListenController(): SpeechListenApi {
       }
       voiceDebug('ui:speech-state', { state })
       setSpeechState(state)
-      if (state === 'permission_pending') setOrbState('listening')
+      if (state === 'permission_pending') enterVoiceListenPrepare()
       if (state === 'listening') {
         setErrorCode(undefined)
-        setOrbState('listening')
-        setVoicePipelineStep('listening')
+        enterVoiceCapturing()
       }
       if (state === 'processing') {
         setOrbState('thinking')
@@ -505,8 +496,7 @@ export function useSpeechListenController(): SpeechListenApi {
     lastTranscriptRef.current = ''
     pendingInterimRef.current = ''
     setErrorCode(undefined)
-    setSpeechState('permission_pending')
-    setOrbState('listening')
+    enterVoiceListenPrepare()
     markListenArmedFromGesture()
     if (needsGestureLockedMic()) startMicCaptureFromGesture()
     voiceDebug('ui:barge-in-listen')
@@ -515,11 +505,13 @@ export function useSpeechListenController(): SpeechListenApi {
       if (!mountedRef.current || intent !== listenIntentRef.current) return
       if (processingRef.current || finishingRef.current) return
       beginVoiceTurnMetrics()
+      clearStaleListenSession()
       startListening(buildCallbacks(), listenOptions)
     })()
   }, [
     buildCallbacks,
     clearFinishWaitTimer,
+    clearStaleListenSession,
     listenOptions,
     setLiveTranscript,
     setOrbState,
@@ -547,13 +539,20 @@ export function useSpeechListenController(): SpeechListenApi {
       })
       return false
     }
-    if (useUiStore.getState().speechState === 'processing') {
-      voiceDebugWarn('ui:begin-blocked', { reason: 'speech-processing' })
-      return false
+    const uiGate = useUiStore.getState()
+    if (uiGate.speechState === 'processing') {
+      if (processingRef.current || finishingRef.current) {
+        voiceDebugWarn('ui:begin-blocked', { reason: 'speech-processing' })
+        return false
+      }
+      forceRecoverVoiceUi('orphan-processing-ui')
     }
     if (useUiStore.getState().transcriptFinalizing) {
-      voiceDebugWarn('ui:begin-blocked', { reason: 'transcript-finalizing' })
-      return false
+      if (finishingRef.current) {
+        voiceDebugWarn('ui:begin-blocked', { reason: 'transcript-finalizing' })
+        return false
+      }
+      forceRecoverVoiceUi('orphan-transcript-finalizing')
     }
     const speech = useUiStore.getState().speechState
     if (
@@ -563,12 +562,24 @@ export function useSpeechListenController(): SpeechListenApi {
       voiceDebug('ui:begin-reattach', { lang: recognitionLang })
       setErrorCode(undefined)
       attachListeningCallbacks(buildCallbacks())
-      if (speech === 'listening') setOrbState('listening')
+      if (speech === 'listening') enterVoiceCapturing()
       return true
     }
     if (isAnyTtsOutputActive()) stopSpeaking()
 
     clearFinishWaitTimer()
+    clearStaleListenSession()
+    if (useUiStore.getState().transcriptFinalizing) {
+      clearTranscriptFinalizing()
+    }
+    const uiBeforeStart = useUiStore.getState()
+    if (
+      !isListenSessionActive() &&
+      (uiBeforeStart.speechState === 'listening' ||
+        uiBeforeStart.speechState === 'permission_pending')
+    ) {
+      forceRecoverVoiceUi('orphan-listen-ui')
+    }
     noSpeechFallbackDeliveredRef.current = false
     resultDeliveredRef.current = false
     setErrorCode(undefined)
@@ -579,11 +590,9 @@ export function useSpeechListenController(): SpeechListenApi {
     pendingInterimRef.current = ''
     stopSpeaking()
     if (needsGestureLockedMic()) startMicCaptureFromGesture()
-    setSpeechState('permission_pending')
-    setOrbState('listening')
+    enterVoiceListenPrepare()
     markListenArmedFromGesture()
     voiceDebug('ui:beginListening', { lang: recognitionLang })
-    setVoicePipelineStep('preparing')
 
     const intent = ++listenIntentRef.current
     invalidateContinuousListen()
@@ -599,9 +608,12 @@ export function useSpeechListenController(): SpeechListenApi {
       if (state !== 'permission_pending' && state !== 'listening') return
       if (processingRef.current || finishingRef.current) return
       beginVoiceTurnMetrics()
-      if (!getListenSession()) {
-        startListening(buildCallbacks(), listenOptions)
+      clearStaleListenSession()
+      if (isListenSessionActive()) {
+        attachListeningCallbacks(buildCallbacks())
+        return
       }
+      startListening(buildCallbacks(), listenOptions)
     })()
     return true
   }, [
@@ -684,11 +696,8 @@ export function useSpeechListenController(): SpeechListenApi {
     setAudioLevel(0)
     resetOrbAudioLevel()
     setLiveTranscript('')
-    setOrbState('idle')
-    setSpeechState('idle')
     setErrorCode(undefined)
-    clearTranscriptFinalizing()
-    resetVoicePipelineStep()
+    forceRecoverVoiceUi('cancel-session')
   }, [
     captureSnapshot,
     clearFinishWaitTimer,
@@ -727,7 +736,7 @@ export function useSpeechListenController(): SpeechListenApi {
 
   const clearError = useCallback(() => {
     setErrorCode(undefined)
-    resetVoicePipelineStep()
+    forceRecoverVoiceUi('clear-error')
   }, [])
 
   const transcriptFinalizing = useUiStore((s) => s.transcriptFinalizing)

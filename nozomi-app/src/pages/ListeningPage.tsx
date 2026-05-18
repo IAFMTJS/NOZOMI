@@ -378,8 +378,6 @@ export function ListeningPage() {
           aria-label="Voice input"
         >
           <PresenceOrbShell
-            speechState={speechState}
-            orbState={orbState}
             busy={orbBusy}
             data-testid="listen-orb"
             onClick={handleOrbPress}

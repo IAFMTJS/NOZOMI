@@ -16,6 +16,7 @@ import {
   getListenSession,
   getSttDebugState,
   isFinishRequested,
+  isListenSessionActive,
   markListenTurnHandledInStore,
   resetListenSessionState,
   scheduleFinalizeCommit,
@@ -145,6 +146,18 @@ function teardownListenSession(options?: { releaseMic?: boolean }): void {
   if (options?.releaseMic !== false) {
     releaseSharedMicrophone()
   }
+}
+
+/** Drop a completed or aborted session so the next orb tap can open a fresh STT session. */
+export function clearStaleListenSession(): void {
+  const session = getListenSession()
+  if (!session || isListenSessionActive()) return
+  voiceDebugWarn('stt:clear-stale-session', {
+    stopped: session.stopped,
+    gotResult: session.gotResult,
+  })
+  bumpListenGeneration()
+  resetListenSessionState()
 }
 
 export function cancelListening(): void {

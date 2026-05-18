@@ -1,5 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enqueueSttWork, whenSttWorkIdle } from '@/features/voice/logic/listenStore'
+import { clearStaleListenSession } from '@/features/voice/logic/listenLifecycle'
+import {
+  enqueueSttWork,
+  getListenSession,
+  setListenSession,
+  whenSttWorkIdle,
+} from '@/features/voice/logic/listenStore'
+
+describe('clearStaleListenSession', () => {
+  it('removes completed sessions but keeps active ones', () => {
+    setListenSession({ stopped: false, gotResult: false })
+    clearStaleListenSession()
+    expect(getListenSession()).not.toBeNull()
+
+    const session = getListenSession()!
+    session.stopped = true
+    session.gotResult = true
+    clearStaleListenSession()
+    expect(getListenSession()).toBeNull()
+  })
+})
 
 describe('whenSttWorkIdle', () => {
   afterEach(() => {
