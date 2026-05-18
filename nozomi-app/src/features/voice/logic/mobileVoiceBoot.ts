@@ -6,6 +6,7 @@ import {
   hasCachedWhisperWeights,
   isOfflineSttReady,
   preloadOfflineStt,
+  releaseOfflineSttPipeline,
   subscribeOfflineSttLoadProgress,
   whenOfflineSttReady,
 } from '@/features/voice/logic/offlineStt'
@@ -60,11 +61,12 @@ export function needsMobileVoiceBoot(lang?: string): boolean {
   return engine === 'local'
 }
 
+/** Boot finished (weights cached); WASM session may be parked until transcribe. */
 export function isMobileVoiceBootComplete(lang?: string): boolean {
   if (!needsMobileVoiceBoot(lang)) return true
   const recognitionLang =
     lang ?? resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang)
-  return isOfflineSttReady(recognitionLang)
+  return readMobileVoiceBootCache() === mobileVoiceBootStorageKey(recognitionLang)
 }
 
 let bootInFlight: Promise<void> | null = null
@@ -79,6 +81,7 @@ export async function runMobileVoiceBoot(
     onProgress(100)
     writeMobileVoiceBootCache(key)
     touchOfflineSttPipeline()
+    releaseOfflineSttPipeline({ force: true })
     return
   }
   if (bootInFlight && bootInFlightKey === key) {
@@ -113,10 +116,12 @@ export async function runMobileVoiceBoot(
       writeMobileVoiceBootCache(key)
       touchOfflineSttPipeline()
       onProgress(100)
+      // Park WASM so the first orb tap only opens the mic (avoids mic + Whisper OOM).
+      releaseOfflineSttPipeline({ force: true })
       if ('speechSynthesis' in window) {
         window.setTimeout(() => warmJapaneseVoices(), 800)
       }
-      voiceDebug('mobile-voice-boot:ready', { lang, key })
+      voiceDebug('mobile-voice-boot:ready', { lang, key, parked: true })
     } finally {
       unsub()
       if (bootInFlightKey === key) {

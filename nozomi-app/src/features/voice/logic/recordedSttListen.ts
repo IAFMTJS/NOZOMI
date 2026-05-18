@@ -6,6 +6,7 @@ import {
 import {
   getLastOfflineSttError,
   isOfflineSttReady,
+  parkWhisperForMicCapture,
   preloadOfflineStt,
   releaseWhisperSessionAfterTranscribe,
   transcribeAudioBlob,
@@ -271,12 +272,15 @@ function startRecordedListeningNow(
   setActiveListenLang(lang)
   setListenSession({ stopped: false, gotResult: false })
   setRecognition(null)
-  preloadOfflineStt(lang, { force: true })
+  if (!isMobileDevice()) {
+    preloadOfflineStt(lang, { force: true })
+  }
 
   let micRecorderReady = false
   let captureStarted = false
   const modelReadyAtStart = isOfflineSttReady(lang)
-  let sttModelReady = modelReadyAtStart
+  // Mobile: record first, load Whisper only when finalizing (mic + WASM together OOMs).
+  let sttModelReady = isMobileDevice() || modelReadyAtStart
 
   const tryStartCapture = () => {
     const session = getListenSession()
@@ -320,22 +324,24 @@ function startRecordedListeningNow(
   }
 
   const modelWaitMs = isIos() ? 75_000 : 120_000
-  const modelWaitTimer = window.setTimeout(() => {
-    const session = getListenSession()
-    if (getListenGeneration() !== generation || !session || session.stopped || sttModelReady) {
-      return
-    }
-    const reason = getLastOfflineSttError() ?? 'Speech model is still loading'
-    voiceDebugError('offline-stt:preload-timeout', { generation, lang, reason })
-    if (tryBrowserSttFallback(callbacks, options, reason)) return
-    session.stopped = true
-    dispatch('onError', {
-      code: 'start-failed',
-      message:
-        'Speech model could not load. Check your connection, wait a moment, and try again.',
-    })
-    dispatch('onStateChange', 'error')
-  }, modelWaitMs)
+  const modelWaitTimer = isMobileDevice()
+    ? undefined
+    : window.setTimeout(() => {
+        const session = getListenSession()
+        if (getListenGeneration() !== generation || !session || session.stopped || sttModelReady) {
+          return
+        }
+        const reason = getLastOfflineSttError() ?? 'Speech model is still loading'
+        voiceDebugError('offline-stt:preload-timeout', { generation, lang, reason })
+        if (tryBrowserSttFallback(callbacks, options, reason)) return
+        session.stopped = true
+        dispatch('onError', {
+          code: 'start-failed',
+          message:
+            'Speech model could not load. Check your connection, wait a moment, and try again.',
+        })
+        dispatch('onStateChange', 'error')
+      }, modelWaitMs)
 
   let micCaptureBegun = false
   const beginMicCapture = () => {
@@ -350,36 +356,45 @@ function startRecordedListeningNow(
     }
   }
 
-  void whenOfflineSttReady(lang)
-    .then(() => {
-      window.clearTimeout(modelWaitTimer)
-      const session = getListenSession()
-      if (getListenGeneration() !== generation || !session || session.stopped) return
-      sttModelReady = true
-      voiceDebug('offline-stt:preload-done', { generation, lang })
-      if (!micRecorderReady) beginMicCapture()
-      tryStartCapture()
+  if (isMobileDevice()) {
+    void parkWhisperForMicCapture().then(() => {
+      if (getListenGeneration() !== generation) return
+      beginMicCapture()
     })
-    .catch((err) => {
-      window.clearTimeout(modelWaitTimer)
-      const reason = err instanceof Error ? err.message : String(err)
-      voiceDebugError('offline-stt:preload-blocked', { error: reason })
-      if (
-        getListenGeneration() === generation &&
-        getListenSession() &&
-        tryBrowserSttFallback(callbacks, options, reason)
-      ) {
-        return
-      }
-      const session = getListenSession()
-      if (getListenGeneration() !== generation || !session) return
-      session.stopped = true
-      dispatch('onError', {
-        code: 'start-failed',
-        message: reason || 'Speech model failed to load',
+  }
+
+  if (!isMobileDevice()) {
+    void whenOfflineSttReady(lang)
+      .then(() => {
+        if (modelWaitTimer !== undefined) window.clearTimeout(modelWaitTimer)
+        const session = getListenSession()
+        if (getListenGeneration() !== generation || !session || session.stopped) return
+        sttModelReady = true
+        voiceDebug('offline-stt:preload-done', { generation, lang })
+        if (!micRecorderReady) beginMicCapture()
+        tryStartCapture()
       })
-      dispatch('onStateChange', 'error')
-    })
+      .catch((err) => {
+        if (modelWaitTimer !== undefined) window.clearTimeout(modelWaitTimer)
+        const reason = err instanceof Error ? err.message : String(err)
+        voiceDebugError('offline-stt:preload-blocked', { error: reason })
+        if (
+          getListenGeneration() === generation &&
+          getListenSession() &&
+          tryBrowserSttFallback(callbacks, options, reason)
+        ) {
+          return
+        }
+        const session = getListenSession()
+        if (getListenGeneration() !== generation || !session) return
+        session.stopped = true
+        dispatch('onError', {
+          code: 'start-failed',
+          message: reason || 'Speech model failed to load',
+        })
+        dispatch('onStateChange', 'error')
+      })
+  }
 
   voiceDebug('rec:session-start', { generation, lang })
   setVoicePipelineStep('preparing')
@@ -420,10 +435,10 @@ function startRecordedListeningNow(
     }
   }
 
-  // When the model is already loaded, whenOfflineSttReady opens the mic once.
-  // On non-iOS only, open the mic in parallel while the model is still downloading.
-  if (!modelReadyAtStart && !isIos()) {
-    beginMicCapture()
+  if (!isMobileDevice()) {
+    if (modelReadyAtStart || !isIos()) {
+      beginMicCapture()
+    }
   }
 }
 

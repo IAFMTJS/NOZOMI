@@ -1,7 +1,7 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import { consumeGestureMicStream } from '@/features/voice/logic/micGesture'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
-import { isIos } from '@/utils/device'
+import { isIos, isMobileDevice } from '@/utils/device'
 
 type RecorderCallbacks = {
   onReady?: () => void
@@ -157,7 +157,7 @@ export async function startMicSession(
     }
     voiceDebug('rec:mic-open', { generation, mime: recorder.mimeType })
     if (callbacks.onLevel) {
-      if (isIos()) {
+      if (isMobileDevice()) {
         pendingIosLevel = { stream, onLevel: callbacks.onLevel }
       } else {
         startLevelLoop(stream, callbacks.onLevel)
@@ -183,7 +183,7 @@ export function beginMicRecording(generation: number): boolean {
   try {
     recorder.start(isIos() ? 400 : 250)
     recordingActive = true
-    if (isIos()) armLevelLoopIfNeeded()
+    if (isMobileDevice()) armLevelLoopIfNeeded()
     voiceDebug('rec:start', { generation, mime: recorder.mimeType || recorderMime })
     return true
   } catch (err) {

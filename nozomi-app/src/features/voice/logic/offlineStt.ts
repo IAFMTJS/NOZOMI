@@ -387,11 +387,7 @@ export function releaseOfflineSttPipeline(opts?: { force?: boolean }): void {
  * Free decode buffers and (on mobile) the WASM session after a turn's transcribe step
  * so NLU/TTS do not run beside Whisper in the same tab (iOS OOM).
  */
-export async function releaseWhisperSessionAfterTranscribe(): Promise<void> {
-  releaseDecodeContext()
-  if (!isMobileDevice()) return
-  releaseOfflineSttPipeline({ force: true })
-  const settleMs = isIos() ? 320 : 160
+async function yieldAfterWhisperRelease(settleMs: number): Promise<void> {
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -399,6 +395,24 @@ export async function releaseWhisperSessionAfterTranscribe(): Promise<void> {
       })
     })
   })
+}
+
+/** Drop WASM before opening the mic on mobile (weights stay cached on disk). */
+export async function parkWhisperForMicCapture(): Promise<void> {
+  if (!isMobileDevice()) return
+  releaseDecodeContext()
+  if (pipelinePromise || pipelineReadyForLang) {
+    releaseOfflineSttPipeline({ force: true })
+    await yieldAfterWhisperRelease(isIos() ? 200 : 90)
+    voiceDebug('offline-stt:parked-for-mic')
+  }
+}
+
+export async function releaseWhisperSessionAfterTranscribe(): Promise<void> {
+  releaseDecodeContext()
+  if (!isMobileDevice()) return
+  releaseOfflineSttPipeline({ force: true })
+  await yieldAfterWhisperRelease(isIos() ? 320 : 160)
   voiceDebug('offline-stt:post-transcribe-released')
 }
 
