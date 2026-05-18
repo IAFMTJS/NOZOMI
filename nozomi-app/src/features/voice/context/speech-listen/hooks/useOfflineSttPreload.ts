@@ -15,6 +15,8 @@ import {
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/sttEngine'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
+import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
+import { isIos } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 type ResetTurnFlags = () => void
@@ -74,14 +76,20 @@ export function useOfflineSttPreload(
     preloadOfflineStt(recognitionLang, { force: true })
 
     void whenOfflineSttReady(recognitionLang)
-      .then(() => {
+      .then(async () => {
         if (
           resolveSpeechRecognitionLang(useNozomiStore.getState().settings.speechInputLang) !==
           recognitionLang
         ) {
           return
         }
+        if (isIos()) {
+          await yieldForIosMemoryPressure('ui-preload-ready')
+        }
         setOfflineSttReady(true)
+        if (isOfflineSttReady(recognitionLang)) {
+          setOfflineSttLoadPercent(100)
+        }
       })
       .catch((err) => {
         voiceDebugWarn('ui:offline-preload-failed', {
@@ -90,18 +98,21 @@ export function useOfflineSttPreload(
       })
       .finally(() => {
         window.clearInterval(readyPoll)
-        if (isOfflineSttReady(recognitionLang)) {
-          setOfflineSttLoadPercent(100)
-        }
       })
 
+    let warmVoicesTimer: number | null = null
     if ('speechSynthesis' in window) {
       const warmVoices = () => warmJapaneseVoices()
-      warmVoices()
-      window.speechSynthesis.addEventListener('voiceschanged', warmVoices)
+      if (isIos() && onListenPage) {
+        warmVoicesTimer = window.setTimeout(warmVoices, 3_500)
+      } else {
+        warmVoices()
+        window.speechSynthesis.addEventListener('voiceschanged', warmVoices)
+      }
       return () => {
         window.clearInterval(readyPoll)
         unsubProgress()
+        if (warmVoicesTimer) clearTimeout(warmVoicesTimer)
         window.speechSynthesis.removeEventListener('voiceschanged', warmVoices)
       }
     }

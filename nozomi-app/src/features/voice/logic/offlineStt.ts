@@ -23,6 +23,7 @@ import {
   touchOfflineSttPipeline,
 } from '@/features/voice/logic/offlineSttLifecycle'
 import { useNozomiStore } from '@/store/useNozomiStore'
+import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
 import { getVoicePlatformTuning, isIos, isLowMemoryDevice } from '@/utils/device'
 
 const LOAD_TIMEOUT_MS = 180_000
@@ -230,6 +231,9 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
         if (generation === pipelineLoadGeneration) {
           pipelineActiveDtype = dtype
           pipelineReadyForLang = bcp47
+          if (isIos()) {
+            await yieldForIosMemoryPressure('pipeline-ready')
+          }
           voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
           loadProgressHint = 100
           notifyLoadProgress()

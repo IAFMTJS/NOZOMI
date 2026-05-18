@@ -45,6 +45,7 @@ import {
   setSessionSttEngine,
 } from '@/features/voice/logic/sttEngine'
 import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
+import { yieldForIosMemoryPressure } from '@/features/voice/logic/offlineSttIos'
 import { isIos } from '@/utils/device'
 
 /** Let iOS release the mic stack before decode + WASM (reduces tab reloads). */
@@ -335,13 +336,29 @@ function startRecordedListeningNow(
     dispatch('onStateChange', 'error')
   }, modelWaitMs)
 
+  const beginMicCapture = () => {
+    const micStartDelayMs = isMicRecentlyPrimed() ? 280 : 0
+    const run = () => void startMic().then(afterMicStart)
+    if (micStartDelayMs > 0) {
+      window.setTimeout(run, micStartDelayMs)
+    } else {
+      run()
+    }
+  }
+
   void whenOfflineSttReady(lang)
-    .then(() => {
+    .then(async () => {
       window.clearTimeout(modelWaitTimer)
       const session = getListenSession()
       if (getListenGeneration() !== generation || !session || session.stopped) return
+      if (isIos()) {
+        await yieldForIosMemoryPressure('before-mic')
+      }
       sttModelReady = true
       voiceDebug('offline-stt:preload-done', { generation, lang })
+      if (isIos()) {
+        beginMicCapture()
+      }
       tryStartCapture()
     })
     .catch((err) => {
@@ -369,7 +386,6 @@ function startRecordedListeningNow(
   setVoicePipelineStep('preparing')
   dispatch('onStateChange', 'permission_pending')
 
-  const micStartDelayMs = isMicRecentlyPrimed() ? 280 : 0
   const startMic = () =>
     startMicSession(generation, {
       onReady: () => {
@@ -405,10 +421,8 @@ function startRecordedListeningNow(
     }
   }
 
-  if (micStartDelayMs > 0) {
-    window.setTimeout(() => void startMic().then(afterMicStart), micStartDelayMs)
-  } else {
-    void startMic().then(afterMicStart)
+  if (!isIos()) {
+    beginMicCapture()
   }
 }
 

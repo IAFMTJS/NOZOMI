@@ -6,7 +6,8 @@ import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/st
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
 
-const WHISPER_WARM_ROUTES = new Set(['/', '/chat', '/listen'])
+/** /listen preloads via useOfflineSttPreload — avoid duplicate warm on iOS. */
+const WHISPER_WARM_ROUTES = new Set(['/', '/chat'])
 
 /** Warm Whisper WASM on home/chat before the user opens /listen. */
 export function useDeferredWhisperPreload(): void {
