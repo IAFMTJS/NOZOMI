@@ -1,18 +1,16 @@
+import { enterVoiceResponding } from '@/features/voice/logic/voiceTurnCoordinator'
+import { resetVoiceSessionFsm } from '@/features/voice/logic/voiceSessionFsm'
+import { getVoiceSessionPhase } from '@/features/voice/logic/voiceSessionFsm'
 import { useUiStore } from '@/store/useUiStore'
 
 /** Keep status row + orb aligned when browser TTS starts or stops. */
 export function syncSpeechOutputPresence(active: boolean): void {
-  const ui = useUiStore.getState()
   if (active) {
-    ui.setSpeechState('speaking')
-    ui.setOrbState('speaking')
+    enterVoiceResponding()
     return
   }
-  if (ui.speechState === 'speaking') {
-    ui.setSpeechState('idle')
-  }
-  if (ui.orbState === 'speaking') {
-    ui.setOrbState('idle')
+  if (getVoiceSessionPhase() === 'responding') {
+    resetVoiceSessionFsm('tts-ended')
   }
 }
 

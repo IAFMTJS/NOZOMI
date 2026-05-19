@@ -3,29 +3,54 @@ import { LanguageText } from '@/components/language/LanguageText'
 import { useUiStore } from '@/store/useUiStore'
 import { clearOfflineSttCache } from '@/features/voice/logic/offlineStt'
 import { clearMobileVoiceBootCache, runMobileVoiceBoot } from '@/features/voice/logic/mobileVoiceBoot'
+import {
+  INITIAL_VOICE_BOOT_STATUS,
+  voiceBootStatusLabel,
+} from '@/features/voice/logic/voiceBootStatus'
 import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import { useNozomiStore } from '@/store/useNozomiStore'
 
 /** Mobile-only gate: load Whisper before the user can open voice routes. */
 export function VoiceBootScreen() {
-  const progress = useUiStore((s) => s.voiceBootProgress)
+  const loadPhase = useUiStore((s) => s.voiceBootLoadPhase)
+  const downloadPercent = useUiStore((s) => s.voiceBootDownloadPercent)
   const error = useUiStore((s) => s.voiceBootError)
   const setVoiceBootPhase = useUiStore((s) => s.setVoiceBootPhase)
+  const setVoiceBootLoadPhase = useUiStore((s) => s.setVoiceBootLoadPhase)
+  const setVoiceBootDownloadPercent = useUiStore((s) => s.setVoiceBootDownloadPercent)
   const setVoiceBootProgress = useUiStore((s) => s.setVoiceBootProgress)
   const setVoiceBootError = useUiStore((s) => s.setVoiceBootError)
   const speechInputLang = useNozomiStore((s) => s.settings.speechInputLang)
 
+  const status = {
+    phase: loadPhase ?? INITIAL_VOICE_BOOT_STATUS.phase,
+    downloadPercent: downloadPercent,
+  }
+
   const retry = () => {
     const lang = resolveSpeechRecognitionLang(speechInputLang)
     setVoiceBootPhase('loading')
-    setVoiceBootProgress(0)
+    setVoiceBootLoadPhase('checking_cache')
+    setVoiceBootDownloadPercent(null)
+    setVoiceBootProgress(null)
     setVoiceBootError(null)
     clearMobileVoiceBootCache()
     void clearOfflineSttCache({ purgeDisk: true }).then(() =>
-      runMobileVoiceBoot(lang, setVoiceBootProgress),
+      runMobileVoiceBoot(lang, (next) => {
+        setVoiceBootLoadPhase(next.phase)
+        setVoiceBootDownloadPercent(next.downloadPercent)
+        setVoiceBootProgress(
+          next.phase === 'ready'
+            ? 100
+            : next.phase === 'downloading_weights'
+              ? next.downloadPercent
+              : null,
+        )
+      }),
     )
       .then(() => {
         setVoiceBootPhase('ready')
+        setVoiceBootLoadPhase('ready')
         setVoiceBootProgress(100)
       })
       .catch((err) => {
@@ -35,9 +60,6 @@ export function VoiceBootScreen() {
         )
       })
   }
-
-  const pct =
-    progress != null ? Math.min(100, Math.max(0, Math.round(progress))) : null
 
   return (
     <div
@@ -70,21 +92,7 @@ export function VoiceBootScreen() {
         </>
       ) : (
         <LanguageText
-          text={{
-            jp:
-              pct != null && pct >= 70 && pct < 100
-                ? `音声エンジンを起動中… ${pct}%`
-                : pct != null
-                  ? `音声を準備中… ${pct}%`
-                  : '音声を準備中…',
-            romaji: 'Onsei wo junbi chuu…',
-            en:
-              pct != null && pct >= 70 && pct < 100
-                ? `Starting speech engine… ${pct}%`
-                : pct != null
-                  ? `Preparing voice… ${pct}%`
-                  : 'Preparing voice…',
-          }}
+          text={voiceBootStatusLabel(status)}
           size="sm"
           align="center"
           passive

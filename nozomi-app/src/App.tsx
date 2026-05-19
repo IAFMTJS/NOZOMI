@@ -108,6 +108,14 @@ export default function App() {
   useDeferredPwaUpdate()
 
   useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      console.error('[Nozomi:Voice] unhandledrejection', event.reason)
+    }
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => window.removeEventListener('unhandledrejection', onRejection)
+  }, [])
+
+  useEffect(() => {
     setDataLoadFailed(false)
     ensureDataLoaded()
       .then(() => ensureExtendedDataLoaded())
@@ -127,7 +135,7 @@ export default function App() {
       <BrowserRouter>
         <SpeechListenProvider>
           <div
-            className="flex min-h-0 flex-col overflow-hidden"
+            className="flex min-h-0 flex-col overflow-hidden bg-nozomi-bg"
             style={{
               height: 'var(--app-vh, 100dvh)',
               maxHeight: 'var(--app-vh, 100dvh)',

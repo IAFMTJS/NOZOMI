@@ -23,7 +23,10 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="app-page items-center justify-center p-6" role="alert">
+        <div
+          className="presence-screen app-page flex min-h-[var(--app-vh,100dvh)] items-center justify-center bg-nozomi-bg p-6"
+          role="alert"
+        >
           <div className="glass-panel p-6 max-w-md">
             <LanguageText
               text={{

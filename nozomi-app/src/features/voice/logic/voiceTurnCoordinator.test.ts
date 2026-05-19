@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   deriveVoiceTurnPhase,
   enterVoiceCapturing,
+  enterVoiceGenerating,
   forceRecoverVoiceUi,
   syncIdleAfterVoiceTurn,
 } from '@/features/voice/logic/voiceTurnCoordinator'
@@ -27,8 +28,7 @@ describe('voiceTurnCoordinator', () => {
   })
 
   it('syncIdleAfterVoiceTurn clears processing', () => {
-    useUiStore.getState().setSpeechState('processing')
-    useUiStore.getState().setOrbState('thinking')
+    enterVoiceGenerating()
     syncIdleAfterVoiceTurn({ clearTranscriptDelayMs: 0 })
     expect(useUiStore.getState().speechState).toBe('idle')
     expect(useUiStore.getState().orbState).toBe('idle')

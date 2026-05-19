@@ -59,8 +59,11 @@ import {
   deriveVoiceTurnPhase,
   enterVoiceCapturing,
   enterVoiceError,
+  enterVoiceFinalizing,
   enterVoiceGenerating,
+  enterVoiceInterrupted,
   enterVoiceListenPrepare,
+  enterVoiceUnderstanding,
   forceRecoverVoiceUi,
   syncIdleAfterVoiceTurn,
 } from '@/features/voice/logic/voiceTurnCoordinator'
@@ -89,7 +92,6 @@ import {
   startWakeWordMonitor,
   stopWakeWordMonitor,
 } from '@/features/voice/logic/labs/wakeWordMonitor'
-import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
 export function useSpeechListenController(): SpeechListenApi {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -441,21 +443,19 @@ export function useSpeechListenController(): SpeechListenApi {
         return
       }
       voiceDebug('ui:speech-state', { state })
-      setSpeechState(state)
       if (state === 'permission_pending') enterVoiceListenPrepare()
       if (state === 'listening') {
         setErrorCode(undefined)
         enterVoiceCapturing()
       }
       if (state === 'processing') {
-        setOrbState('thinking')
         const step = useUiStore.getState().voicePipelineStep
-        if (step === 'listening' || step === 'recording') {
-          setVoicePipelineStep('transcribing')
-        }
+        if (step === 'generating') enterVoiceGenerating()
+        else if (step === 'understanding') enterVoiceUnderstanding()
+        else enterVoiceFinalizing()
       }
     },
-    [setOrbState, setSpeechState],
+    [setSpeechState],
   )
 
   const buildCallbacks = useCallback(
@@ -534,7 +534,7 @@ export function useSpeechListenController(): SpeechListenApi {
     lastTranscriptRef.current = ''
     pendingInterimRef.current = ''
     setErrorCode(undefined)
-    enterVoiceListenPrepare()
+    enterVoiceInterrupted()
     markListenArmedFromGesture()
     if (needsGestureLockedMic()) startMicCaptureFromGesture()
     voiceDebug('ui:barge-in-listen')

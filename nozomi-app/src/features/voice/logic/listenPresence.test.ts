@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import {
+  enterVoiceCapturing,
+  enterVoiceGenerating,
+  enterVoiceListenPrepare,
+  enterVoiceResponding,
+} from '@/features/voice/logic/voiceTurnCoordinator'
+import { useUiStore } from '@/store/useUiStore'
 import {
   deriveListenPhase,
   derivePresenceOrbState,
@@ -6,18 +13,28 @@ import {
 } from './listenPresence'
 
 describe('derivePresenceOrbState', () => {
-  it('maps preparing and listening to listening orb', () => {
-    expect(derivePresenceOrbState('permission_pending', 'idle')).toBe('listening')
-    expect(derivePresenceOrbState('listening', 'idle')).toBe('listening')
+  beforeEach(() => {
+    useUiStore.getState().resetVoiceUi()
   })
 
-  it('maps processing to thinking orb', () => {
-    expect(derivePresenceOrbState('processing', 'listening')).toBe('thinking')
+  it('keeps orb idle while requesting permission', () => {
+    enterVoiceListenPrepare()
+    expect(derivePresenceOrbState()).toBe('idle')
   })
 
-  it('keeps speaking when orb is speaking', () => {
-    expect(derivePresenceOrbState('idle', 'speaking')).toBe('speaking')
-    expect(derivePresenceOrbState('speaking', 'idle')).toBe('speaking')
+  it('maps listening to listening orb', () => {
+    enterVoiceCapturing()
+    expect(derivePresenceOrbState()).toBe('listening')
+  })
+
+  it('maps thinking to thinking orb', () => {
+    enterVoiceGenerating()
+    expect(derivePresenceOrbState()).toBe('thinking')
+  })
+
+  it('maps responding to speaking orb', () => {
+    enterVoiceResponding()
+    expect(derivePresenceOrbState()).toBe('speaking')
   })
 })
 

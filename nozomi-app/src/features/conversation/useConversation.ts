@@ -17,7 +17,11 @@ import {
 import { prepareVoiceInput } from '@/features/voice/logic/prepareVoiceInput'
 import { requestCloudLlmReply } from '@/features/voice/logic/labs/cloudLlm'
 import { markVoiceSpan } from '@/features/voice/logic/voiceTurnMetrics'
-import { enterVoiceUnderstanding } from '@/features/voice/logic/voiceTurnCoordinator'
+import {
+  enterVoiceGenerating,
+  enterVoiceUnderstanding,
+} from '@/features/voice/logic/voiceTurnCoordinator'
+import { resetVoiceSessionFsm } from '@/features/voice/logic/voiceSessionFsm'
 import { trimForVoiceReply } from '@/systems/conversation/voiceReplyTrim'
 import { formatUserMessageTextAsync } from '@/utils/formatUserInput'
 import type { ChatMessage, ScenarioCategory, StorySession } from '@/types/domain'
@@ -101,8 +105,7 @@ export function useConversation() {
           voiceUri: settings.voiceUri,
         })
       } else {
-        setOrbState('idle')
-        setSpeechState('idle')
+        resetVoiceSessionFsm('deliver-no-speak')
       }
     },
     [
@@ -323,7 +326,7 @@ export function useConversation() {
     const state = useNozomiStore.getState()
     if (state.voiceMessages.length > 0) return
     const topic = state.voiceSession.topicStack[0] ?? 'daily'
-    setOrbState('thinking')
+    enterVoiceGenerating()
     const opening = state.settings.voiceStoryMode
       ? await createStoryOpening(profile, topic, state.settings)
       : await createOpeningTurn(profile, topic, state.settings)
@@ -342,14 +345,14 @@ export function useConversation() {
       if (state.voiceSession.activeStoryId != null) return
 
       const topic = state.voiceSession.topicStack[0] ?? 'daily'
-      setOrbState('thinking')
+      enterVoiceGenerating()
       stopSpeaking()
       const opening = await createStoryOpening(profile, topic, state.settings)
       if (opening.story) {
         applyResponse(opening, 'voice')
       } else {
         setSettings({ voiceStoryMode: false })
-        setOrbState('idle')
+        resetVoiceSessionFsm('story-open-failed')
       }
     },
     [applyResponse, profile, setOrbState, setSettings, setStorySession],
@@ -357,7 +360,7 @@ export function useConversation() {
 
   const startScenarioConversation = useCallback(
     async (category: ScenarioCategory, surface: ConversationSurface = 'voice') => {
-      setOrbState('thinking')
+      enterVoiceGenerating()
       const opening = await createScenarioOpening(profile, category, settings)
       applyResponse(opening, surface)
     },
@@ -378,13 +381,13 @@ export function useConversation() {
         },
       })
       setSettings({ voiceStoryMode: true })
-      setOrbState('thinking')
+      enterVoiceGenerating()
       stopSpeaking()
       const opening = await createStoryOpeningForId(profile, storyId, settings)
       if (opening) {
         applyResponse(opening, surface)
       } else {
-        setOrbState('idle')
+        resetVoiceSessionFsm('story-open-failed')
         setSettings({ voiceStoryMode: false })
       }
     },

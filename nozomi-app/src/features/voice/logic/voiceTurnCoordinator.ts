@@ -1,14 +1,14 @@
-import { resetOrbAudioLevel } from '@/features/orb/logic/orbAudioLevel'
 import { clearTranscriptFinalizing } from '@/features/voice/logic/speechPresenceSync'
 import { isAnyTtsOutputActive } from '@/features/voice/logic/ttsOutputState'
+import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
+import { voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import {
-  resetVoicePipelineStep,
-  setVoicePipelineStep,
-  type VoicePipelineStep,
-} from '@/features/voice/logic/voicePipelineStep'
-import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+  getVoiceSessionPhase,
+  resetVoiceSessionFsm,
+  transitionVoiceSession,
+  type VoiceSessionPhase,
+} from '@/features/voice/logic/voiceSessionFsm'
 import { useUiStore } from '@/store/useUiStore'
-import type { OrbState, SpeechState } from '@/types/domain'
 
 export type VoiceTurnPhase =
   | 'idle'
@@ -19,101 +19,111 @@ export type VoiceTurnPhase =
   | 'speaking'
   | 'error'
 
-/** Map granular pipeline + speech state to a single turn phase (debug + recovery). */
+/** Map FSM phase to legacy turn phase (debug + recovery). */
 export function deriveVoiceTurnPhase(): VoiceTurnPhase {
+  const phase = getVoiceSessionPhase()
   const ui = useUiStore.getState()
-  if (ui.speechState === 'error') return 'error'
-  if (ui.transcriptFinalizing) return 'finalizing'
-  if (ui.speechState === 'permission_pending') return 'arming'
-  if (ui.speechState === 'listening') return 'capturing'
-  if (ui.speechState === 'speaking' || ui.orbState === 'speaking') return 'speaking'
-  if (ui.speechState === 'processing') {
-    const step = ui.voicePipelineStep
-    if (step === 'generating' || step === 'understanding') return 'understanding'
-    if (step === 'transcribing' || step === 'stopping-recorder') return 'finalizing'
-    return 'understanding'
+  if (phase === 'error') return 'error'
+  if (phase === 'transcribing' || ui.transcriptFinalizing) return 'finalizing'
+  if (
+    phase === 'requesting_permission' ||
+    phase === 'initializing_audio' ||
+    phase === 'retrying'
+  ) {
+    return 'arming'
   }
-  if (isAnyTtsOutputActive()) return 'speaking'
+  if (phase === 'listening') return 'capturing'
+  if (phase === 'responding' || isAnyTtsOutputActive()) return 'speaking'
+  if (phase === 'thinking') return 'understanding'
   return 'idle'
 }
 
-function setPresence(speech: SpeechState, orb: OrbState, step?: VoicePipelineStep): void {
-  const ui = useUiStore.getState()
-  const prevSpeech = ui.speechState
-  const prevOrb = ui.orbState
-  const prevStep = ui.voicePipelineStep
-  ui.setSpeechState(speech)
-  ui.setOrbState(orb)
-  if (step !== undefined) setVoicePipelineStep(step)
-  if (
-    prevSpeech !== speech ||
-    prevOrb !== orb ||
-    (step !== undefined && prevStep !== step)
-  ) {
-    voiceDebug('voice:presence', {
-      speech: `${prevSpeech}→${speech}`,
-      orb: `${prevOrb}→${orb}`,
-      step: step !== undefined ? `${prevStep}→${step}` : prevStep,
-    })
-  }
-}
-
-/** Hard reset when UI drifted from the listen session (orphan processing / finalize flags). */
+/** Hard reset when UI drifted from the listen session. */
 export function forceRecoverVoiceUi(reason: string): void {
-  voiceDebugWarn('voice:force-recover', { reason, phase: deriveVoiceTurnPhase() })
-  clearTranscriptFinalizing()
-  resetVoicePipelineStep()
-  resetOrbAudioLevel()
-  const ui = useUiStore.getState()
-  ui.setAudioLevel(0)
-  ui.setSpeechState('idle')
-  if (!isAnyTtsOutputActive() && ui.orbState !== 'speaking') {
-    ui.setOrbState('idle')
-  }
+  voiceDebugWarn('voice:force-recover', { reason, phase: getVoiceSessionPhase() })
+  resetVoiceSessionFsm(reason)
 }
 
-/** After a turn completes (success, timeout, or cancel) — safe to open the mic again. */
+/** After a turn completes — safe to open the mic again. */
 export function syncIdleAfterVoiceTurn(options?: { clearTranscriptDelayMs?: number }): void {
-  const ui = useUiStore.getState()
-  ui.setSpeechState('idle')
-  clearTranscriptFinalizing()
-  resetVoicePipelineStep()
-  if (!isAnyTtsOutputActive() && ui.orbState !== 'speaking') {
-    ui.setOrbState('idle')
+  if (isAnyTtsOutputActive()) {
+    transitionVoiceSession('responding', 'turn-complete-tts-active', { force: true })
+  } else {
+    transitionVoiceSession('idle', 'turn-complete', { force: true })
   }
   const delay = options?.clearTranscriptDelayMs ?? 400
   window.setTimeout(() => {
-    if (useUiStore.getState().speechState === 'idle') {
+    if (getVoiceSessionPhase() === 'idle') {
       useUiStore.getState().setLiveTranscript('')
     }
   }, delay)
 }
 
+const COORD_FORCE = { force: true as const }
+
 export function enterVoiceListenPrepare(): void {
-  setPresence('permission_pending', 'listening', 'preparing')
+  transitionVoiceSession('requesting_permission', 'listen-prepare', COORD_FORCE)
   clearTranscriptFinalizing()
 }
 
+export function enterVoiceInitializingAudio(): void {
+  transitionVoiceSession('initializing_audio', 'mic-granted', COORD_FORCE)
+}
+
 export function enterVoiceCapturing(): void {
-  setPresence('listening', 'listening', 'listening')
+  transitionVoiceSession('listening', 'mic-capturing', COORD_FORCE)
   clearTranscriptFinalizing()
 }
 
 export function enterVoiceFinalizing(): void {
-  setPresence('processing', 'thinking', 'stopping-recorder')
-  useUiStore.getState().setTranscriptFinalizing(true)
+  transitionVoiceSession('transcribing', 'stop-tap-finalize', COORD_FORCE)
 }
 
 export function enterVoiceUnderstanding(): void {
-  setPresence('processing', 'thinking', 'understanding')
-  useUiStore.getState().setTranscriptFinalizing(false)
+  transitionVoiceSession('thinking', 'engine-understanding', COORD_FORCE)
+  setVoicePipelineStep('understanding')
 }
 
 export function enterVoiceGenerating(): void {
-  setPresence('processing', 'thinking', 'generating')
+  transitionVoiceSession('thinking', 'engine-generating', COORD_FORCE)
+  setVoicePipelineStep('generating')
+}
+
+export function enterVoiceResponding(): void {
+  transitionVoiceSession('responding', 'tts-start', COORD_FORCE)
 }
 
 export function enterVoiceError(): void {
-  setPresence('error', 'idle', 'error')
-  clearTranscriptFinalizing()
+  transitionVoiceSession('error', 'stt-or-mic-error', COORD_FORCE)
+}
+
+export function enterVoiceRetrying(): void {
+  transitionVoiceSession('retrying', 'user-retry', COORD_FORCE)
+}
+
+export function enterVoiceInterrupted(): void {
+  transitionVoiceSession('interrupted', 'barge-in', COORD_FORCE)
+}
+
+export function voiceSessionPhaseFromLegacy(
+  speechState: string,
+  pipelineStep: string,
+  transcriptFinalizing: boolean,
+): VoiceSessionPhase | null {
+  if (speechState === 'error') return 'error'
+  if (transcriptFinalizing) return 'transcribing'
+  if (speechState === 'permission_pending') {
+    return pipelineStep === 'preparing' ? 'initializing_audio' : 'requesting_permission'
+  }
+  if (speechState === 'listening') return 'listening'
+  if (speechState === 'speaking') return 'responding'
+  if (speechState === 'processing') {
+    if (pipelineStep === 'transcribing' || pipelineStep === 'stopping-recorder') {
+      return 'transcribing'
+    }
+    if (pipelineStep === 'generating') return 'thinking'
+    return 'thinking'
+  }
+  if (speechState === 'idle') return 'idle'
+  return null
 }

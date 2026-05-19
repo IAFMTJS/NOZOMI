@@ -46,7 +46,10 @@ import { useUiStore } from '@/store/useUiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
 import { isMobileDevice } from '@/utils/device'
 import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
-import { forceRecoverVoiceUi } from '@/features/voice/logic/voiceTurnCoordinator'
+import {
+  enterVoiceRetrying,
+  forceRecoverVoiceUi,
+} from '@/features/voice/logic/voiceTurnCoordinator'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 import type { ScenarioCategory } from '@/types/domain'
@@ -290,6 +293,7 @@ export function ListeningPage() {
   const handleRetry = () => {
     clearError()
     cancelSession()
+    enterVoiceRetrying()
     beginListening()
   }
 

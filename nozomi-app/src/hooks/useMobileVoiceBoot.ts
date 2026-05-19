@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { useUiStore } from '@/store/useUiStore'
+import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
 import {
   invalidateMobileVoiceBootFlight,
   isMobileVoiceBootComplete,
@@ -9,78 +10,70 @@ import {
   readMobileVoiceBootCache,
   runMobileVoiceBoot,
 } from '@/features/voice/logic/mobileVoiceBoot'
-import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocale'
+import type { VoiceBootLoadStatus } from '@/features/voice/logic/voiceBootStatus'
+import { INITIAL_VOICE_BOOT_STATUS } from '@/features/voice/logic/voiceBootStatus'
 
-/**
- * After JSON data is ready, load Whisper on mobile before showing the app shell.
- */
+function applyBootStatusToStore(status: VoiceBootLoadStatus): void {
+  const ui = useUiStore.getState()
+  ui.setVoiceBootLoadPhase(status.phase)
+  ui.setVoiceBootDownloadPercent(status.downloadPercent)
+  const legacyPct =
+    status.phase === 'ready'
+      ? 100
+      : status.phase === 'downloading_weights'
+        ? status.downloadPercent
+        : null
+  ui.setVoiceBootProgress(legacyPct)
+}
+
+/** Start mobile Whisper boot once data is ready; drives honest phase labels in VoiceBootScreen. */
 export function useMobileVoiceBoot(): void {
   const dataReady = useUiStore((s) => s.dataReady)
   const setVoiceBootPhase = useUiStore((s) => s.setVoiceBootPhase)
-  const setVoiceBootProgress = useUiStore((s) => s.setVoiceBootProgress)
   const setVoiceBootError = useUiStore((s) => s.setVoiceBootError)
   const speechInputLang = useNozomiStore((s) => s.settings.speechInputLang)
-  const whisperModel = useNozomiStore((s) => s.settings.whisperModel)
-  const sttCloudProvider = useNozomiStore((s) => s.settings.sttCloudProvider)
-  const runGenRef = useRef(0)
-  const bootKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!dataReady) return
 
     const recognitionLang = resolveSpeechRecognitionLang(speechInputLang)
+
     if (!needsMobileVoiceBoot(recognitionLang)) {
       setVoiceBootPhase('skipped')
-      setVoiceBootProgress(null)
       setVoiceBootError(null)
-      bootKeyRef.current = null
+      applyBootStatusToStore({ phase: 'ready', downloadPercent: null })
       return
     }
 
     const bootKey = mobileVoiceBootStorageKey(recognitionLang)
-    const bootKeyChanged = bootKeyRef.current !== null && bootKeyRef.current !== bootKey
-    bootKeyRef.current = bootKey
-    const gen = ++runGenRef.current
-    if (bootKeyChanged) {
+    const prevKey = readMobileVoiceBootCache()
+    const langChanged = prevKey !== null && prevKey !== bootKey
+
+    if (langChanged) {
       invalidateMobileVoiceBootFlight()
     }
 
     if (isMobileVoiceBootComplete(recognitionLang)) {
       setVoiceBootPhase('ready')
-      setVoiceBootProgress(100)
       setVoiceBootError(null)
+      applyBootStatusToStore({ phase: 'ready', downloadPercent: null })
       return
     }
 
-    const hadSessionMarker = readMobileVoiceBootCache() === bootKey
     setVoiceBootPhase('loading')
-    setVoiceBootProgress(hadSessionMarker ? 72 : 0)
     setVoiceBootError(null)
+    applyBootStatusToStore(INITIAL_VOICE_BOOT_STATUS)
 
-    void runMobileVoiceBoot(recognitionLang, (pct) => {
-      if (runGenRef.current !== gen) return
-      setVoiceBootProgress(pct)
-    })
+    void runMobileVoiceBoot(recognitionLang, applyBootStatusToStore)
       .then(() => {
-        if (runGenRef.current !== gen) return
         setVoiceBootPhase('ready')
-        setVoiceBootProgress(100)
-        setVoiceBootError(null)
+        applyBootStatusToStore({ phase: 'ready', downloadPercent: null })
       })
       .catch((err) => {
-        if (runGenRef.current !== gen) return
         setVoiceBootPhase('error')
         setVoiceBootError(
           err instanceof Error ? err.message : 'Speech model could not load',
         )
       })
-  }, [
-    dataReady,
-    speechInputLang,
-    whisperModel,
-    sttCloudProvider,
-    setVoiceBootError,
-    setVoiceBootPhase,
-    setVoiceBootProgress,
-  ])
+  }, [dataReady, speechInputLang, setVoiceBootError, setVoiceBootPhase])
 }

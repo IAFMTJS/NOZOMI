@@ -8,6 +8,8 @@ import {
   releaseDecodeContext,
 } from '@/features/voice/logic/audioDecode'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import type { VoiceBootLoadStatus } from '@/features/voice/logic/voiceBootStatus'
+import { INITIAL_VOICE_BOOT_STATUS } from '@/features/voice/logic/voiceBootStatus'
 
 type WhisperLang = 'english' | 'japanese' | 'dutch'
 
@@ -71,30 +73,13 @@ let transformersEnvReady = false
 const downloadLogPct = new Map<string, number>()
 let preloadInFlight: Promise<Transcriber> | null = null
 let preloadInFlightModel: string | null = null
-let loadProgressHint: number | null = null
-let sessionBuildTimer: ReturnType<typeof setInterval> | null = null
-
 type OfflineSttLoadProgressListener = (pct: number | null) => void
+type OfflineSttLoadStatusListener = (status: VoiceBootLoadStatus) => void
 
-function startSessionBuildProgress(floor: number): void {
-  if (sessionBuildTimer) clearInterval(sessionBuildTimer)
-  loadProgressHint = Math.max(loadProgressHint ?? 0, floor)
-  notifyLoadProgress()
-  sessionBuildTimer = setInterval(() => {
-    if (pipelineReadyForLang) return
-    if (aggregateDownloadPct() !== null) return
-    loadProgressHint = Math.min(94, (loadProgressHint ?? floor) + 2)
-    notifyLoadProgress()
-  }, 700)
-}
-
-function stopSessionBuildProgress(): void {
-  if (sessionBuildTimer) {
-    clearInterval(sessionBuildTimer)
-    sessionBuildTimer = null
-  }
-}
 const loadProgressListeners = new Set<OfflineSttLoadProgressListener>()
+const loadStatusListeners = new Set<OfflineSttLoadStatusListener>()
+
+let lastLoadStatus: VoiceBootLoadStatus = INITIAL_VOICE_BOOT_STATUS
 
 function aggregateDownloadPct(): number | null {
   const values = [...downloadLogPct.values()]
@@ -102,31 +87,71 @@ function aggregateDownloadPct(): number | null {
   return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length)
 }
 
-function notifyLoadProgress(): void {
+function computeLoadStatus(): VoiceBootLoadStatus {
+  if (pipelineReadyForLang) {
+    return { phase: 'ready', downloadPercent: null }
+  }
   const aggregate = aggregateDownloadPct()
-  const next = aggregate ?? loadProgressHint
-  if (next === loadProgressHint && aggregate === null) return
-  loadProgressHint = next
+  if (aggregate !== null) {
+    return { phase: 'downloading_weights', downloadPercent: aggregate }
+  }
+  if (pipelinePromise) {
+    return { phase: 'building_engine', downloadPercent: null }
+  }
+  return { phase: 'checking_cache', downloadPercent: null }
+}
+
+function notifyLoadProgress(): void {
+  const status = computeLoadStatus()
+  const prev = lastLoadStatus
+  if (prev.phase === status.phase && prev.downloadPercent === status.downloadPercent) {
+    return
+  }
+  lastLoadStatus = status
+  for (const listener of loadStatusListeners) {
+    listener(status)
+  }
+  const legacyPct =
+    status.phase === 'ready'
+      ? 100
+      : status.phase === 'downloading_weights'
+        ? status.downloadPercent
+        : null
   for (const listener of loadProgressListeners) {
-    listener(next)
+    listener(legacyPct)
   }
 }
 
 /** 0–100 while weights download; null when idle; 100 when ready for lang. */
 export function getOfflineSttLoadProgress(lang?: string): number | null {
   if (lang && isOfflineSttReady(lang)) return 100
-  const aggregate = aggregateDownloadPct()
-  if (aggregate !== null) return aggregate
-  if (pipelinePromise && !pipelineReadyForLang) return loadProgressHint ?? 0
-  return loadProgressHint
+  const status = computeLoadStatus()
+  if (status.phase === 'ready') return 100
+  if (status.phase === 'downloading_weights') return status.downloadPercent
+  return null
+}
+
+export function getOfflineSttLoadStatus(lang?: string): VoiceBootLoadStatus {
+  if (lang && isOfflineSttReady(lang)) {
+    return { phase: 'ready', downloadPercent: null }
+  }
+  return computeLoadStatus()
 }
 
 export function subscribeOfflineSttLoadProgress(
   listener: OfflineSttLoadProgressListener,
 ): () => void {
   loadProgressListeners.add(listener)
-  listener(aggregateDownloadPct() ?? loadProgressHint)
+  listener(getOfflineSttLoadProgress())
   return () => loadProgressListeners.delete(listener)
+}
+
+export function subscribeOfflineSttLoadStatus(
+  listener: OfflineSttLoadStatusListener,
+): () => void {
+  loadStatusListeners.add(listener)
+  listener(getOfflineSttLoadStatus())
+  return () => loadStatusListeners.delete(listener)
 }
 
 function whisperLang(bcp47: string): WhisperLang {
@@ -198,10 +223,8 @@ async function configureTransformersEnv(): Promise<void> {
 async function loadPipelineWithDtype(
   model: string,
   dtype: WasmDtype,
-  progressFloor = 0,
 ): Promise<Transcriber> {
   voiceDebug('offline-stt:load-model', { model, device: 'wasm', dtype })
-  loadProgressHint = Math.max(loadProgressHint ?? 0, progressFloor)
   notifyLoadProgress()
   await configureTransformersEnv()
   const { pipeline } = await import('@huggingface/transformers')
@@ -248,9 +271,9 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
   lastOfflineSttError = null
 
   pipelinePromise = (async () => {
-    const weightsCached = await hasCachedWhisperWeights(model)
-    const progressFloor = weightsCached ? 72 : 8
-    startSessionBuildProgress(progressFloor)
+    await hasCachedWhisperWeights(model)
+    downloadLogPct.clear()
+    notifyLoadProgress()
     let lastErr: unknown
     let purgedDiskForRetry = false
     try {
@@ -259,12 +282,11 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
           throw new Error('offline-stt:load-superseded')
         }
         try {
-          const transcriber = await loadPipelineWithDtype(model, dtype, progressFloor)
+          const transcriber = await loadPipelineWithDtype(model, dtype)
           if (generation === pipelineLoadGeneration) {
             pipelineActiveDtype = dtype
             pipelineReadyForLang = bcp47
-            voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype, weightsCached })
-            loadProgressHint = 100
+            voiceDebug('offline-stt:ready', { model, lang: bcp47, dtype })
             notifyLoadProgress()
           }
           return transcriber
@@ -287,7 +309,7 @@ async function loadPipeline(bcp47: string): Promise<Transcriber> {
       }
       throw lastErr ?? new Error('offline-stt:all-dtypes-failed')
     } finally {
-      stopSessionBuildProgress()
+      notifyLoadProgress()
     }
   })()
 
@@ -361,7 +383,8 @@ export async function clearOfflineSttCache(opts?: {
   pipelineModelId = null
   pipelineReadyForLang = null
   pipelineActiveDtype = null
-  stopSessionBuildProgress()
+  lastLoadStatus = INITIAL_VOICE_BOOT_STATUS
+  notifyLoadProgress()
 }
 
 /** Drop in-memory Whisper session (model files stay in Cache API). */
@@ -377,8 +400,7 @@ export function releaseOfflineSttPipeline(opts?: { force?: boolean }): void {
   preloadInFlight = null
   preloadInFlightModel = null
   downloadLogPct.clear()
-  loadProgressHint = null
-  stopSessionBuildProgress()
+  lastLoadStatus = INITIAL_VOICE_BOOT_STATUS
   notifyLoadProgress()
   voiceDebug('offline-stt:pipeline-released')
 }

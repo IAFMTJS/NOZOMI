@@ -1,3 +1,5 @@
+import { orbStateForVoiceSessionPhase } from '@/features/voice/logic/voiceSessionFsm'
+import { useUiStore } from '@/store/useUiStore'
 import type { OrbState, SpeechState } from '@/types/domain'
 
 /** UI phase for listen screen copy and transcript chrome. */
@@ -24,18 +26,12 @@ export function deriveListenPhase(
   return 'idle'
 }
 
-/** Orb visuals follow speech lifecycle first, then conversation orb (e.g. TTS). */
+/** Orb visuals follow the voice session FSM (legacy args kept for tests). */
 export function derivePresenceOrbState(
-  speechState: SpeechState,
-  orbState: OrbState,
+  _speechState?: SpeechState,
+  _orbState?: OrbState,
 ): OrbState {
-  if (speechState === 'permission_pending' || speechState === 'listening') {
-    return 'listening'
-  }
-  if (speechState === 'processing') return 'thinking'
-  if (speechState === 'speaking' || orbState === 'speaking') return 'speaking'
-  if (orbState === 'thinking') return 'thinking'
-  return orbState === 'listening' ? 'listening' : 'idle'
+  return orbStateForVoiceSessionPhase(useUiStore.getState().voiceSessionPhase)
 }
 
 export function isListenCapturing(speechState: SpeechState): boolean {

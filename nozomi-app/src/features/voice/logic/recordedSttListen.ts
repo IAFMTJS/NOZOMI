@@ -63,6 +63,7 @@ import {
   setRecordingCapTimer,
 } from '@/features/voice/logic/recordedListenTimers'
 import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
+import { enterVoiceInitializingAudio } from '@/features/voice/logic/voiceTurnCoordinator'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import { startBrowserListening } from '@/features/voice/logic/browserSttListen'
 
@@ -411,6 +412,7 @@ function startRecordedListeningNow(
         if (getListenGeneration() !== generation || !session || session.stopped) return
         micRecorderReady = true
         voiceDebug('rec:mic-ready', { generation, sttModelReady })
+        enterVoiceInitializingAudio()
         tryStartCapture()
       },
       onLevel: (level) => {

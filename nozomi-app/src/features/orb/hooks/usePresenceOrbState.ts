@@ -1,10 +1,13 @@
-import { derivePresenceOrbState } from '@/features/voice/logic/listenPresence'
+import { orbStateForVoiceSessionPhase } from '@/features/voice/logic/voiceSessionFsm'
+import { isAnyTtsOutputActive } from '@/features/voice/logic/ttsOutputState'
 import { useUiStore } from '@/store/useUiStore'
 import type { OrbState } from '@/types/domain'
 
-/** Orb color/motion that matches mic + STT lifecycle (not stale store orb). */
+/** Orb visuals follow the central voice session FSM (not stale store fields). */
 export function usePresenceOrbState(): OrbState {
-  const speechState = useUiStore((s) => s.speechState)
-  const orbState = useUiStore((s) => s.orbState)
-  return derivePresenceOrbState(speechState, orbState)
+  const phase = useUiStore((s) => s.voiceSessionPhase)
+  if (phase === 'responding' || isAnyTtsOutputActive()) {
+    return 'speaking'
+  }
+  return orbStateForVoiceSessionPhase(phase)
 }

@@ -7,7 +7,7 @@ import {
   isOfflineSttReady,
   preloadOfflineStt,
   releaseOfflineSttPipeline,
-  subscribeOfflineSttLoadProgress,
+  subscribeOfflineSttLoadStatus,
   whenOfflineSttReady,
 } from '@/features/voice/logic/offlineStt'
 import { resolveWhisperModelId } from '@/features/voice/logic/whisperModels'
@@ -16,6 +16,8 @@ import { getSttEngine, resolveSttEngineForLang } from '@/features/voice/logic/st
 import { warmMicRecorderCodecs } from '@/features/voice/logic/micRecorderWarmup'
 import { warmJapaneseVoices } from '@/features/voice/logic/japaneseVoicePicker'
 import { touchOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecycle'
+import type { VoiceBootLoadStatus } from '@/features/voice/logic/voiceBootStatus'
+import { INITIAL_VOICE_BOOT_STATUS } from '@/features/voice/logic/voiceBootStatus'
 import { useNozomiStore } from '@/store/useNozomiStore'
 import { isMobileDevice } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
@@ -75,11 +77,11 @@ let bootInFlightKey: string | null = null
 
 export async function runMobileVoiceBoot(
   lang: string,
-  onProgress: (pct: number | null) => void,
+  onStatus: (status: VoiceBootLoadStatus) => void,
 ): Promise<void> {
   const key = mobileVoiceBootStorageKey(lang)
   if (isOfflineSttReady(lang)) {
-    onProgress(100)
+    onStatus({ phase: 'ready', downloadPercent: null })
     writeMobileVoiceBootCache(key)
     touchOfflineSttPipeline()
     releaseOfflineSttPipeline({ force: true })
@@ -99,15 +101,20 @@ export async function runMobileVoiceBoot(
 
   bootInFlightKey = key
   bootInFlight = (async () => {
+    onStatus(INITIAL_VOICE_BOOT_STATUS)
     const modelId = resolveWhisperModelId(
       lang,
       useNozomiStore.getState().settings.whisperModel ?? 'tiny',
     )
     const weightsCached = await hasCachedWhisperWeights(modelId)
-    onProgress(weightsCached ? 72 : 0)
+    onStatus(
+      weightsCached
+        ? { phase: 'building_engine', downloadPercent: null }
+        : { phase: 'checking_cache', downloadPercent: null },
+    )
 
-    const unsub = subscribeOfflineSttLoadProgress((pct) => {
-      onProgress(isOfflineSttReady(lang) ? 100 : pct)
+    const unsub = subscribeOfflineSttLoadStatus((status) => {
+      onStatus(isOfflineSttReady(lang) ? { phase: 'ready', downloadPercent: null } : status)
     })
     preloadOfflineStt(lang, { force: true })
     try {
@@ -117,8 +124,7 @@ export async function runMobileVoiceBoot(
       }
       writeMobileVoiceBootCache(key)
       touchOfflineSttPipeline()
-      onProgress(100)
-      // Park WASM so the first orb tap only opens the mic (avoids mic + Whisper OOM).
+      onStatus({ phase: 'ready', downloadPercent: null })
       releaseOfflineSttPipeline({ force: true })
       warmMicRecorderCodecs()
       if ('speechSynthesis' in window) {
@@ -142,6 +148,22 @@ export async function runMobileVoiceBoot(
     })
     throw err
   }
+}
+
+/** @deprecated Use onStatus callback with VoiceBootLoadStatus */
+export async function runMobileVoiceBootLegacy(
+  lang: string,
+  onProgress: (pct: number | null) => void,
+): Promise<void> {
+  return runMobileVoiceBoot(lang, (status) => {
+    onProgress(
+      status.phase === 'ready'
+        ? 100
+        : status.phase === 'downloading_weights'
+          ? status.downloadPercent
+          : null,
+    )
+  })
 }
 
 export function invalidateMobileVoiceBootFlight(): void {
