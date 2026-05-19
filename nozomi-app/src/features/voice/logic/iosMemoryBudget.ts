@@ -3,16 +3,22 @@
  * During turns we only release decode buffers before WASM infer (no multi-second barriers).
  */
 import { releaseDecodeContext } from '@/features/voice/logic/audioDecode'
+import { useUiStore } from '@/store/useUiStore'
 import { isIos } from '@/utils/device'
 import type { OrbState, SpeechState } from '@/types/domain'
 
-/** Static orb only while transcribing (not during whole listen). */
+/** Static orb while decode/WASM/NLU are active (saves WebGL + animation RAM on iOS). */
 export function isIosVoiceHeavyUi(orbState: OrbState, speechState: SpeechState): boolean {
   if (!isIos()) return false
-  return (
-    speechState === 'processing' ||
-    orbState === 'thinking'
-  )
+  const step = useUiStore.getState().voicePipelineStep
+  if (
+    step === 'transcribing' ||
+    step === 'stopping-recorder' ||
+    step === 'understanding'
+  ) {
+    return true
+  }
+  return speechState === 'processing' || orbState === 'thinking'
 }
 
 /** Drop decode AudioContext before ONNX infer (main iOS OOM fix during a turn). */
@@ -22,7 +28,7 @@ export async function iosReleaseBeforeWhisperInfer(): Promise<void> {
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
-  await new Promise((r) => setTimeout(r, 120))
+  await new Promise((r) => setTimeout(r, 220))
 }
 
 /** iOS cannot safely use whisper-small in-browser (tab reload). */

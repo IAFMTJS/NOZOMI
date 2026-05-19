@@ -14,8 +14,12 @@ import { isIos, isMobileDevice } from '@/utils/device'
 type RecorderCallbacks = {
   onReady?: () => void
   onLevel?: (level: number) => void
+  /** Fired when encoded chunks show energy (mobile — no analyser AudioContext). */
+  onSoundChunk?: () => void
   onError?: (err: unknown) => void
 }
+
+const MOBILE_SOUND_CHUNK_BYTES = 400
 
 const MIC_OPEN_RETRIES = 3
 const MIC_RETRY_DELAY_MS = 180
@@ -65,13 +69,10 @@ let audioCtx: AudioContext | null = null
 let levelAnalyser: AnalyserNode | null = null
 let sessionGen = 0
 let stopInFlight: Promise<Blob | null> | null = null
-let pendingIosLevel: { stream: MediaStream; onLevel: (n: number) => void } | null = null
-
 async function stopLevelLoop(): Promise<void> {
   cancelAnimationFrame(levelRaf)
   levelRaf = 0
   levelAnalyser = null
-  pendingIosLevel = null
   const ctx = audioCtx
   audioCtx = null
   if (!ctx || ctx.state === 'closed') return
@@ -108,13 +109,6 @@ function startLevelLoop(s: MediaStream, onLevel: (n: number) => void): void {
   })
 }
 
-function armLevelLoopIfNeeded(): void {
-  if (!pendingIosLevel) return
-  const { stream, onLevel } = pendingIosLevel
-  pendingIosLevel = null
-  startLevelLoop(stream, onLevel)
-}
-
 export function isMicRecorderActive(): boolean {
   return !!recorder && recorder.state === 'recording'
 }
@@ -126,7 +120,6 @@ export async function startMicSession(
   sessionGen = generation
   chunks = []
   recordingActive = false
-  pendingIosLevel = null
   void stopLevelLoop()
   stream?.getTracks().forEach((t) => t.stop())
   stream = null
@@ -158,19 +151,20 @@ export async function startMicSession(
     recorderMime = mime
     recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
     recorder.ondataavailable = (ev) => {
-      if (ev.data.size > 0) chunks.push(ev.data)
+      if (ev.data.size > 0) {
+        chunks.push(ev.data)
+        if (isMobileDevice() && ev.data.size >= MOBILE_SOUND_CHUNK_BYTES) {
+          callbacks.onSoundChunk?.()
+        }
+      }
     }
     recorder.onerror = () => {
       voiceDebugError('rec:error', { generation })
       callbacks.onError?.(new Error('Recording failed'))
     }
     voiceDebug('rec:mic-open', { generation, mime: recorder.mimeType })
-    if (callbacks.onLevel) {
-      if (isMobileDevice()) {
-        pendingIosLevel = { stream, onLevel: callbacks.onLevel }
-      } else {
-        startLevelLoop(stream, callbacks.onLevel)
-      }
+    if (callbacks.onLevel && !isMobileDevice()) {
+      startLevelLoop(stream, callbacks.onLevel)
     }
     callbacks.onReady?.()
     return true
@@ -192,7 +186,6 @@ export function beginMicRecording(generation: number): boolean {
   try {
     recorder.start(isIos() ? 400 : 250)
     recordingActive = true
-    if (isMobileDevice()) armLevelLoopIfNeeded()
     voiceDebug('rec:start', { generation, mime: recorder.mimeType || recorderMime })
     return true
   } catch (err) {
@@ -210,6 +203,8 @@ export function stopMicSession(): Promise<Blob | null> {
     return stopInFlight
   }
   const gen = sessionGen
+
+  void stopLevelLoop()
 
   stopInFlight = new Promise((resolve) => {
     const finish = async (blob: Blob | null) => {
@@ -302,7 +297,6 @@ export function cancelMicSession(): void {
   stopInFlight = null
   sessionGen++
   recordingActive = false
-  pendingIosLevel = null
   void stopLevelLoop()
   try {
     if (recorder && recorder.state !== 'inactive') recorder.stop()

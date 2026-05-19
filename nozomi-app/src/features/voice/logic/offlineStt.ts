@@ -425,7 +425,7 @@ export async function parkWhisperForMicCapture(): Promise<void> {
   releaseDecodeContext()
   if (pipelinePromise || pipelineReadyForLang) {
     releaseOfflineSttPipeline({ force: true })
-    await yieldAfterWhisperRelease(isIos() ? 200 : 90)
+    await yieldAfterWhisperRelease(isIos() ? 360 : 90)
     voiceDebug('offline-stt:parked-for-mic')
   }
 }
@@ -434,7 +434,7 @@ export async function releaseWhisperSessionAfterTranscribe(): Promise<void> {
   releaseDecodeContext()
   if (!isMobileDevice()) return
   releaseOfflineSttPipeline({ force: true })
-  await yieldAfterWhisperRelease(isIos() ? 320 : 160)
+  await yieldAfterWhisperRelease(isIos() ? 480 : 160)
   voiceDebug('offline-stt:post-transcribe-released')
 }
 
@@ -472,6 +472,11 @@ export function preloadOfflineStt(lang = 'en-US', opts?: { force?: boolean }): v
 export type TranscribeBlobOptions = {
   /** When true, skip the silence gate (mic already detected voice energy). */
   hadSound?: boolean
+  /**
+   * Pre-decoded 16 kHz mono PCM (mobile path).
+   * Skips decode so WASM is not loaded while AudioContext buffers are live.
+   */
+  pcm?: Float32Array
 }
 
 export async function transcribeAudioBlob(
@@ -479,16 +484,22 @@ export async function transcribeAudioBlob(
   bcp47: string,
   options: TranscribeBlobOptions = {},
 ): Promise<string> {
-  if (!blob.size) return ''
+  if (!options.pcm && !blob.size) return ''
   lastOfflineSttError = null
-  voiceDebug('offline-stt:start', { bytes: blob.size, lang: bcp47 })
+  voiceDebug('offline-stt:start', {
+    bytes: blob.size,
+    lang: bcp47,
+    predecoded: !!options.pcm,
+  })
 
   try {
-    const audio = await withTimeout(
-      decodeRecordingTo16kMono(blob),
-      DECODE_TIMEOUT_MS,
-      'offline-stt:decode',
-    )
+    const audio = options.pcm
+      ? options.pcm
+      : await withTimeout(
+          decodeRecordingTo16kMono(blob),
+          DECODE_TIMEOUT_MS,
+          'offline-stt:decode',
+        )
     voiceDebug('offline-stt:decoded', {
       samples: audio.length,
       durationSec: +(audio.length / 16_000).toFixed(2),

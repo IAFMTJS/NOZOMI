@@ -68,10 +68,15 @@ export function useOfflineSttPreload(
       return () => window.clearInterval(readyPoll)
     }
 
-    if (isMobileVoiceBootComplete(recognitionLang)) {
-      setOfflineSttReady(true)
-      setOfflineSttLoadPercent(100)
-      touchOfflineSttPipeline()
+    // Mobile: boot gate caches weights; never load WASM on /listen (OOM with mic/decode).
+    if (isMobileDevice()) {
+      if (isMobileVoiceBootComplete(recognitionLang)) {
+        touchOfflineSttPipeline()
+      }
+      setOfflineSttReady(isOfflineSttReady(recognitionLang))
+      setOfflineSttLoadPercent(
+        isOfflineSttReady(recognitionLang) ? 100 : null,
+      )
       return () => window.clearInterval(readyPoll)
     }
 

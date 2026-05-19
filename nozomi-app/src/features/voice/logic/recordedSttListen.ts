@@ -48,8 +48,14 @@ import {
   isMicRecentlyPrimed,
   releaseSharedMicrophone,
 } from '@/features/voice/logic/speechCapabilities'
-import { releaseDecodeContext } from '@/features/voice/logic/audioDecode'
-import { isIos, isMobileDevice } from '@/utils/device'
+import {
+  decodeRecordingTo16kMono,
+  releaseDecodeContext,
+} from '@/features/voice/logic/audioDecode'
+import { iosReleaseBeforeWhisperInfer } from '@/features/voice/logic/iosMemoryBudget'
+import { stopSpeaking, whenSpeechOutputIdle } from '@/features/voice/logic/speechTts'
+import { reconcileStuckBrowserSynth } from '@/features/voice/logic/ttsOutputState'
+import { getVoicePlatformTuning, isIos, isMobileDevice } from '@/utils/device'
 import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
 import {
   MAX_RECORDING_BLOB_BYTES,
@@ -74,7 +80,9 @@ async function yieldBeforeTranscribe(): Promise<void> {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
   if (isIos()) {
-    await new Promise((r) => setTimeout(r, 150))
+    await new Promise((r) => setTimeout(r, 280))
+  } else if (isMobileDevice()) {
+    await new Promise((r) => setTimeout(r, 120))
   }
 }
 
@@ -158,9 +166,15 @@ function runRecordedFinalize(generation: number): void {
         if (getListenGeneration() !== generation || !getListenSession() || getListenSession()!.gotResult) {
           return
         }
+        if (isMobileDevice()) {
+          stopSpeaking()
+          reconcileStuckBrowserSynth()
+          await whenSpeechOutputIdle(getVoicePlatformTuning().speechOutputIdleCapMs)
+        }
         const { soundStart } = getListenSignals()
         const lang = getActiveListenLang()
-        if (!isOfflineSttReady(lang)) {
+        // Desktop: warm WASM before decode. Mobile: decode first — WASM+decode together OOMs iOS.
+        if (!isMobileDevice() && !isOfflineSttReady(lang)) {
           voiceDebug('rec:await-offline-stt', { lang, generation })
           await whenOfflineSttReady(lang)
         }
@@ -181,6 +195,14 @@ function runRecordedFinalize(generation: number): void {
                   lang,
                 )
                 if (cloud) return cloud
+              }
+              if (isMobileDevice()) {
+                const pcm = await decodeRecordingTo16kMono(blob)
+                await iosReleaseBeforeWhisperInfer()
+                return transcribeAudioBlob(blob, lang, {
+                  hadSound: soundStart,
+                  pcm,
+                })
               }
               return transcribeAudioBlob(blob, lang, { hadSound: soundStart })
             })(),
@@ -415,10 +437,18 @@ function startRecordedListeningNow(
         enterVoiceInitializingAudio()
         tryStartCapture()
       },
-      onLevel: (level) => {
-        if (level > MIC_SOUND_DETECT_THRESHOLD) setSignalSoundStart()
-        dispatch('onLevel', level)
-      },
+      onLevel: isMobileDevice()
+        ? undefined
+        : (level) => {
+            if (level > MIC_SOUND_DETECT_THRESHOLD) setSignalSoundStart()
+            dispatch('onLevel', level)
+          },
+      onSoundChunk: isMobileDevice()
+        ? () => {
+            setSignalSoundStart()
+            dispatch('onLevel', MIC_SOUND_DETECT_THRESHOLD + 0.02)
+          }
+        : undefined,
       onError: (err) => {
         if (getListenGeneration() !== generation) return
         const session = getListenSession()

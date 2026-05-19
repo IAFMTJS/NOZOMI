@@ -76,7 +76,9 @@ export async function decodeRecordingTo16kMono(blob: Blob): Promise<Float32Array
   const atTarget =
     decoded.sampleRate === TARGET_RATE
       ? mono
-      : await resampleToRate(mono, decoded.sampleRate, TARGET_RATE)
+      : isIos()
+        ? resampleLinear(mono, decoded.sampleRate, TARGET_RATE)
+        : await resampleToRate(mono, decoded.sampleRate, TARGET_RATE)
   const maxSamples = maxInferenceSamples()
   if (atTarget.length <= maxSamples) return atTarget
   return atTarget.slice(-maxSamples)
@@ -96,11 +98,34 @@ function downmixToMono(buffer: AudioBuffer): Float32Array {
   return mono
 }
 
+/** Lightweight resample — avoids OfflineAudioContext RAM spike on iOS. */
+function resampleLinear(
+  samples: Float32Array,
+  fromRate: number,
+  toRate: number,
+): Float32Array {
+  if (fromRate === toRate) return samples
+  const outLen = Math.max(1, Math.round((samples.length * toRate) / fromRate))
+  const out = new Float32Array(outLen)
+  const step = fromRate / toRate
+  for (let i = 0; i < outLen; i++) {
+    const src = i * step
+    const i0 = Math.floor(src)
+    const i1 = Math.min(i0 + 1, samples.length - 1)
+    const t = src - i0
+    out[i] = samples[i0] * (1 - t) + samples[i1] * t
+  }
+  return out
+}
+
 async function resampleToRate(
   samples: Float32Array,
   fromRate: number,
   toRate: number,
 ): Promise<Float32Array> {
+  if (isIos()) {
+    return resampleLinear(samples, fromRate, toRate)
+  }
   const durationSec = samples.length / fromRate
   const offline = new OfflineAudioContext(
     1,

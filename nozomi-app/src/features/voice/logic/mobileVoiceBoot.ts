@@ -19,7 +19,7 @@ import { touchOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecy
 import type { VoiceBootLoadStatus } from '@/features/voice/logic/voiceBootStatus'
 import { INITIAL_VOICE_BOOT_STATUS } from '@/features/voice/logic/voiceBootStatus'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import { isMobileDevice } from '@/utils/device'
+import { isIos, isMobileDevice } from '@/utils/device'
 import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 const STORAGE_KEY = 'nozomi_mobile_voice_boot_v1'
@@ -127,7 +127,7 @@ export async function runMobileVoiceBoot(
       onStatus({ phase: 'ready', downloadPercent: null })
       releaseOfflineSttPipeline({ force: true })
       warmMicRecorderCodecs()
-      if ('speechSynthesis' in window) {
+      if (!isIos() && 'speechSynthesis' in window) {
         window.setTimeout(() => warmJapaneseVoices(), 800)
       }
       voiceDebug('mobile-voice-boot:ready', { lang, key, parked: true })
