@@ -1,6 +1,10 @@
 import { levelFromRms, rmsFromTimeDomain } from '@/features/voice/logic/audioLevel'
 import { consumeGestureMicStream } from '@/features/voice/logic/micGesture'
 import {
+  clearSharedMicStreamIf,
+  getSharedMicStream,
+} from '@/features/voice/logic/speechCapabilities'
+import {
   getWarmedRecorderMime,
   recorderMimeCandidates,
 } from '@/features/voice/logic/micRecorderWarmup'
@@ -135,7 +139,14 @@ export async function startMicSession(
   }
 
   try {
-    stream = (await consumeGestureMicStream()) ?? (await openMicStream())
+    const shared = getSharedMicStream()
+    stream =
+      (await consumeGestureMicStream()) ??
+      (shared?.active ? shared : null) ??
+      (await openMicStream())
+    if (shared && stream === shared) {
+      clearSharedMicStreamIf(shared)
+    }
     if (sessionGen !== generation) {
       stream.getTracks().forEach((t) => t.stop())
       stream = null

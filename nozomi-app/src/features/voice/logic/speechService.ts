@@ -18,6 +18,9 @@ export {
   prepareMicrophone,
   acquireSharedMicrophone,
   releaseSharedMicrophone,
+  getSharedMicStream,
+  markMicPrimed,
+  isMicRecentlyPrimed,
 } from './speechCapabilities'
 
 export {

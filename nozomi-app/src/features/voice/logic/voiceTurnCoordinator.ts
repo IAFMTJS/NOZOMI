@@ -6,7 +6,7 @@ import {
   setVoicePipelineStep,
   type VoicePipelineStep,
 } from '@/features/voice/logic/voicePipelineStep'
-import { voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import { useUiStore } from '@/store/useUiStore'
 import type { OrbState, SpeechState } from '@/types/domain'
 
@@ -39,9 +39,23 @@ export function deriveVoiceTurnPhase(): VoiceTurnPhase {
 
 function setPresence(speech: SpeechState, orb: OrbState, step?: VoicePipelineStep): void {
   const ui = useUiStore.getState()
+  const prevSpeech = ui.speechState
+  const prevOrb = ui.orbState
+  const prevStep = ui.voicePipelineStep
   ui.setSpeechState(speech)
   ui.setOrbState(orb)
   if (step !== undefined) setVoicePipelineStep(step)
+  if (
+    prevSpeech !== speech ||
+    prevOrb !== orb ||
+    (step !== undefined && prevStep !== step)
+  ) {
+    voiceDebug('voice:presence', {
+      speech: `${prevSpeech}→${speech}`,
+      orb: `${prevOrb}→${orb}`,
+      step: step !== undefined ? `${prevStep}→${step}` : prevStep,
+    })
+  }
 }
 
 /** Hard reset when UI drifted from the listen session (orphan processing / finalize flags). */

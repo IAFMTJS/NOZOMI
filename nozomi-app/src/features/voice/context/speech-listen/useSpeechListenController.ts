@@ -7,6 +7,7 @@ import { useVoiceSilenceEndpoint } from '@/features/voice/context/speech-listen/
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   MIC_LEVEL_HEARD_THRESHOLD,
+  PERMISSION_PREPARE_TIMEOUT_MS,
   VOICE_TURN_TIMEOUT_MS,
 } from '@/features/voice/context/speech-listen/constants'
 import { getVoicePlatformTuning, isMobileDevice } from '@/utils/device'
@@ -32,12 +33,15 @@ import {
   endListenSessionAfterTurn,
   finalizeListening,
   getCapturedTranscript,
+  getListenSession,
   getListenSignals,
   getSttDebugState,
   isListenSessionActive,
   markListenArmedFromGesture,
   markListenTurnHandled,
   micNeedsSecureContext,
+  getSharedMicStream,
+  markMicPrimed,
   primeMicrophonePermission,
   releaseGestureMicStream,
   releaseSharedMicrophone,
@@ -48,6 +52,7 @@ import {
   type SpeechError,
   type SpeechErrorCode,
 } from '@/features/voice/logic/speechService'
+import { hasActiveGestureMic } from '@/features/voice/logic/micGesture'
 import { needsGestureLockedMic } from '@/utils/device'
 import { clearTranscriptFinalizing } from '@/features/voice/logic/speechPresenceSync'
 import {
@@ -377,6 +382,22 @@ export function useSpeechListenController(): SpeechListenApi {
     [clearFinishWaitTimer, setAudioLevel],
   )
 
+  useEffect(() => {
+    if (speechState !== 'permission_pending') return
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      const ui = useUiStore.getState()
+      if (ui.speechState !== 'permission_pending') return
+      if (isListenSessionActive()) return
+      voiceDebugWarn('ui:permission-prepare-timeout', captureSnapshot())
+      finishingRef.current = false
+      forceRecoverVoiceUi('permission-prepare-timeout')
+      setErrorCode('busy')
+      enterVoiceError()
+    }, PERMISSION_PREPARE_TIMEOUT_MS)
+    return () => window.clearTimeout(timer)
+  }, [speechState, captureSnapshot])
+
   const handleError = useCallback(
     (err: SpeechError) => {
       if (!mountedRef.current) return
@@ -397,9 +418,20 @@ export function useSpeechListenController(): SpeechListenApi {
   const handleStateChange = useCallback(
     (state: SpeechState) => {
       if (!mountedRef.current) return
-      if (state === 'idle' && (processingRef.current || finishingRef.current)) {
-        voiceDebug('ui:speech-state-ignored', { state, reason: 'turn-active' })
-        return
+      if (state === 'idle') {
+        if (processingRef.current) {
+          voiceDebug('ui:speech-state-ignored', { state, reason: 'turn-processing' })
+          return
+        }
+        if (finishingRef.current) {
+          const session = getListenSession()
+          if (session && isListenSessionActive()) {
+            voiceDebug('ui:speech-state-ignored', { state, reason: 'finalize-active' })
+            return
+          }
+          finishingRef.current = false
+          clearTranscriptFinalizing()
+        }
       }
       if (
         state === 'listening' &&
@@ -417,7 +449,8 @@ export function useSpeechListenController(): SpeechListenApi {
       }
       if (state === 'processing') {
         setOrbState('thinking')
-        if (useUiStore.getState().voicePipelineStep === 'listening') {
+        const step = useUiStore.getState().voicePipelineStep
+        if (step === 'listening' || step === 'recording') {
           setVoicePipelineStep('transcribing')
         }
       }
@@ -594,7 +627,13 @@ export function useSpeechListenController(): SpeechListenApi {
     lastTranscriptRef.current = ''
     pendingInterimRef.current = ''
     stopSpeaking()
-    if (needsGestureLockedMic()) startMicCaptureFromGesture()
+    if (
+      needsGestureLockedMic() &&
+      !getSharedMicStream()?.active &&
+      !hasActiveGestureMic()
+    ) {
+      startMicCaptureFromGesture()
+    }
     enterVoiceListenPrepare()
     markListenArmedFromGesture()
     voiceDebug('ui:beginListening', { lang: recognitionLang })
@@ -654,12 +693,16 @@ export function useSpeechListenController(): SpeechListenApi {
     voiceDebug('ui:armAndGoToListen', { lang: recognitionLang })
 
     if (getSttEngine() === 'browser' || needsGestureLockedMic() || isMobileDevice()) {
-      const granted = await primeMicrophonePermission()
-      if (!granted) {
-        setErrorCode('not-allowed')
-        setSpeechState('error')
-        navigate('/listen')
-        return
+      if (!getSharedMicStream()?.active && !hasActiveGestureMic()) {
+        const granted = await primeMicrophonePermission()
+        if (!granted) {
+          setErrorCode('not-allowed')
+          setSpeechState('error')
+          navigate('/listen')
+          return
+        }
+      } else {
+        markMicPrimed()
       }
     }
 
@@ -748,6 +791,7 @@ export function useSpeechListenController(): SpeechListenApi {
 
   useVoicePipelineStuckRecovery(
     transcriptFinalizing,
+    speechState,
     mountedRef,
     processingRef,
     finishingRef,

@@ -33,6 +33,17 @@ import { resolveSpeechRecognitionLang } from '@/features/voice/logic/speechLocal
 import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
 import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 import { resetListenSessionState } from '@/features/voice/logic/listenStore'
+import { useUiStore } from '@/store/useUiStore'
+
+function shouldHoldIdleDuringPipeline(): boolean {
+  const ui = useUiStore.getState()
+  return (
+    ui.transcriptFinalizing ||
+    ui.speechState === 'processing' ||
+    ui.voicePipelineStep === 'transcribing' ||
+    ui.voicePipelineStep === 'stopping-recorder'
+  )
+}
 
 let browserLevelLoop: ReturnType<typeof createAudioLevelLoop> | null = null
 
@@ -152,7 +163,7 @@ export function startBrowserListening(
       const session = getListenSession()
       voiceDebug('stt:onend-idle', { generation, gotResult: session?.gotResult })
       stopBrowserAudioLevel()
-      if (!session?.gotResult && !isFinishRequested()) {
+      if (!session?.gotResult && !isFinishRequested() && !shouldHoldIdleDuringPipeline()) {
         dispatch('onStateChange', 'idle')
       }
       return
@@ -175,7 +186,9 @@ export function startBrowserListening(
     } catch {
       voiceDebugWarn('stt:onend-restart-failed', { generation })
       stopBrowserAudioLevel()
-      dispatch('onStateChange', 'idle')
+      if (!shouldHoldIdleDuringPipeline()) {
+        dispatch('onStateChange', 'idle')
+      }
     }
   }
 

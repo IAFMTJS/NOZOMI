@@ -145,6 +145,7 @@ export function useVoiceFinishRecording(deps: FinishRecordingDeps): () => void {
           deps.finishingRef.current = false
           setTranscriptFinalizing(false)
           endListenSessionAfterTurn()
+          forceRecoverVoiceUi('finish-wait-timeout')
           deps.deliverNoSpeechFallback()
         })
       }

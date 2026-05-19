@@ -48,7 +48,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/chat" element={<ChatPage />} />
-      <Route path="/listen" element={<ListeningPage />} />
+      <Route
+        path="/listen"
+        element={
+          <ErrorBoundary>
+            <ListeningPage />
+          </ErrorBoundary>
+        }
+      />
       <Route
         path="/word"
         element={

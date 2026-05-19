@@ -1,12 +1,15 @@
 import {
-  consumeGestureMicStream,
+  awaitGestureMicStream,
+  hasActiveGestureMic,
   releaseGestureMicStream,
   startMicCaptureFromGesture,
 } from '@/features/voice/logic/micGesture'
 import type { SpeechError } from '@/features/voice/logic/types'
+import { voiceDebug, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
 
 let sharedMicStream: MediaStream | null = null
 let micAcquirePromise: Promise<MediaStream | null> | null = null
+let micPrimePromise: Promise<boolean> | null = null
 let micPrimedAt = 0
 
 const MIC_PRIME_TTL_MS = 45_000
@@ -99,30 +102,55 @@ export function mapSpeechRecognitionError(code: string): SpeechError {
   }
 }
 
-export async function primeMicrophonePermission(): Promise<boolean> {
+function adoptWarmMicStream(stream: MediaStream): boolean {
+  if (!stream.active) return false
+  sharedMicStream?.getTracks().forEach((t) => t.stop())
+  sharedMicStream = stream
+  markMicPrimed()
+  voiceDebug('mic:primed-warm', { tracks: stream.getAudioTracks().length })
+  return true
+}
+
+async function doPrimeMicrophonePermission(): Promise<boolean> {
   if (!navigator.mediaDevices?.getUserMedia) return false
-  startMicCaptureFromGesture()
-  try {
-    const stream = await consumeGestureMicStream()
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop())
-      releaseGestureMicStream()
-      sharedMicStream = null
-      markMicPrimed()
-      return true
-    }
-  } catch {
-    /* fall through */
-  }
-  try {
-    const fallback = await navigator.mediaDevices.getUserMedia({ audio: true })
-    fallback.getTracks().forEach((t) => t.stop())
-    sharedMicStream = null
+  if (sharedMicStream?.active) {
     markMicPrimed()
     return true
-  } catch {
+  }
+  if (hasActiveGestureMic()) {
+    const gesture = await awaitGestureMicStream(4_000)
+    if (gesture && adoptWarmMicStream(gesture)) return true
+  }
+
+  startMicCaptureFromGesture()
+  const gesture = await awaitGestureMicStream(4_000)
+  if (gesture && adoptWarmMicStream(gesture)) return true
+
+  try {
+    const fallback = await navigator.mediaDevices.getUserMedia({ audio: true })
+    if (adoptWarmMicStream(fallback)) return true
+    fallback.getTracks().forEach((t) => t.stop())
+    return false
+  } catch (err) {
+    voiceDebugWarn('mic:prime-failed', {
+      error: err instanceof Error ? err.message : String(err),
+    })
     return false
   }
+}
+
+/** Request mic once; keep stream warm for the listen session (no second prompt). */
+export async function primeMicrophonePermission(): Promise<boolean> {
+  if (!navigator.mediaDevices?.getUserMedia) return false
+  if (sharedMicStream?.active || hasActiveGestureMic()) {
+    markMicPrimed()
+    return true
+  }
+  if (micPrimePromise) return micPrimePromise
+  micPrimePromise = doPrimeMicrophonePermission().finally(() => {
+    micPrimePromise = null
+  })
+  return micPrimePromise
 }
 
 /** @deprecated Use primeMicrophonePermission */
@@ -133,10 +161,9 @@ export async function prepareMicrophone(): Promise<boolean> {
 export async function acquireSharedMicrophone(): Promise<MediaStream | null> {
   if (sharedMicStream?.active) return sharedMicStream
   if (!navigator.mediaDevices?.getUserMedia) return null
-  const gestureStream = await consumeGestureMicStream()
-  if (gestureStream) {
-    sharedMicStream = gestureStream
-    markMicPrimed()
+  const gestureStream = await awaitGestureMicStream(500)
+  if (gestureStream?.active) {
+    adoptWarmMicStream(gestureStream)
     return gestureStream
   }
   if (!micAcquirePromise) {
@@ -144,6 +171,7 @@ export async function acquireSharedMicrophone(): Promise<MediaStream | null> {
       .getUserMedia({ audio: true })
       .then((stream) => {
         sharedMicStream = stream
+        markMicPrimed()
         return stream
       })
       .catch(() => null)

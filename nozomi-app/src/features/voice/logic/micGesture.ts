@@ -21,6 +21,19 @@ let gestureOpenedAt = 0
  * Start opening the mic in the same turn as a tap (required on iOS Safari).
  * Safe to call multiple times; reuses an active stream.
  */
+/** Wait for an in-flight gesture mic open (avoids a second getUserMedia prompt). */
+export async function awaitGestureMicStream(
+  maxWaitMs = 4_000,
+): Promise<MediaStream | null> {
+  if (heldStream?.active) return heldStream
+  if (!pendingOpen) return null
+  const stream = await Promise.race([
+    pendingOpen,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), maxWaitMs)),
+  ])
+  return stream?.active ? stream : heldStream?.active ? heldStream : null
+}
+
 export function startMicCaptureFromGesture(): void {
   if (!navigator.mediaDevices?.getUserMedia) return
   if (heldStream?.active) {

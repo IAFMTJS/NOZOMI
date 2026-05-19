@@ -15,10 +15,7 @@ import {
 import { scheduleReleaseOfflineSttPipeline } from '@/features/voice/logic/offlineSttLifecycle'
 import { transcribeCloudAudio } from '@/features/voice/logic/cloudStt'
 import { useNozomiStore } from '@/store/useNozomiStore'
-import {
-  isMicRecentlyPrimed,
-  micErrorFromUnknown,
-} from '@/features/voice/logic/speechCapabilities'
+import { micErrorFromUnknown } from '@/features/voice/logic/speechCapabilities'
 import {
   bumpListenGeneration,
   commitEmptyTranscript,
@@ -46,9 +43,28 @@ import {
   getSttEngine,
   setSessionSttEngine,
 } from '@/features/voice/logic/sttEngine'
-import { releaseSharedMicrophone } from '@/features/voice/logic/speechCapabilities'
+import {
+  getSharedMicStream,
+  isMicRecentlyPrimed,
+  releaseSharedMicrophone,
+} from '@/features/voice/logic/speechCapabilities'
 import { releaseDecodeContext } from '@/features/voice/logic/audioDecode'
 import { isIos, isMobileDevice } from '@/utils/device'
+import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
+import {
+  MAX_RECORDING_BLOB_BYTES,
+  MAX_RECORDING_MS,
+  MIC_SOUND_DETECT_THRESHOLD,
+  STT_USER_TIMEOUT_MS,
+} from '@/features/voice/context/speech-listen/constants'
+import { promiseWithTimeout } from '@/features/voice/logic/promiseTimeout'
+import {
+  clearRecordedCaptureTimers,
+  setRecordingCapTimer,
+} from '@/features/voice/logic/recordedListenTimers'
+import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
+import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
+import { startBrowserListening } from '@/features/voice/logic/browserSttListen'
 
 /** Let the mic stack settle before decode + WASM (reduces tab reloads on iOS). */
 async function yieldBeforeTranscribe(): Promise<void> {
@@ -65,21 +81,6 @@ function unwindEmptyFinalize(generation: number): void {
   voiceDebugWarn('rec:finalize-unwind-empty', { generation })
   commitEmptyTranscript(generation)
 }
-import type { SpeechCallbacks, StartListeningOptions } from '@/features/voice/logic/types'
-import {
-  MAX_RECORDING_BLOB_BYTES,
-  MAX_RECORDING_MS,
-  MIC_SOUND_DETECT_THRESHOLD,
-  STT_USER_TIMEOUT_MS,
-} from '@/features/voice/context/speech-listen/constants'
-import { promiseWithTimeout } from '@/features/voice/logic/promiseTimeout'
-import {
-  clearRecordedCaptureTimers,
-  setRecordingCapTimer,
-} from '@/features/voice/logic/recordedListenTimers'
-import { setVoicePipelineStep } from '@/features/voice/logic/voicePipelineStep'
-import { voiceDebug, voiceDebugError, voiceDebugWarn } from '@/features/voice/logic/voiceDebug'
-import { startBrowserListening } from '@/features/voice/logic/browserSttListen'
 
 function failRecordedFinalize(
   generation: number,
@@ -263,7 +264,10 @@ function startRecordedListeningNow(
   }
 
   resetListenSessionState()
-  releaseSharedMicrophone()
+  // Keep a primed warm stream — startMicSession adopts it (avoids a second permission prompt).
+  if (!isMicRecentlyPrimed() || !getSharedMicStream()?.active) {
+    releaseSharedMicrophone()
+  }
   bindListeningHandlers(callbacks)
 
   const generation = bumpListenGeneration()

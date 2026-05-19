@@ -16,8 +16,17 @@ export const MAX_RECORDING_BLOB_BYTES = 2_500_000
 /** Deepgram / cloud REST ceiling. */
 export const CLOUD_STT_TIMEOUT_MS = 18_000
 
+/** Safety: transcript finalize hung (local Whisper / browser commit). */
+export const FINALIZE_STUCK_MS = STT_USER_TIMEOUT_MS + 4_000
+
+/** Engine / NLU hung after STT (no TTS yet). */
+export const PROCESSING_STUCK_MS = VOICE_TURN_TIMEOUT_MS + 8_000
+
+/** Mic open stuck in permission_pending without a listen session. */
+export const PERMISSION_PREPARE_TIMEOUT_MS = 12_000
+
 /** Safety: if UI stays in finalize/processing too long, force recovery. */
-export const PIPELINE_STUCK_RECOVERY_MS = STT_USER_TIMEOUT_MS + 12_000
+export const PIPELINE_STUCK_RECOVERY_MS = FINALIZE_STUCK_MS
 
 /** After stop: wait for local Whisper transcript (must exceed infer timeout). */
 export const FINISH_WAIT_LOCAL_MS = 95_000

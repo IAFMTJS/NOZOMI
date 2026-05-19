@@ -46,6 +46,7 @@ import { useUiStore } from '@/store/useUiStore'
 import { useOrbSize } from '@/hooks/useVisualViewportHeight'
 import { isMobileDevice } from '@/utils/device'
 import { isVoiceSessionBusy } from '@/features/voice/logic/voiceSessionGuard'
+import { forceRecoverVoiceUi } from '@/features/voice/logic/voiceTurnCoordinator'
 import { micNeedsHttpsLabel } from '@/utils/devConnect'
 
 import type { ScenarioCategory } from '@/types/domain'
@@ -213,11 +214,17 @@ export function ListeningPage() {
       attachToActiveSession()
     } else {
       const ui = useUiStore.getState()
-      if (
-        ui.speechState === 'permission_pending' &&
-        !isListenSessionActive()
-      ) {
-        cancelSession()
+      if (ui.speechState === 'permission_pending' && !isListenSessionActive()) {
+        window.setTimeout(() => {
+          if (!listenMountedRef.current) return
+          const now = useUiStore.getState()
+          if (
+            now.speechState === 'permission_pending' &&
+            !isListenSessionActive()
+          ) {
+            forceRecoverVoiceUi('orphan-permission-pending')
+          }
+        }, 1_500)
       }
     }
     bootedRef.current = true

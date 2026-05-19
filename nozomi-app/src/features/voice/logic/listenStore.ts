@@ -402,14 +402,13 @@ export function scheduleFinalizeCommit(sessionGen: number, attempt = 0): void {
     return
   }
 
-  if (attempt >= 24) {
+  if (attempt >= 12) {
     voiceDebugWarn('stt:finalize-gave-up', { attempt, ...getSttDebugState() })
     if (listenSession && !listenSession.gotResult) {
       listenSession.gotResult = true
       listenSession.stopped = true
       clearFinalizeTimers()
-      dispatch('onStateChange', 'processing')
-      dispatch('onResult', '')
+      commitEmptyTranscript(sessionGen)
     }
     return
   }
